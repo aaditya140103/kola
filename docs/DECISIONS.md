@@ -104,3 +104,19 @@ Short record of settled decisions. Update only when a durable product/technical 
   - important UX changes should be validated using behavioral metrics plus validated subjective UX/aesthetic measures where appropriate.
 - Evidence base: `docs/UX_RESEARCH.md`.
 - Validation protocol: `docs/UX_VALIDATION.md`.
+
+## D-016 — Reading Intelligence is private, active-time based, and non-punitive
+
+- Status: accepted
+- Decision: Kola will provide a local Reading Intelligence layer containing active reading-time tracking, reading sessions, per-document insights, reading history, Reading List / Want to Read, Next Up queue, optional goals, optional streaks, completion history, and analytics.
+- Consequences:
+  - time is based on trusted active/passive-reading states, not simple document-open duration;
+  - Reading List is a first-class model separate from Favorites;
+  - planned items may exist without a local document file and later link to an imported document;
+  - goals and streaks are optional and visually secondary;
+  - missed goals must not use punitive or guilt-oriented UX;
+  - users can correct/delete erroneous reading sessions and disable analytics/history tracking;
+  - analytics remain local unless explicitly included in BYOC sync;
+  - durable session/list/goal records sync; chart aggregates are preferably derived locally;
+  - time-remaining estimates require enough trusted data and display approximate values.
+- Detailed design: `docs/READING_ANALYTICS.md`.
