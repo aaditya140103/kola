@@ -6,42 +6,58 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Specification / architecture complete enough to begin Phase 0 implementation; visual direction prototyping remains the immediate UX task. Product scope is now explicitly focused on reading/annotation and excludes AI and dedicated study systems.**
+**Phase 0 implementation has started.**
 
-The repository contains product, focused feature-strategy, architecture, universal-format, adaptive UX, evidence-based UX research/validation, visual-direction, Reading Intelligence, optional BYOC sync, roadmap, agent-context, decision, and project-graph specifications. The Flutter application scaffold has not yet been initialized.
+The Flutter application foundation now exists in source form: package metadata, Riverpod root, go_router navigation, adaptive shell, tokenized theme system, initial Library/Home/Search/Insights/Reader prototypes, CI, smoke test, and native-platform bootstrap script.
+
+Native Android/iOS/Linux/macOS/Windows project folders are intentionally generated with `bash tool/bootstrap.sh` on a Flutter-equipped machine rather than hand-maintained before the first real toolchain run.
 
 ## Current product state
 
 - Product: local-first universal document reader + annotation workspace.
 - Strategic wedge: beautiful universal reader + source-linked Flow Mode + best-in-class annotations + local-first/BYOC ownership + universal local search + Reading Intelligence + migration/interoperability.
+- Product scope excludes AI assistants/LLMs and dedicated study systems.
 - Targets: Linux, Windows, macOS, Android, iOS, tablets, foldables.
 - Primary app stack: Flutter/Dart.
-- Persistence: SQLite + Drift.
 - State: Riverpod.
 - Routing: go_router.
-- Search: local FTS/indexing only; no AI/embedding search subsystem.
-- PDF candidate: PDFium via adapter (`pdfrx` initially).
-- Sync: optional Bring Your Own Cloud through `SyncBackend` adapters; never required for reading.
-- Reading Intelligence: active reading-time sessions, reading history, Reading List / Want to Read, Next Up queue, per-document insights, completion history, optional goals/streaks, local analytics.
-- Supporting reader features: TTS/read-aloud, dictionary/lookup/translation, Parallel Read/Compare, import/export, Calibre/OPDS/KOReader interoperability where feasible.
-- UX thesis: calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior.
-- Visual hypotheses: Luminous Paper, Editorial Scholar, Soft Expressive, and Kola Core hybrid candidate.
-- Rust: deferred until measured need.
+- Persistence direction: SQLite + Drift; package dependencies added, schema not implemented yet.
+- Search direction: local FTS/indexing only; current Search screen is a prototype shell.
+- Current UI: tokenized Kola Core prototype skin; final visual direction remains unvalidated.
+- Current Reader: Flow/Fidelity shell only; no document engine attached yet.
+- CI: GitHub Actions runs dependency resolution, formatting check, analysis, and tests.
 
-## Settled architecture
+## Implemented files
 
 ```text
-Adaptive native shell
-  -> Flutter application
-  -> Kola domain/use cases
-  -> DocumentAdapter registry
-  -> format parsers/renderers
-  -> NormalizedDocument + SourceMap
-  -> Fidelity View / Flow Mode / Search / Annotation
-  -> Progress + Coverage -> Reading Intelligence
-  -> SQLite/Drift + local files
-  -> optional Sync Projection -> user-selected SyncBackend
+pubspec.yaml
+analysis_options.yaml
+lib/main.dart
+lib/app/kola_app.dart
+lib/app/router.dart
+lib/design_system/tokens/kola_tokens.dart
+lib/design_system/theme/kola_theme.dart
+lib/shared/widgets/kola_adaptive_scaffold.dart
+lib/features/home/presentation/home_screen.dart
+lib/features/library/presentation/library_screen.dart
+lib/features/search/presentation/search_screen.dart
+lib/features/insights/presentation/insights_screen.dart
+lib/features/reader/presentation/reader_screen.dart
+test/app_smoke_test.dart
+tool/bootstrap.sh
+.github/workflows/flutter-ci.yml
 ```
+
+## Current UI behavior
+
+- Compact widths use bottom navigation.
+- Wider windows use NavigationRail; large widths extend labels.
+- Home includes Continue Reading, Next Up, progress/coverage/time concepts, and weekly insight cards.
+- Library uses a responsive book grid.
+- Search communicates the local-search architecture and has prototype results.
+- Insights has responsive metrics and a simple weekly reading chart.
+- Reader is immersive, hides/reveals chrome, switches between Flow/Fidelity prototypes, and exposes progress/annotation/navigation controls.
+- App light/dark theme follows system theme; reader-surface styling remains separately evolvable.
 
 ## Key invariants
 
@@ -52,80 +68,50 @@ Adaptive native shell
 - Universal format adapters; no PDF-only product architecture.
 - Flow Mode is universal and source-linked.
 - Annotation anchors are source-based/hybrid.
-- Position progress, reading coverage, and active reading time are distinct concepts.
-- Reading time must not equal simple document-open duration.
+- Position progress, reading coverage, and active reading time are distinct.
 - Reading List is separate from Favorites.
-- Goals/streaks are optional and non-punitive.
-- Reading analytics/history stay local unless explicitly included in BYOC sync.
-- Kola semantics stay consistent; shell/interactions adapt natively.
-- Meaningful UX choices require evidence, accessibility, platform convention, measured results, or explicit experimentation.
-- New features must deepen the reading platform instead of creating disconnected silos.
-- AI assistants/LLMs and dedicated study systems are explicitly out of scope unless the product decision is revisited.
-- App theme and reader theme/background are separate.
-- User data is durable; caches and precomputed analytics aggregates are disposable/rebuildable.
-
-## Current documentation map
-
-- `AGENTS.md` — canonical compact instructions for every coding agent.
-- `README.md` — product overview and focused scope.
-- `docs/PROJECT_STATE.md` — this live state; update every patch.
-- `docs/PROJECT_GRAPH.md` — architecture, reading-intelligence, workflow, sync, and UX diagrams.
-- `docs/DECISIONS.md` — settled decisions including D-018 (no AI/study systems).
-- `docs/APP.md` — full product requirements and explicit non-goals.
-- `docs/FEATURE_STRATEGY.md` — S-tier reading feature strategy and explicit exclusions.
-- `docs/ARCHITECTURE.md` — detailed document/local architecture.
-- `docs/DESIGN_SYSTEM.md` — adaptive-native design system.
-- `docs/UX_SPEC.md` — interaction/UI specification.
-- `docs/UX_RESEARCH.md` — scientific/HCI/accessibility/platform evidence behind visual rules.
-- `docs/UX_VALIDATION.md` — hypothesis, prototype, testing, metrics, and release-gate protocol.
-- `docs/VISUAL_DIRECTIONS.md` — competing visual systems and comparison criteria.
-- `docs/READING_ANALYTICS.md` — active-time tracking, dashboard, Reading List, goals, completion analytics, and privacy.
-- `docs/UNIVERSAL_FORMATS.md` — format strategy.
-- `docs/SYNC.md` — optional Bring Your Own Cloud sync architecture.
-- `docs/ROADMAP.md` — implementation order with no AI/study phase.
-- `docs/RESEARCH.md` — general historical/reference material; not product scope.
+- AI and dedicated study systems remain out of scope.
+- Visual style is not locked; shared UI stays tokenized.
+- User data is durable; caches/derived aggregates are rebuildable.
 
 ## Most recent context change
 
-Completed a full scope cleanup after the no-AI/no-study decision:
+Started the actual codebase:
 
-- deleted `docs/AI.md`;
-- rewrote `docs/FEATURE_STRATEGY.md` around reading-only S-tier features;
-- removed the old roadmap's `Search and knowledge workflows` study items (`study-sheet export`, backlinks) and replaced them with pure search/export/navigation work;
-- added an explicit roadmap exclusion section stating there is no planned AI or study-system phase;
-- rewrote `docs/APP.md` to define AI/LLM and dedicated study systems as product non-goals;
-- rewrote README positioning so Kola is clearly a reader rather than an AI/study super-app;
-- `AGENTS.md` already blocks agents from adding AI, flashcards, SRS, mind maps, knowledge graphs, Recall Mode, or study-sheet/quiz systems;
-- D-018 in `DECISIONS.md` remains the durable scope decision.
+- added current foundational packages (`flutter_riverpod`, `go_router`, `drift`, `sqlite3`, `path_provider`);
+- added Kola spacing/radius/motion/breakpoint/color tokens;
+- added system light/dark application themes;
+- added adaptive navigation shell;
+- added Home, Library, Search, Reading Insights, and Reader prototypes;
+- added Flow/Fidelity prototype switching and immersive reader chrome;
+- added smoke test and Flutter CI;
+- added `tool/bootstrap.sh` to generate native platform projects and run checks;
+- expanded `.gitignore` for Flutter artifacts;
+- updated README with development/bootstrap instructions.
 
-## Risks / open engineering questions
+## Risks / blockers
 
-- Universal Flow Mode remains the highest-risk differentiator because quality varies heavily by format/layout.
-- Annotation anchoring and text-selection correctness remain core engineering risks.
-- Broad format support requires careful parser/library validation and license review.
-- Migration/import formats and third-party interoperability APIs may change and need stable adapter boundaries.
-- E-reader/KOReader integrations require careful identity, conflict, and statistics semantics.
-- Active reading-time heuristics need real-user validation; static-page reading must not be mistaken for idle too quickly.
-- Kola still needs actual prototypes/user data before one visual direction becomes the default.
-- First-glance attractiveness may conflict with long-session reading comfort; both must be measured.
+- This execution environment does not contain Flutter/Dart, so local compilation could not be performed here; GitHub CI is the current verification path.
+- CI may expose Flutter-version/API issues in the first prototype and should be fixed before adding more features.
+- Native platform project folders still need first generation through the bootstrap script.
+- Drift schema and database lifecycle are not implemented yet.
+- Universal Flow Mode, annotation anchoring, and real text selection remain the highest-risk core engineering areas.
+- Current UI uses demo data only and must not leak prototype models into domain/storage layers.
+- Final visual direction still requires comparative UX validation.
 
 ## Next recommended action
 
-Start Phase 0 with a **prototype-first visual system and deliberately focused reader scope**:
+1. Inspect/fix the first Flutter CI run until formatting, analysis, and tests are green.
+2. Generate native platform folders with `bash tool/bootstrap.sh` on a Flutter-equipped machine and commit stable generated platform scaffolding.
+3. Add `PlatformProfile` / input-capability abstractions and reduced-motion handling.
+4. Implement the first Drift database schema for documents, reading state, sessions, planned reading items, goals, and annotations.
+5. Replace Home/Library demo records with repository-backed local data.
+6. Define `DocumentAdapter`, `FormatRegistry`, KDG node/source-map interfaces.
+7. Integrate PDF fidelity reading only after those app-owned interfaces exist.
+8. Keep visual primitives tokenized until the UX comparison is run.
 
-1. Initialize the Flutter project and core design-token infrastructure.
-2. Build tokenized Library and Reader shells without format-specific complexity.
-3. Prototype the active visual directions using the same component logic.
-4. Include `Continue Reading`, `Next Up`, a minimal Reading Insight state, and basic library/search affordances.
-5. Produce desktop + phone Library/Reader states plus annotation and appearance states.
-6. Run the first comparative UX evaluation using `UX_VALIDATION.md`.
-7. Lock only winning/shared primitives; keep reader themes customizable.
-8. Add local database schema for documents, annotations, reading sessions, planned reading items, goals, progress/coverage, and future sync revisions.
-9. Begin reader MVP with PDF/EPUB and annotation correctness before broadening format coverage.
-10. Add CI for formatting, analysis, tests, and later golden visual tests.
-
-Do not implement cloud providers yet. Do not add AI or dedicated study systems. Do not hard-code a final visual style before comparative prototypes exist.
+Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
 ## Required update after every patch
 
-Update only the sections affected by the patch. If architecture changes, also update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. If feature scope/prioritization changes, update `FEATURE_STRATEGY.md`. Meaningful UX changes must be checked against `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
+If architecture changes, also update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. If feature scope changes, update `FEATURE_STRATEGY.md`. Meaningful UX changes must remain consistent with `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
