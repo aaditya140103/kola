@@ -269,7 +269,70 @@ flowchart TB
 
 **Rules:** never sync the live SQLite file; sync is optional; local reading continues through all sync failures.
 
-## 10. Agent change protocol
+## 10. Evidence-based UX loop
+
+```mermaid
+flowchart TD
+    Problem[Observed User / Reading Problem]
+    Context[Define User + Task + Platform + Context]
+    Hypothesis[Design Hypothesis]
+    Evidence{Best available basis?}
+    Standards[Accessibility / Standards]
+    Research[HCI / Human Factors]
+    Convention[Platform Convention]
+    Experiment[Explicit Design Experiment]
+    Prototype[Prototype Competing Solution]
+    Test[User Test / Reading Session]
+    Behavior[Behavioral Metrics]
+    Experience[UX / Aesthetic Measures]
+    Decide{Success criteria met?}
+    Keep[Keep + Document]
+    Revise[Revise / Reject]
+
+    Problem --> Context --> Hypothesis --> Evidence
+    Evidence --> Standards
+    Evidence --> Research
+    Evidence --> Convention
+    Evidence --> Experiment
+    Standards --> Prototype
+    Research --> Prototype
+    Convention --> Prototype
+    Experiment --> Prototype
+    Prototype --> Test
+    Test --> Behavior
+    Test --> Experience
+    Behavior --> Decide
+    Experience --> Decide
+    Decide -- yes --> Keep
+    Decide -- no --> Revise --> Hypothesis
+```
+
+### UX evidence priority
+
+```text
+Accessibility/standards
+  > validated human-factors evidence
+  > native platform convention
+  > measured Kola user results
+  > visual trend / deliberate experiment
+```
+
+Trends are permitted only when they do not undermine the layers above.
+
+Core visual thesis:
+
+```text
+Calm reading surface
++ familiar structure
++ high craftsmanship
++ selective expressive interactions
++ platform-native behavior
+```
+
+Detailed rationale: `docs/UX_RESEARCH.md`.
+Testing protocol: `docs/UX_VALIDATION.md`.
+
+## 11. Agent change protocol
 
 ```mermaid
 flowchart TD
@@ -280,16 +343,20 @@ flowchart TD
     Test[Test / Analyze]
     State[Update PROJECT_STATE]
     Arch{Architecture/data flow changed?}
+    UX{Meaningful UX pattern changed?}
     Decision{Durable decision changed?}
     Req{Requirement changed?}
     Graph[Update PROJECT_GRAPH]
+    Validate[Check UX_RESEARCH / UX_VALIDATION]
     ADR[Update DECISIONS]
     Detail[Update Relevant Spec]
     Done[Patch Complete]
 
     Task --> Read --> Spec --> Change --> Test --> State --> Arch
-    Arch -- yes --> Graph --> Decision
-    Arch -- no --> Decision
+    Arch -- yes --> Graph --> UX
+    Arch -- no --> UX
+    UX -- yes --> Validate --> Decision
+    UX -- no --> Decision
     Decision -- yes --> ADR --> Req
     Decision -- no --> Req
     Req -- yes --> Detail --> Done
