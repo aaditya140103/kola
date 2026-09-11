@@ -6,9 +6,9 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Specification / architecture complete enough to begin Phase 0 implementation, with evidence-based UX methodology now defined.**
+**Specification / architecture complete enough to begin Phase 0 implementation; visual direction prototyping is now the immediate UX task.**
 
-The repository contains product, architecture, universal-format, adaptive UX, scientific UX research/validation, optional BYOC sync, roadmap, agent-context, decision, and project-graph specifications. The Flutter application scaffold has not yet been initialized.
+The repository contains product, architecture, universal-format, adaptive UX, evidence-based UX research/validation, competing visual-direction, optional BYOC sync, roadmap, agent-context, decision, and project-graph specifications. The Flutter application scaffold has not yet been initialized.
 
 ## Current product state
 
@@ -22,6 +22,7 @@ The repository contains product, architecture, universal-format, adaptive UX, sc
 - PDF candidate: PDFium via adapter (`pdfrx` initially).
 - Sync: optional Bring Your Own Cloud through `SyncBackend` adapters; never required for reading.
 - UX thesis: calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior.
+- Visual hypotheses: Luminous Paper, Editorial Scholar, Soft Expressive, and Kola Core hybrid candidate.
 - UX process: evidence/accessibility/platform convention -> hypothesis/prototype -> behavioral + subjective validation.
 - Rust: deferred until measured need.
 
@@ -52,6 +53,7 @@ See `docs/PROJECT_GRAPH.md` for architecture + UX-process diagrams and `docs/DEC
 - Annotation anchors are source-based/hybrid.
 - Kola semantics stay consistent; shell/interactions adapt natively.
 - Meaningful UX choices require evidence, accessibility, platform convention, measured results, or explicit experimentation.
+- Visual style is not locked yet; design primitives should remain tokenized enough to compare directions.
 - Position progress and reading coverage are separate.
 - App theme and reader theme/background are separate.
 - User data is durable; caches are disposable.
@@ -69,6 +71,7 @@ See `docs/PROJECT_GRAPH.md` for architecture + UX-process diagrams and `docs/DEC
 - `docs/UX_SPEC.md` — interaction/UI specification.
 - `docs/UX_RESEARCH.md` — scientific/HCI/accessibility/platform evidence behind visual rules.
 - `docs/UX_VALIDATION.md` — hypothesis, prototype, testing, metrics, questionnaire, and release-gate protocol.
+- `docs/VISUAL_DIRECTIONS.md` — competing visual systems, token roles, prototypes, and comparison criteria.
 - `docs/UNIVERSAL_FORMATS.md` — format strategy.
 - `docs/SYNC.md` — optional Bring Your Own Cloud sync protocol/architecture.
 - `docs/ROADMAP.md` — implementation order.
@@ -76,43 +79,41 @@ See `docs/PROJECT_GRAPH.md` for architecture + UX-process diagrams and `docs/DEC
 
 ## Most recent context change
 
-Added an evidence-based UI/UX framework because appearance and long-term reading comfort are core Kola product requirements:
+Added the first concrete visual-design comparison system:
 
-- created `docs/UX_RESEARCH.md` with evidence tiers, aesthetics research, reading/typography rules, contrast, motion, platform trends, cognitive-accessibility principles, and Kola's visual thesis;
-- created `docs/UX_VALIDATION.md` with a scientific design loop, task metrics, long-reading studies, longitudinal testing, accessibility gates, UEQ-S/SUS/VisAWI-S/NASA-TLX usage, and experiment templates;
-- added the UX evidence loop to `PROJECT_GRAPH.md`;
-- added durable decision D-015: UI/UX is evidence-driven, not trend-driven;
-- updated `AGENTS.md` so meaningful visual changes require a stated rationale and appropriate validation;
-- surfaced the UX research/validation documents from the README.
+- created `docs/VISUAL_DIRECTIONS.md`;
+- defined Luminous Paper, Editorial Scholar, Soft Expressive, and Kola Core hybrid candidate;
+- defined semantic color/spacing/radius/depth/motion token roles;
+- identified the components that establish Kola's identity;
+- required desktop/mobile Library + Reader + annotation + appearance prototypes before style selection;
+- defined comparative testing against aesthetics, task success, discoverability, reading comfort, platform familiarity, accessibility, and long-session preference;
+- updated `AGENTS.md` and `README.md` so agents do not prematurely lock a visual style.
 
 Agent-continuity rules remain mandatory: every patch updates this file, architecture changes update `PROJECT_GRAPH.md`, and durable decisions update `DECISIONS.md`.
 
 ## Risks / open engineering questions
 
-- Exact libraries/engines for every ebook, Office, DjVu, archive, and legacy format must be validated during adapter implementation.
-- Universal Flow Mode quality differs by source format; complex regions require source-preserving fallbacks.
-- Annotation anchoring and text-selection correctness remain the highest-risk core engineering areas.
-- Office fidelity rendering may require platform/native or conversion strategies that must remain local and license-compatible.
-- Kola needs its own user-research baseline before numerical UX targets are treated as release thresholds.
-- Visual expressiveness must be validated in long reading sessions; first-impression preference alone is insufficient.
-- Cross-platform custom controls must preserve native accessibility, input, and reduced-motion behavior.
+- Kola needs actual prototypes/user data before one visual direction becomes the default.
+- First-glance attractiveness may conflict with long-session reading comfort; both must be measured.
+- Glass/transparency effects need contrast, battery/GPU, and platform-performance validation.
+- Expressive color/motion must not create visual noise inside the reading surface.
+- Exact libraries/engines for broad document formats still require implementation validation.
+- Annotation anchoring and text-selection correctness remain core engineering risks.
 - Sync merge semantics need adversarial multi-device tests before provider integrations.
 
 ## Next recommended action
 
-Initialize **Phase 0**:
+Start Phase 0 with a **prototype-first visual system**:
 
-1. Create Flutter project targeting all supported native platforms.
-2. Establish `lib/app`, `lib/core`, `lib/design_system`, `lib/document`, and `lib/features` boundaries.
-3. Add Riverpod, go_router, Drift/SQLite.
-4. Implement adaptive-native application shell primitives.
-5. Create design tokens for spacing, typography, color roles, geometry, motion, elevation/material, and breakpoints.
-6. Implement separate app-theme and reader-theme models.
-7. Build the first Library + empty Reader shell prototypes and evaluate hierarchy at compact/expanded widths against `UX_RESEARCH.md`.
-8. Add stable UUID/revision fields to durable domain entities for future sync.
-9. Add CI for formatting, analysis, tests, and later golden visual tests.
+1. Initialize the Flutter project and core design-token infrastructure.
+2. Build tokenized Library and Reader shells without format-specific complexity.
+3. Prototype Luminous Paper, Editorial Scholar, Soft Expressive, and Kola Core using the same component logic.
+4. Produce desktop + phone Library/Reader states plus annotation and appearance states.
+5. Run the first comparative UX evaluation using `UX_VALIDATION.md`.
+6. Lock only the winning/shared primitives; keep reader themes customizable.
+7. Then continue with local database, routing/state architecture, and first document adapter integration.
 
-Do **not** implement cloud providers in Phase 0. Do not prematurely add fashionable glass/motion effects before the design-system primitives and prototype validation exist.
+Do not implement cloud providers yet. Do not hard-code a final visual style before comparative prototypes exist.
 
 ## Required update after every patch
 
@@ -123,4 +124,4 @@ Replace/update only the sections affected by the patch:
 - `Risks / open engineering questions`
 - `Next recommended action`
 
-If architecture changes, also update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. Meaningful UX changes must be checked against `UX_RESEARCH.md` and the validation approach in `UX_VALIDATION.md`. Keep this file concise and current rather than accumulating history.
+If architecture changes, update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. Meaningful UX changes must be checked against `UX_RESEARCH.md`, `UX_VALIDATION.md`, and the active hypotheses in `VISUAL_DIRECTIONS.md`.
