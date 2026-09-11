@@ -71,9 +71,9 @@ class HomeScreen extends ConsumerWidget {
               const _SectionHeader(title: 'This week'),
               const SizedBox(height: KolaSpacing.md),
               _InsightStrip(
-                documentCount: documents.valueOrNull?.length ?? 0,
-                readingListCount: readingList.valueOrNull?.length ?? 0,
-                sessions: sessions.valueOrNull ?? const <ReadingSession>[],
+                documentCount: documents.value?.length ?? 0,
+                readingListCount: readingList.value?.length ?? 0,
+                sessions: sessions.value ?? const <ReadingSession>[],
               ),
             ],
           ),
