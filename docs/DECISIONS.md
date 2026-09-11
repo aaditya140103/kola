@@ -149,3 +149,10 @@ Short record of settled decisions. Update only when a durable product/technical 
   - dedicated study-sheet/quiz systems.
 - Why: these systems broaden Kola away from its strongest identity as a beautiful universal reading and annotation application and materially increase product/UX complexity.
 - Consequence: agents must not reintroduce them as “later roadmap” items without an explicit product decision change.
+
+## D-019 — Drift timestamps use ISO-8601 text
+
+- Status: accepted
+- Decision: New Kola database schemas store Drift `DATETIME` values as ISO-8601 text instead of legacy Unix-second integers.
+- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization benefit from timezone preservation and sub-second precision.
+- Consequence: changing timestamp storage mode later requires an explicit schema migration; agents must not silently switch the Drift datetime build option.
