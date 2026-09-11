@@ -67,7 +67,7 @@ class _ContinueReadingCard extends StatelessWidget {
         final bool compact = constraints.maxWidth < 720;
         final Widget cover = Container(
           width: compact ? 104 : 132,
-          height: compact ? 150 : 190,
+          height: compact ? 170 : 206,
           decoration: BoxDecoration(
             borderRadius: KolaRadius.md,
             gradient: LinearGradient(
@@ -92,7 +92,7 @@ class _ContinueReadingCard extends StatelessWidget {
             padding: EdgeInsets.all(compact ? KolaSpacing.md : KolaSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
                   'The Design of Everyday Things',
@@ -102,7 +102,7 @@ class _ContinueReadingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: KolaSpacing.xs),
                 Text('Don Norman', style: theme.textTheme.bodyLarge),
-                const SizedBox(height: KolaSpacing.lg),
+                const SizedBox(height: KolaSpacing.md),
                 ClipRRect(
                   borderRadius: KolaRadius.pill,
                   child: const LinearProgressIndicator(value: 0.68, minHeight: 7),
@@ -117,7 +117,7 @@ class _ContinueReadingCard extends StatelessWidget {
                     Text('5h 24m', style: theme.textTheme.labelLarge),
                   ],
                 ),
-                const SizedBox(height: KolaSpacing.lg),
+                const SizedBox(height: KolaSpacing.md),
                 FilledButton.icon(
                   onPressed: () => context.go('/reader/demo'),
                   icon: const Icon(Icons.menu_book_rounded),
@@ -132,9 +132,9 @@ class _ContinueReadingCard extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.all(KolaSpacing.md),
-            child: SizedBox(
-              height: compact ? 190 : 230,
-              child: Row(children: <Widget>[cover, details]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[cover, details],
             ),
           ),
         );
