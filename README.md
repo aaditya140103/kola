@@ -7,14 +7,15 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 ## Core principles
 
 - Local-first and fully usable offline
-- No mandatory account or cloud backend
+- No mandatory account or Kola-hosted cloud
+- Optional Bring Your Own Cloud sync across devices
 - Universal Flow Mode backed by a source-mapped document graph
 - One consistent annotation model across formats
 - Broad ebook and office-document support
 - Separate position progress and actual reading coverage
 - Deep reader theme/background customization
 - Adaptive-native UI rather than one pixel-identical interface everywhere
-- User-owned data and exportable annotations
+- User-owned data, sync targets, and exportable annotations
 - Reader correctness and performance before decorative complexity
 
 ## Architecture direction
@@ -27,6 +28,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - local parsers/converters for ebook and office families
 - SQLite full-text search
 - isolates/background workers for parsing/indexing
+- optional `SyncBackend` adapters for user-owned cloud/storage
 - optional Rust/native engines only where broad format support or profiling justifies them
 
 ## Specifications
@@ -36,6 +38,10 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - [Adaptive Native Design System](docs/DESIGN_SYSTEM.md)
 - [UI/UX specification](docs/UX_SPEC.md)
 - [Universal format strategy](docs/UNIVERSAL_FORMATS.md)
+- [Bring Your Own Cloud sync](docs/SYNC.md)
+- [Project architecture graphs](docs/PROJECT_GRAPH.md)
+- [Decision ledger](docs/DECISIONS.md)
+- [Live project state](docs/PROJECT_STATE.md)
 - [Implementation roadmap](docs/ROADMAP.md)
 - [Research notes](docs/RESEARCH.md)
 
@@ -52,6 +58,12 @@ The closest practical representation of the original source: PDF pages, slides, 
 ### Reading Progress + Coverage
 
 Kola distinguishes **where you are** from **how much you actually read**, so jumping to the end does not falsely mark a document complete.
+
+### Bring Your Own Cloud
+
+Kola remains fully local by default, but users may connect storage they control—such as a local sync folder, WebDAV, Google Drive, OneDrive, Dropbox, or S3-compatible storage—to synchronize state and optionally documents between devices.
+
+Kola never synchronizes the live SQLite database file. It exchanges versioned portable records through a conflict-aware sync layer, and document upload is separately opt-in.
 
 ### Focus Mode
 
@@ -77,8 +89,14 @@ The product model, wording, annotation behavior, Flow Mode, and reading concepts
 
 The objective is not for screenshots to look identical. The objective is for Kola to feel like the same excellent reader intentionally designed for each platform.
 
+## For coding agents
+
+Start with [`AGENTS.md`](AGENTS.md), then read `docs/PROJECT_STATE.md` and `docs/PROJECT_GRAPH.md`. Load only the detailed specification relevant to the task.
+
+Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes must update `docs/PROJECT_GRAPH.md`; durable decisions must update `docs/DECISIONS.md`.
+
 ## Status
 
-**Architecture, format strategy, and UX/design-system specification phase.**
+**Architecture, format strategy, adaptive UX, and BYOC sync specification phase.**
 
-The next engineering milestone is to initialize the Flutter application, adaptive design primitives, local database, routing/state architecture, and CI, followed by the first document adapters and reader surfaces.
+The next engineering milestone is to initialize the Flutter application, adaptive design primitives, local database, routing/state architecture, and CI. Sync providers should come later; Phase 0 should only keep durable entity identity/change tracking sync-ready.
