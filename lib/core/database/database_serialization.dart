@@ -110,11 +110,11 @@ abstract final class DatabaseSerialization {
   static DateTime? nullableDateTime(Object? value) =>
       value == null ? null : dateTime(value);
 
-  static bool boolean(Object? value) => switch (value) {
-    bool flag => flag,
-    int number => number != 0,
-    _ => false,
-  };
+  static bool boolean(Object? value) {
+    if (value is bool) return value;
+    if (value is int) return value != 0;
+    return false;
+  }
 
   static T enumValue<T extends Enum>(List<T> values, Object? raw, T fallback) {
     if (raw is! String) return fallback;
