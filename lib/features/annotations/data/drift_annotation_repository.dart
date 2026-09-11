@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:kola/core/database/database_serialization.dart';
-import 'package:kola/core/database/kola_database.dart';
+import 'package:kola/core/database/kola_database.dart' hide Annotation;
 import 'package:kola/features/annotations/domain/annotation_models.dart';
 import 'package:kola/features/annotations/domain/annotation_repository.dart';
 
