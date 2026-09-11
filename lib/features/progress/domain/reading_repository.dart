@@ -11,6 +11,8 @@ abstract interface class ReadingRepository {
 
   Stream<List<ReadingSession>> watchSessions(String documentId);
 
+  Stream<List<ReadingSession>> watchAllSessions();
+
   Future<void> saveSession(ReadingSession session);
 
   Stream<List<PlannedReadingItem>> watchReadingList();
