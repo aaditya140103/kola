@@ -11,6 +11,7 @@
 .pub/
 build/
 coverage/
+*.g.dart
 
 # Generated ephemeral platform files
 **/Flutter/ephemeral/
