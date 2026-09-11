@@ -22,8 +22,8 @@ final class DriftReadingRepository implements ReadingRepository {
   }
 
   @override
-  Future<void> saveState(ReadingState state) {
-    return _database.customStatement(
+  Future<void> saveState(ReadingState state) async {
+    await _database.customStatement(
       '''
       INSERT INTO reading_states (
         document_id, locator_json, position_progress, view_mode,
@@ -47,6 +47,7 @@ final class DriftReadingRepository implements ReadingRepository {
         state.updatedAt,
       ],
     );
+    _database.markTablesUpdated([_database.readingStates]);
   }
 
   @override
@@ -67,8 +68,8 @@ final class DriftReadingRepository implements ReadingRepository {
   }
 
   @override
-  Future<void> saveCoverage(ReadingCoverage coverage) {
-    return _database.customStatement(
+  Future<void> saveCoverage(ReadingCoverage coverage) async {
+    await _database.customStatement(
       '''
       INSERT INTO reading_coverage (
         document_id, graph_version, coverage_blob, covered_weight,
@@ -91,6 +92,7 @@ final class DriftReadingRepository implements ReadingRepository {
         coverage.updatedAt,
       ],
     );
+    _database.markTablesUpdated([_database.readingCoverage]);
   }
 
   @override
@@ -114,8 +116,23 @@ final class DriftReadingRepository implements ReadingRepository {
   }
 
   @override
-  Future<void> saveSession(ReadingSession session) {
-    return _database.customStatement(
+  Stream<List<ReadingSession>> watchAllSessions() {
+    return _database
+        .customSelect(
+          'SELECT * FROM reading_sessions ORDER BY started_at DESC',
+          readsFrom: {_database.readingSessions},
+        )
+        .watch()
+        .map(
+          (List<QueryRow> rows) => List<ReadingSession>.unmodifiable(
+            rows.map(_sessionFromRow),
+          ),
+        );
+  }
+
+  @override
+  Future<void> saveSession(ReadingSession session) async {
+    await _database.customStatement(
       '''
       INSERT INTO reading_sessions (
         id, document_id, started_at, ended_at, active_ms, passive_ms,
@@ -145,6 +162,7 @@ final class DriftReadingRepository implements ReadingRepository {
         session.updatedAt,
       ],
     );
+    _database.markTablesUpdated([_database.readingSessions]);
   }
 
   @override
@@ -177,8 +195,8 @@ final class DriftReadingRepository implements ReadingRepository {
   }
 
   @override
-  Future<void> savePlannedItem(PlannedReadingItem item) {
-    return _database.customStatement(
+  Future<void> savePlannedItem(PlannedReadingItem item) async {
+    await _database.customStatement(
       '''
       INSERT INTO planned_reading_items (
         id, linked_document_id, title, authors_json, status,
@@ -208,14 +226,16 @@ final class DriftReadingRepository implements ReadingRepository {
         item.revision,
       ],
     );
+    _database.markTablesUpdated([_database.plannedReadingItems]);
   }
 
   @override
-  Future<void> removePlannedItem(String id) {
-    return _database.customStatement(
+  Future<void> removePlannedItem(String id) async {
+    await _database.customStatement(
       'DELETE FROM planned_reading_items WHERE id = ?',
       <Object?>[id],
     );
+    _database.markTablesUpdated([_database.plannedReadingItems]);
   }
 
   @override
@@ -234,8 +254,8 @@ final class DriftReadingRepository implements ReadingRepository {
   }
 
   @override
-  Future<void> saveGoal(ReadingGoal goal) {
-    return _database.customStatement(
+  Future<void> saveGoal(ReadingGoal goal) async {
+    await _database.customStatement(
       '''
       INSERT INTO reading_goals (
         id, metric, target_value, period, enabled,
@@ -263,6 +283,7 @@ final class DriftReadingRepository implements ReadingRepository {
         goal.revision,
       ],
     );
+    _database.markTablesUpdated([_database.readingGoals]);
   }
 
   ReadingState _stateFromRow(QueryRow row) {
