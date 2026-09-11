@@ -57,6 +57,7 @@ See `docs/PROJECT_GRAPH.md` for diagrams and `docs/DECISIONS.md` for durable cho
 ## Current documentation map
 
 - `AGENTS.md` — canonical compact instructions for every coding agent.
+- `README.md` — product overview and discovery entrypoint.
 - `docs/PROJECT_STATE.md` — this live state; update every patch.
 - `docs/PROJECT_GRAPH.md` — compact Mermaid architecture/workflow diagrams.
 - `docs/DECISIONS.md` — settled decisions.
@@ -71,7 +72,7 @@ See `docs/PROJECT_GRAPH.md` for diagrams and `docs/DECISIONS.md` for durable cho
 
 ## Most recent context change
 
-Added optional **Bring Your Own Cloud** synchronization while preserving local-first operation:
+Added optional **Bring Your Own Cloud** synchronization while preserving local-first operation, and surfaced it from the root README:
 
 - user-selected sync backends instead of mandatory Kola-hosted storage;
 - state-only, selected-document, and full-library scopes;
@@ -79,7 +80,8 @@ Added optional **Bring Your Own Cloud** synchronization while preserving local-f
 - conflict-aware merge/tombstone model;
 - content-addressed document blobs;
 - optional client-side encrypted Sync Vault direction;
-- dedicated `docs/SYNC.md` and sync graphs.
+- dedicated `docs/SYNC.md` and sync graphs;
+- README and `AGENTS.md` now point agents/contributors to the sync design.
 
 Agent-continuity rules remain mandatory: every patch updates this file, architecture changes update `PROJECT_GRAPH.md`, and durable decisions update `DECISIONS.md`.
 
