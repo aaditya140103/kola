@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:kola/core/database/database_serialization.dart';
-import 'package:kola/core/database/kola_database.dart';
+import 'package:kola/core/database/kola_database.dart'
+    hide ReadingCoverage, ReadingGoal, ReadingSession, ReadingState, PlannedReadingItem;
 import 'package:kola/features/progress/domain/reading_models.dart';
 import 'package:kola/features/progress/domain/reading_repository.dart';
 
