@@ -2,116 +2,139 @@
 
 ## 1. Architecture decision
 
-Kola should begin as a **Flutter/Dart local-first application** with a modular architecture and no server dependency.
+Kola remains a **Flutter/Dart local-first application** with no server dependency, but the document subsystem is now designed as a universal content engine rather than a PDF/EPUB-centric reader.
 
-### Why Flutter
+The architecture must support:
 
-Flutter currently supports Android, iOS, Windows, macOS and Linux from one application codebase. That directly matches Kola's deployment requirement while allowing custom rendering, animation, keyboard interactions, touch gestures and adaptive layouts.
+- Linux
+- Windows
+- macOS
+- Android
+- iOS
 
-### Why not Rust in v1
+from one application repository while allowing format-specific local engines behind stable interfaces.
 
-Rust is intentionally not part of the critical path for the first release. A Rust module can be introduced later for CPU-heavy OCR, document analysis, codecs or search workloads if profiling shows a measurable benefit.
+## 2. Core architectural idea
 
-The rule is simple: **do not add an FFI boundary before there is a performance or capability reason for one.**
+Every document format is normalized into a shared semantic representation called the **Kola Document Graph (KDG)**.
 
-## 2. Proposed technology stack
+```text
+Source file
+   -> FormatRegistry
+   -> DocumentAdapter
+      -> fidelity/source representation
+      -> semantic extraction
+      -> source mapping
+   -> KolaDocumentGraph
+      -> Flow Mode
+      -> Search
+      -> Progress
+      -> Annotation resolution
+      -> Export
+```
+
+This makes Flow Mode universal rather than format-specific.
+
+## 3. Proposed technology stack
 
 ### Application framework
 
 - Flutter
 - Dart
-- Material 3 primitives used selectively, with a custom Kola design system layered on top
+- custom Kola design system over selected Material primitives
 
-### State management
+### State and navigation
 
-Recommended: Riverpod
+- Riverpod
+- go_router
 
-Use providers/controllers at feature boundaries. Avoid storing domain state directly inside widgets.
-
-### Navigation
-
-Recommended: go_router
-
-Routes are lightweight because the reader itself should use internal tab/document navigation rather than creating a URL-style route for every page.
-
-### Local database
+### Durable local storage
 
 - SQLite
-- Drift as the typed Dart persistence layer
-- SQLite FTS5 for local full-text search where available through the bundled SQLite engine
+- Drift
+- SQLite FTS5 where supported by the bundled SQLite build
 
-### PDF engine
+### Primary format engines
 
-Recommended initial engine: `pdfrx`, backed by PDFium.
+Initial candidates:
 
-Use the viewer/rendering layer behind a Kola adapter. Never expose package-specific types to the rest of the application.
+- PDF: PDFium through `pdfrx`
+- EPUB/HTML-family: local structured parser and renderer
+- Office Open XML: local ZIP/XML parsing through adapter-specific code/libraries
+- spreadsheets: local workbook parser behind a Kola adapter
+- archives/comics: local archive decoder
+- legacy ebook formats: dedicated local parser or conversion adapter
 
-### EPUB
+No package-specific types may escape into the domain layer.
 
-Use an EPUB parser such as `epubx` behind the same document adapter interface. Kola owns rendering, theme, navigation and annotation behavior.
+### Rust/native core policy
 
-### Other formats
+Rust is no longer ruled out as strongly as in the first architecture draft because broad format support can justify a portable parsing core.
 
-- TXT: native text parser
-- Markdown: markdown parser -> normalized document tree
-- HTML: sanitize and parse local HTML -> normalized document tree
-- CBZ: ZIP reader -> ordered image sequence
-- CBR: add later through a compatible archive implementation
-- DOCX/DjVu: add later through separate adapters
+However, Rust should still be introduced **per capability**, not as a rewrite of the application.
 
-### Filesystem
+Likely future native boundaries:
 
-Use platform-safe Flutter filesystem APIs and abstractions. File imports must support both:
+```text
+UniversalDocumentCore
+ArchiveEngine
+LegacyEbookEngine
+OcrEngine
+OfficeBinaryEngine
+SearchAccelerator
+```
 
-- linked mode: retain external file path/URI where the OS permits;
-- managed mode: copy content into Kola's application library.
+Flutter remains the application/UI owner.
 
-## 3. Repository structure
+## 4. Repository structure
 
 ```text
 kola/
 ├─ lib/
 │  ├─ app/
-│  │  ├─ kola_app.dart
-│  │  ├─ router.dart
-│  │  └─ bootstrap.dart
 │  ├─ core/
 │  │  ├─ database/
 │  │  ├─ filesystem/
-│  │  ├─ logging/
-│  │  ├─ platform/
 │  │  ├─ search/
-│  │  └─ utils/
+│  │  ├─ jobs/
+│  │  └─ platform/
 │  ├─ design_system/
-│  │  ├─ color/
-│  │  ├─ motion/
+│  │  ├─ tokens/
+│  │  ├─ themes/
+│  │  ├─ backgrounds/
 │  │  ├─ typography/
-│  │  ├─ components/
-│  │  └─ tokens/
+│  │  └─ components/
 │  ├─ document/
+│  │  ├─ registry/
 │  │  ├─ model/
+│  │  ├─ graph/
 │  │  ├─ adapters/
 │  │  │  ├─ pdf/
 │  │  │  ├─ epub/
-│  │  │  ├─ markdown/
-│  │  │  ├─ text/
-│  │  │  ├─ html/
-│  │  │  └─ comic/
-│  │  ├─ parsing/
-│  │  ├─ reflow/
-│  │  └─ anchors/
+│  │  │  ├─ office_text/
+│  │  │  ├─ presentation/
+│  │  │  ├─ spreadsheet/
+│  │  │  ├─ comic/
+│  │  │  ├─ legacy_ebook/
+│  │  │  ├─ fixed_layout/
+│  │  │  └─ plain_text/
+│  │  ├─ flow/
+│  │  ├─ anchors/
+│  │  ├─ progress/
+│  │  └─ conversion/
 │  ├─ features/
 │  │  ├─ library/
 │  │  ├─ reader/
 │  │  ├─ annotations/
 │  │  ├─ collections/
 │  │  ├─ search/
+│  │  ├─ progress/
+│  │  ├─ themes/
 │  │  ├─ settings/
 │  │  ├─ import_export/
 │  │  └─ command_palette/
 │  └─ shared/
-│     ├─ models/
-│     └─ widgets/
+├─ native/              # optional portable native/Rust capabilities later
 ├─ test/
 ├─ integration_test/
 ├─ docs/
@@ -119,75 +142,39 @@ kola/
 └─ tool/
 ```
 
-Do not split this into many Dart packages prematurely. Start as a well-modularized app. Extract packages only when boundaries become stable or reusable.
+## 5. FormatRegistry
 
-## 4. Architectural layers
+The `FormatRegistry` detects the actual format using extension, MIME hints, magic bytes/container inspection, and adapter probes.
 
-### Presentation layer
+Never trust the extension alone.
 
-Flutter widgets, interaction controllers and view state.
+Conceptual API:
 
-Responsibilities:
+```dart
+abstract interface class FormatRegistry {
+  Future<FormatMatch> detect(DocumentSource source);
+  DocumentAdapter adapterFor(FormatMatch match);
+}
+```
 
-- rendering;
-- gestures;
-- keyboard shortcuts;
-- focus;
-- visual selection;
-- panels;
-- animations.
+## 6. DocumentAdapter
 
-It must not perform direct SQL or parse file formats.
-
-### Application layer
-
-Coordinates use cases such as:
-
-- importDocument;
-- openDocument;
-- addAnnotation;
-- changeReadingPosition;
-- buildSearchIndex;
-- exportAnnotations.
-
-### Domain layer
-
-Stable app-owned models and business rules.
-
-Examples:
-
-- Document
-- DocumentLocation
-- Annotation
-- AnnotationAnchor
-- Collection
-- ReadingProgress
-- SearchResult
-- ReflowBlock
-
-### Infrastructure layer
-
-Package/platform implementations:
-
-- PDFium/pdfrx;
-- SQLite/Drift;
-- filesystem;
-- archive decoding;
-- OS integrations.
-
-Infrastructure always implements an app-owned interface.
-
-## 5. The most important abstraction: DocumentAdapter
-
-Every format implements the same conceptual contract.
+Every format implements the same contract.
 
 ```dart
 abstract interface class DocumentAdapter {
   DocumentFormat get format;
+  FormatCapabilities get capabilities;
 
   Future<DocumentMetadata> readMetadata(DocumentSource source);
-
   Future<DocumentHandle> open(DocumentSource source);
+
+  Future<FidelityDescriptor?> buildFidelityView(DocumentHandle handle);
+
+  Stream<GraphChunk> buildDocumentGraph(
+    DocumentHandle handle,
+    GraphBuildOptions options,
+  );
 
   Stream<IndexChunk> extractIndexableContent(DocumentHandle handle);
 
@@ -200,140 +187,226 @@ abstract interface class DocumentAdapter {
 }
 ```
 
-A viewer must not ask, “Is this a PDF?” unless behavior is genuinely format-specific.
+## 7. Capability-driven UI
 
-## 6. Normalized document model
-
-Kola needs an internal structure for reflow, search and cross-format features.
+Each adapter advertises capabilities:
 
 ```text
-NormalizedDocument
+FormatCapabilities
+ - fidelityView
+ - flowMode
+ - textSelection
+ - textSearch
+ - textAnnotations
+ - areaAnnotations
+ - inkAnnotations
+ - spreadsheetRanges
+ - slideRegions
+ - outline
+ - embeddedMedia
+ - localOcr
+ - exportEmbeddedAnnotations
+```
+
+The UI responds to capabilities instead of branching on `if (pdf)` or `if (epub)`.
+
+## 8. Kola Document Graph (KDG)
+
+The KDG is the normalized semantic structure used by Flow Mode, search, coverage tracking, and cross-format annotations.
+
+```text
+KolaDocumentGraph
  ├─ metadata
- ├─ sections[]
- │   ├─ heading
- │   └─ blocks[]
- │       ├─ ParagraphBlock
- │       ├─ HeadingBlock
- │       ├─ ListBlock
- │       ├─ QuoteBlock
- │       ├─ ImageBlock
- │       ├─ TableBlock
- │       └─ CodeBlock
+ ├─ root
+ │  └─ semantic nodes
+ │      ├─ Section
+ │      ├─ Heading
+ │      ├─ Paragraph
+ │      ├─ List
+ │      ├─ Quote
+ │      ├─ Image
+ │      ├─ Figure
+ │      ├─ Caption
+ │      ├─ Table
+ │      ├─ TableRow
+ │      ├─ TableCell
+ │      ├─ Code
+ │      ├─ Footnote
+ │      ├─ Slide
+ │      ├─ SpeakerNotes
+ │      ├─ Sheet
+ │      ├─ CellRange
+ │      ├─ FormulaDisplay
+ │      └─ SourceVisualBlock
  └─ sourceMap
 ```
 
-Every text-bearing block contains source mapping information.
+Every graph node receives a stable Kola node id and, where possible, one or more source locators.
 
-For PDF this includes page number and one or more source rectangles/quads.
+## 9. Source mapping by format
 
-For EPUB this includes spine item plus a stable DOM/CFI-like location and textual context.
+### PDF
 
-For Markdown/TXT it includes source offsets.
+- page index
+- text range
+- glyph/word quads
 
-## 7. Annotation anchoring
+### EPUB/HTML
 
-This is the hardest correctness problem in Kola and must be designed before UI polish.
+- spine/resource path
+- element path / CFI-like locator
+- text offsets
 
-### Never store only screen coordinates
+### DOCX/ODT
 
-Screen positions break when:
+- part/resource id
+- paragraph/run identity
+- table/row/cell coordinates
+- text offsets
 
-- zoom changes;
-- device changes;
-- window resizes;
-- Flow Mode is enabled;
-- font size changes.
+### PPTX/ODP
 
-### Hybrid anchor
+- slide index
+- object identity
+- text run
+- geometry rectangle
+- notes location
 
-Each text annotation should store multiple selectors:
+### XLSX/ODS
+
+- sheet identity
+- cell/range coordinate
+- table/named-range identity
+
+### comics/images
+
+- page/image index
+- normalized image rectangle
+- OCR text region where available
+
+## 10. Universal Flow Mode pipeline
+
+```text
+Adapter
+ -> structural extraction
+ -> geometry extraction where relevant
+ -> semantic classification
+ -> reading-order inference
+ -> source-map generation
+ -> KDG chunks
+ -> Flow renderer
+```
+
+### Flow quality classes
+
+- **Native**: structure already semantic.
+- **Reconstructed**: semantic order inferred from positioned objects.
+- **Extracted**: content is transformed into a readable linear representation.
+- **OCR**: text comes from local OCR of visual content.
+
+The quality class is stored with the graph and can be surfaced in UI.
+
+### Source-preserving fallback
+
+When flattening a visual object would lose meaning, insert a `SourceVisualBlock` rather than discarding it.
+
+Examples:
+
+- complex equation;
+- chart;
+- dense spreadsheet region;
+- slide diagram;
+- unusual PDF table.
+
+The block keeps a **View in original** action.
+
+## 11. Fidelity surfaces
+
+Reader surfaces are format-specific but share one shell:
+
+```text
+ReaderShell
+ ├─ FidelitySurface
+ │   ├─ PdfPageSurface
+ │   ├─ WordLayoutSurface
+ │   ├─ SlideSurface
+ │   ├─ SheetSurface
+ │   ├─ ComicSurface
+ │   └─ GenericFixedLayoutSurface
+ ├─ FlowSurface
+ ├─ AnnotationRail
+ ├─ SelectionToolbar
+ ├─ ProgressOverlay
+ └─ Panels
+```
+
+A format may initially have Flow Mode before its fidelity renderer reaches full accuracy. The architecture permits this without fragmenting annotations.
+
+## 12. Annotation anchoring
+
+Never store only screen coordinates.
 
 ```text
 AnnotationAnchor
  ├─ documentId
  ├─ sourceLocator
+ ├─ graphNodeIds[]
  ├─ exactQuote
  ├─ prefixContext
  ├─ suffixContext
- ├─ logicalTextOffsets (when reliable)
- └─ sourceGeometry[] (when available)
+ ├─ logicalOffsets
+ ├─ sourceGeometry[]
+ └─ formatSpecificFallback
 ```
 
-For PDFs:
+Resolution order:
+
+1. exact structural/source locator;
+2. graph-node mapping;
+3. quote verification;
+4. logical offsets;
+5. quote + surrounding-context match;
+6. unresolved state rather than incorrect attachment.
+
+## 13. Reading progress model
+
+Kola tracks two separate concepts.
+
+### PositionProgress
+
+Where the current locator sits in the canonical KDG traversal.
 
 ```text
-PdfSourceLocator
- ├─ pageIndex
- ├─ quads[]
- └─ extractedTextRange
+position = weightedOffset(currentLocator) / totalWeightedContent
 ```
 
-For EPUB:
+Format-specific labels can still be shown beside the percentage.
 
-```text
-EpubSourceLocator
- ├─ spineIndex
- ├─ resourcePath
- ├─ elementPath / CFI-like locator
- └─ textOffset
-```
+### CoverageProgress
 
-Resolution strategy:
+Which semantic blocks/ranges have actually been meaningfully viewed.
 
-1. try exact structural/source locator;
-2. verify quote text;
-3. fall back to text offsets;
-4. fall back to quote + prefix/suffix matching;
-5. mark anchor as unresolved rather than silently attaching to the wrong text.
+A block can become covered when:
 
-## 8. Flow Mode pipeline
+- a minimum percentage of it enters the viewport;
+- it remains visible past a configurable dwell threshold;
+- the user explicitly marks it read.
 
-### PDF
+Coverage is stored efficiently as ranges/bitsets keyed to graph version.
 
-```text
-PDF
- -> page text extraction
- -> glyph/word geometry
- -> line grouping
- -> block grouping
- -> column/reading-order analysis
- -> repeated header/footer detection
- -> semantic block classification
- -> source-mapped NormalizedDocument
- -> Flow renderer
-```
+### Why both matter
 
-### EPUB/HTML/Markdown
+Jumping to the last page can set position near 100% but should not set reading coverage near 100%.
 
-These formats are already structurally reflowable, so they skip most geometric reconstruction.
+### Spreadsheet coverage
 
-### Critical invariant
+For spreadsheets, the canonical Flow traversal is used for completion. Fidelity sheet/grid navigation records viewed ranges, which map back to graph regions.
 
-Every reflowed range must preserve enough source mapping to return to the original location.
+### Presentation coverage
 
-## 9. Reader rendering architecture
+Slides become canonical units; speaker notes and extracted slide content contribute to per-slide weight.
 
-The reader contains a stable shell and swappable content surfaces.
-
-```text
-ReaderShell
- ├─ ReaderTopBar
- ├─ LeftPanel (TOC / thumbnails / outline)
- ├─ ReaderSurface
- │   ├─ PdfPageSurface
- │   ├─ ReflowSurface
- │   ├─ EpubSurface
- │   └─ ComicSurface
- ├─ AnnotationRail
- ├─ SelectionToolbar
- └─ RightPanel (annotations / search / notes)
-```
-
-Panels should be overlays on compact devices and dockable on wide layouts.
-
-## 10. Database model
-
-Suggested tables:
+## 14. Database additions
 
 ### documents
 
@@ -344,318 +417,190 @@ Suggested tables:
 - managed_path
 - format
 - title
-- subtitle
 - authors
 - language
-- page_count
 - cover_path/cache_key
 - file_size
-- modified_at
 - imported_at
 - last_opened_at
-- status
+- support_status
+- parser_version
 
 ### reading_states
 
 - document_id
 - locator_json
-- progress
-- zoom
+- position_progress
 - view_mode
+- zoom
+- active_theme_id
 - updated_at
 
-### annotations
+### reading_coverage
 
-- id
 - document_id
-- type
-- anchor_json
-- quote
-- note
-- semantic_label
-- color_token
-- created_at
+- graph_version
+- coverage_blob / range representation
+- covered_weight
+- total_weight
+- completion_state
+- reading_time_ms
 - updated_at
-- deleted_at nullable
 
-### tags
+### reading_sessions
 
 - id
+- document_id
+- started_at
+- ended_at
+- active_ms
+- start_locator
+- end_locator
+
+### themes
+
+- id
+- kind (`app`, `reader`, `ambient`)
 - name
+- definition_json
+- built_in
+- updated_at
 
-### annotation_tags
+Existing annotation, tag, collection, bookmark, link, and index tables remain.
 
-- annotation_id
-- tag_id
+## 15. Theme architecture
 
-### document_tags
+Application chrome and reading surfaces are independent.
 
-- document_id
-- tag_id
+```text
+ThemeController
+ ├─ AppTheme
+ ├─ ReaderTheme
+ └─ AmbientBackground
+```
 
-### collections
+### AppTheme
 
-- id
-- name
-- parent_id nullable
-- sort_order
+Controls navigation, panels, chrome, accents, borders, and system brightness behavior.
 
-### collection_documents
+### ReaderTheme
 
-- collection_id
-- document_id
+Controls text, links, selection, highlight remapping, document/page background, and Flow Mode typography defaults.
 
-### bookmarks
+### AmbientBackground
 
-- id
-- document_id
-- anchor_json
-- title
-- created_at
+Controls the area behind or around the document:
 
-### links
+- color
+- gradient
+- texture
+- local image
+- blur strength
 
-- id
-- from_annotation_id
-- to_annotation_id
-- relation_type
+All custom themes are local data and exportable in the Kola backup.
 
-### index metadata
+## 16. Search architecture
 
-Track parser/index versions so indexes can be rebuilt after parser improvements without corrupting user data.
+The search index consumes KDG chunks rather than raw format-specific structures.
 
-## 11. Full-text search
+This allows the same search pipeline to index:
 
-Use a separate FTS index populated asynchronously.
+- ebook text;
+- PDF text;
+- DOCX body;
+- presentation text and notes;
+- spreadsheet cells;
+- OCR blocks;
+- annotations and notes.
 
-Index logical chunks rather than whole documents:
+Every search result includes a source-resolvable locator.
 
-- document id;
-- section/chapter;
-- source locator;
-- normalized text.
-
-Search result ranking should favor:
-
-1. title exact match;
-2. annotation/note exact match;
-3. body phrase match;
-4. body token match.
-
-All search results must carry a resolvable source locator.
-
-## 12. File identity
-
-Paths alone are not stable enough.
-
-Kola should compute a content fingerprint on import. For very large files, use a staged fingerprint strategy and compute the strong hash asynchronously.
-
-The system must be able to recognize a moved/renamed file without duplicating all annotations.
-
-## 13. Import pipeline
+## 17. Import pipeline
 
 ```text
 User selects file
- -> validate readable format
- -> identify/fingerprint
- -> detect existing document
- -> choose linked/managed policy
- -> create metadata record
- -> read metadata/cover
- -> open immediately
- -> background text extraction/indexing
- -> background thumbnail generation
+ -> detect actual format
+ -> fingerprint source
+ -> choose adapter
+ -> create document record
+ -> read metadata
+ -> open fidelity or Flow surface immediately
+ -> progressively build KDG
+ -> progressively index text
+ -> generate thumbnails/cover
+ -> initialize progress map
 ```
 
-Opening must not wait for full indexing.
+Opening must not wait for complete graph construction.
 
-## 14. Background work
+## 18. Local conversion adapters
 
-Use Dart isolates/background workers for:
+Some legacy formats may be converted locally into an intermediate representation.
 
+Rules:
+
+- original file is immutable;
+- conversion output is cache data;
+- no upload/service dependency;
+- source identity is preserved;
+- source-to-graph mapping is retained when technically possible;
+- macros/scripts are never executed.
+
+## 19. Background work
+
+Use isolates or native workers for:
+
+- parsing;
+- graph construction;
 - text extraction;
-- full-text indexing;
-- thumbnail generation;
-- content fingerprinting;
-- PDF reflow analysis;
-- export jobs.
+- OCR;
+- thumbnails;
+- indexing;
+- hashing;
+- legacy conversion;
+- spreadsheet region analysis;
+- presentation extraction;
+- export.
 
-UI state must never block on those jobs unless the requested feature truly requires their result.
+## 20. Security model for rich files
 
-## 15. Caching
+- macros disabled;
+- embedded scripts disabled by default;
+- document-triggered network requests blocked by default;
+- HTML/EPUB active content sandboxed;
+- parsers treated as an untrusted-input boundary;
+- malformed archives have decompression and size guards;
+- file parsing failures must not corrupt Kola's database.
 
-Caches are disposable and versioned.
+## 21. Testing corpus
 
-Potential caches:
+The legal test corpus should grow to include:
 
-- page raster cache;
-- page thumbnail cache;
-- cover cache;
-- extracted text cache;
-- reflow analysis cache;
-- search index.
+- simple, multi-column, scanned, rotated, RTL and image-heavy PDFs;
+- EPUB 2/3 and KEPUB;
+- MOBI/AZW3/FB2 and legacy ebook samples;
+- DOCX/ODT/RTF;
+- PPTX/ODP;
+- XLSX/XLS/ODS/CSV;
+- CBZ/CBR/CB7;
+- DjVu;
+- malformed but common files;
+- huge spreadsheets and slide decks;
+- files with thousands of annotations.
 
-User-generated data is not a cache and must never be deleted by “Clear cache.”
+## 22. Architecture rules
 
-## 16. Export architecture
-
-Export targets should be separate services:
-
-- Markdown annotations
-- JSON Kola backup
-- HTML notes
-- PDF with embedded annotations where technically supported
-- annotation sidecar bundle
-
-Export must never mutate the source file unless the user explicitly chooses an in-place operation in a future feature.
-
-## 17. Undo/redo
-
-Annotation edits need command-based undo/redo.
-
-Examples:
-
-- add annotation;
-- delete annotation;
-- change color;
-- move ink stroke;
-- edit note;
-- change crop region.
-
-Database persistence can be debounced behind the in-memory command state.
-
-## 18. Platform adaptation
-
-One codebase does not mean identical UI.
-
-### Desktop
-
-- resizable/dockable sidebars;
-- tabbed documents;
-- hover states;
-- right click;
-- keyboard shortcuts;
-- drag and drop;
-- command palette.
-
-### Tablet
-
-- split panels;
-- stylus-first annotation;
-- touch targets;
-- detachable/overlay tool palettes.
-
-### Phone
-
-- one primary surface;
-- bottom sheets instead of permanent sidebars;
-- edge-to-edge reading;
-- Flow Mode emphasized;
-- thumb-reachable controls.
-
-## 19. Design system architecture
-
-Never scatter raw colors, radii or durations through widgets.
-
-Use tokens:
-
-```text
-KolaColor
-KolaSpacing
-KolaRadius
-KolaTypography
-KolaElevation
-KolaMotion
-KolaIconSize
-KolaBreakpoint
-```
-
-Reading themes are separate from application chrome themes.
-
-This distinction allows a dark app shell with a sepia book page, for example.
-
-## 20. Testing strategy
-
-### Unit tests
-
-- annotation anchor resolution;
-- document fingerprinting;
-- import deduplication;
-- reading progress conversion;
-- reflow block ordering;
-- database migrations;
-- export formatting.
-
-### Golden tests
-
-- reader toolbars;
-- panels;
-- compact/wide layouts;
-- themes;
-- selection UI.
-
-### Integration tests
-
-For each supported platform where CI is practical:
-
-1. import a sample document;
-2. open it;
-3. navigate;
-4. create annotation;
-5. restart app;
-6. verify persistence;
-7. export annotation.
-
-### Corpus tests
-
-Maintain a legal test corpus containing:
-
-- simple PDF;
-- multi-column PDF;
-- scanned PDF;
-- rotated PDF;
-- mixed text/images;
-- RTL content;
-- EPUB 2;
-- EPUB 3;
-- malformed-but-common documents.
-
-## 21. Error philosophy
-
-Document readers encounter broken files. Kola should degrade gracefully.
-
-Examples:
-
-- Flow Mode failure -> remain in Page Mode, explain why;
-- failed metadata extraction -> open with filename as title;
-- failed index -> reading still works;
-- missing linked file -> offer Locate File;
-- partially unresolved annotations -> preserve them and show repair state.
-
-Never turn a secondary feature failure into an inability to read the file.
-
-## 22. Future Rust boundary
-
-If a native core becomes justified, isolate it behind services such as:
-
-```text
-DocumentAnalysisEngine
-OcrEngine
-ArchiveEngine
-SearchEngine
-```
-
-Use a bridge such as flutter_rust_bridge only after a measured need appears. Domain models should remain independent from FFI representations.
-
-## 23. Architecture rule summary
-
-1. Flutter owns the application and UI.
-2. SQLite/Drift owns durable local metadata and annotations.
-3. Source files remain separate from Kola's metadata.
-4. Every format is hidden behind a DocumentAdapter.
-5. Annotation anchors are source-based, not screen-based.
-6. Flow Mode and Page Mode share the same document identity and annotation model.
-7. Parsing/indexing happens away from the UI isolate.
-8. Caches are disposable; user data is not.
-9. Platform adaptation is allowed; product behavior stays consistent.
-10. Add native complexity only when profiling proves it is needed.
+1. Flutter owns the product UI and application lifecycle.
+2. SQLite/Drift owns durable local state.
+3. Source files remain separate from Kola user data.
+4. Every format is behind a `DocumentAdapter`.
+5. Every readable format attempts to produce KDG content.
+6. Flow Mode renders KDG, not format-specific UI.
+7. Fidelity View and Flow Mode share document identity and annotation anchors.
+8. Reading position and reading coverage are separate metrics.
+9. Themes/backgrounds are data-driven and separate from document parsing.
+10. Parsing/indexing/OCR never block the UI thread.
+11. Caches are disposable; annotations/progress/themes are not.
+12. Add native/Rust complexity only where capability or profiling justifies it.
+13. Never execute macros or bypass DRM.
+14. If semantic reconstruction is uncertain, preserve the original visual content and say so.
