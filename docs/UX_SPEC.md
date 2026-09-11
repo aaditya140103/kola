@@ -1,435 +1,752 @@
 # Kola — UI/UX Specification
 
-## 1. Design goal
+> The detailed cross-platform rules live in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). This document defines Kola's product-level interaction model.
 
-Kola should feel modern in 2026 without depending on visual novelty that harms reading. The UI should be **quiet, spatial, responsive, and highly contextual**.
+## 1. UX goal
 
-The document is the product. Controls are supporting actors.
+Kola should feel like **the same excellent reader made specifically for each device**.
 
-## 2. Visual language
+It must be:
 
-### Kola Surface System
+- consistent in terminology and capability;
+- native-feeling in navigation and interaction;
+- document-first;
+- calm rather than dashboard-heavy;
+- powerful without exposing every control at once;
+- equally usable with touch, mouse, keyboard, and stylus where those inputs exist.
 
-Use three visual layers:
+The document is the product. Chrome is temporary support.
 
-1. **Document surface** — the page/reflow content.
-2. **Workspace surface** — sidebars, tabs, search and annotation panels.
-3. **Floating controls** — selection actions, tool palettes, command palette and transient controls.
+## 2. Consistency model
 
-Floating controls may use subtle translucency/blur when the platform handles it efficiently, but never at the cost of legibility or GPU performance.
+Kola does **not** mean pixel-identical UI across platforms.
 
-Avoid excessive glass effects behind dense text.
+Consistent everywhere:
 
-### Shape
-
-- medium-soft corners rather than extreme pill shapes everywhere;
-- pills only for compact actions, filters and segmented controls;
-- panels should feel integrated rather than like floating cards stacked everywhere.
-
-### Motion
-
-Motion communicates hierarchy and location.
-
-Use:
-
-- short fade/scale for contextual controls;
-- shared-axis transitions between library and reader where practical;
-- spring-like panel movement with restrained overshoot;
-- page/reader motion that respects platform physics;
-- reduced-motion mode.
-
-No decorative perpetual animations.
-
-## 3. Adaptive shell
-
-### Wide desktop (> 1200 logical px)
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ tabs / document title                              search  controls │
-├─────────────┬──────────────────────────────────────┬────────────────┤
-│             │                                      │                │
-│ TOC /       │              DOCUMENT                │  annotations / │
-│ thumbnails  │                                      │  notes/search  │
-│             │                                      │                │
-└─────────────┴──────────────────────────────────────┴────────────────┘
-```
-
-Both side panels can be resized and collapsed.
-
-### Medium/tablet
-
-One docked panel maximum. Secondary panels become overlays.
-
-### Phone
-
-Reader becomes almost fully edge-to-edge.
-
-- top controls appear on tap/scroll-up;
-- bottom reader controls appear on tap;
-- TOC/search/annotations use bottom sheets or full-height sheets;
-- Flow Mode is one tap away;
-- selection controls remain close to selected content.
-
-## 4. Library screen
-
-### Desktop
-
-Left navigation rail/sidebar:
-
-- Home
-- All Documents
-- Recent
-- Favorites
+- Library
+- Search
 - Collections
-- Tags
-- Annotated
+- Flow Mode
+- Fidelity View
+- Focus Mode
+- annotation semantics
+- progress model
+- reading coverage
+- bookmarks
+- source-linked annotations
+- theme concepts
+- document state
 
-Primary toolbar:
+Adaptive per platform:
 
-- search;
-- sort;
-- filter;
-- grid/list toggle;
-- import.
+- navigation bar/sidebar/rail;
+- title/window chrome;
+- menus;
+- dialogs;
+- sheets;
+- scrolling;
+- text selection;
+- back behavior;
+- haptics;
+- visual density;
+- keyboard/menu integration;
+- hover and right-click behavior.
 
-Document card:
+## 3. Window-size model
 
-- cover thumbnail;
-- title;
-- author;
-- reading progress;
-- subtle format indicator only when useful;
-- last opened.
-
-Do not cover cards with action buttons. Secondary actions appear on hover or context menu.
-
-### Home
-
-Home emphasizes continuation, not file management.
-
-Sections:
-
-- Continue Reading
-- Recently Added
-- Recently Annotated
-- Favorites
-
-## 5. Reader top bar
-
-The top bar should contain only high-frequency navigation and view actions.
-
-Suggested desktop order:
+Kola responds to available window width rather than hardcoded device names.
 
 ```text
-Back | Sidebar | Document Title | [flex space] | Search | View Mode | Annotate | More
+Compact      < 600 dp
+Medium       600–839 dp
+Expanded     840–1199 dp
+Large        1200–1599 dp
+Extra Large  >= 1600 dp
 ```
 
-The annotation toolbar is not permanently expanded unless the user pins it.
+The layout can change while the app is running because of resizing, split screen, folding, rotation, Stage Manager, snapping, or external displays.
 
-On phone the title may collapse to maximize width.
+## 4. Top-level application structure
 
-## 6. Reader sidebars
+```text
+Kola
+├─ Home
+├─ Library
+├─ Search
+├─ Collections
+└─ Reader Workspace
+```
 
-### Left panel tabs
+Tags, Favorites, Annotated, Unread, In Progress, and Completed behave as library filters/views rather than bloating top-level navigation.
 
-- Outline / TOC
-- Thumbnails
-- Bookmarks
+Settings follow platform conventions and are not a permanent top-level desktop destination.
 
-### Right panel tabs
+## 5. Library navigation
 
+### Compact
+
+Use bottom navigation:
+
+```text
+Home | Library | Search | Collections
+```
+
+### Medium
+
+Use a navigation rail or platform-equivalent adaptive sidebar.
+
+### Expanded and above
+
+Use a persistent leading navigation surface and list/detail layouts where useful.
+
+The navigation representation can change while preserving the currently selected destination.
+
+## 6. Home
+
+Home should answer one question first:
+
+> What do I want to continue reading?
+
+Recommended structure:
+
+1. Continue Reading
+2. Recently Added
+3. Recently Annotated
+4. Favorites
+
+Avoid filling Home with statistics, promotional cards, empty widgets, or secondary settings.
+
+## 7. Library
+
+Library views:
+
+- cover grid;
+- list;
+- compact table on desktop.
+
+Document card priorities:
+
+1. cover/thumbnail;
+2. title;
+3. author/source;
+4. subtle reading progress;
+5. status/last opened.
+
+Secondary actions appear through hover/context menu on pointer devices or long-press/more menu on touch.
+
+## 8. Universal reader shell
+
+The Reader Workspace consists of:
+
+```text
+Reader Workspace
+├─ Document Surface
+├─ View Switcher
+├─ Structure Navigation
+├─ Annotation Inspector
+├─ Search
+├─ Progress
+└─ Contextual Controls
+```
+
+The same shell hosts PDFs, ebooks, Word documents, presentations, spreadsheets, comics, and other supported formats.
+
+## 9. Universal view switcher
+
+When multiple representations exist, Kola presents a small, consistent switcher.
+
+Examples:
+
+```text
+PDF      Original | Flow
+DOCX     Layout   | Flow
+PPTX     Slides   | Flow
+XLSX     Sheet    | Flow
+EPUB     Book     | Flow
+Comic    Pages    | OCR Flow
+```
+
+The wording is format-aware but the concept is identical: **source/fidelity representation versus optimized reading representation**.
+
+## 10. Phone reader
+
+Default state is immersive.
+
+```text
+┌───────────────────────┐
+│                       │
+│                       │
+│       DOCUMENT        │
+│                       │
+│                       │
+│                       │
+└───────────────────────┘
+```
+
+One tap reveals compact controls:
+
+```text
+┌───────────────────────┐
+│ ‹  Document title  ⋯  │
+│                       │
+│       DOCUMENT        │
+│                       │
+│                       │
+│  48% ━━━━━━━  Flow ✎ │
+└───────────────────────┘
+```
+
+Secondary tools open as platform-native-feeling sheets:
+
+- Contents
+- Search
 - Annotations
-- Search Results
+- Appearance
 - Document Info
 
-On desktop these can be keyboard toggled.
+The Library bottom navigation disappears while reading.
 
-## 7. Selection UX
+## 11. Tablet reader
 
-Selecting text is one of Kola's most important interactions.
+Tablet uses available space for one supporting pane when useful.
 
-### Default selection capsule
-
-Immediately after selection, show:
+Examples:
 
 ```text
-[ ● ] [Highlight] [Note] [Copy] [Tag] [⋯]
+┌─────────────┬────────────────────────────┐
+│ Contents    │                            │
+│             │          DOCUMENT          │
+│             │                            │
+└─────────────┴────────────────────────────┘
 ```
 
-`●` displays the active semantic color. Pressing it expands the palette.
+or:
 
-### Fast mode
+```text
+┌────────────────────────────┬─────────────┐
+│                            │ Annotations │
+│          DOCUMENT          │             │
+│                            │             │
+└────────────────────────────┴─────────────┘
+```
 
-When Auto Highlight is enabled, selecting text applies the current highlight immediately. A tiny undo affordance appears briefly.
+Both side panes should not open by default merely because the tablet is wide.
+
+Stylus annotation gets a compact movable palette.
+
+## 12. Desktop reader
+
+Wide layout:
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│ document tabs/title                              reader commands  │
+├───────────────┬───────────────────────────────┬────────────────────┤
+│ Contents      │                               │ Annotations        │
+│ Thumbnails    │          DOCUMENT             │ Notes              │
+│ Bookmarks     │                               │ Search             │
+│               │                               │                    │
+└───────────────┴───────────────────────────────┴────────────────────┘
+```
+
+Rules:
+
+- both panes optional;
+- both panes resizable;
+- pane size remembered;
+- hover reveals secondary actions;
+- right-click is supported;
+- drag/drop is first-class;
+- commands expose keyboard shortcuts;
+- tabs support multiple open documents;
+- toolbars stay compact.
+
+## 13. Platform profiles
+
+### iPhone
+
+- iOS navigation/back conventions;
+- bottom tab navigation in library;
+- native-feeling sheets/popovers;
+- edge swipe where appropriate;
+- safe-area-aware edge-to-edge reader;
+- iOS selection behavior;
+- system font and tint conventions.
+
+### iPadOS
+
+- adaptable sidebar/tab navigation;
+- list-detail library on large windows;
+- supporting inspector pane in reader;
+- strong Pencil/stylus behavior;
+- collapse cleanly in split screen/Stage Manager.
+
+### macOS
+
+- toolbar/sidebar/inspector model;
+- app menu bar;
+- standard settings/preferences placement;
+- native window controls;
+- keyboard-heavy workflows;
+- right-click and hover;
+- drag/drop;
+- system font/accent conventions.
+
+### Android
+
+- Material 3 interaction model;
+- bottom navigation in compact library;
+- rail/drawer for wider windows;
+- predictive/system back support;
+- edge-to-edge layouts;
+- bottom sheets for compact reader tools;
+- adaptive support for foldables/tablets;
+- keyboard/mouse/stylus support on capable devices.
+
+### Windows
+
+- standard window/caption behavior;
+- Fluent-inspired desktop presentation;
+- navigation pane/sidebar;
+- visible desktop scrollbars;
+- mouse/keyboard density;
+- context menus;
+- snap/resizing-friendly panes;
+- file drag/drop;
+- system typography.
+
+### Linux
+
+Linux has no single universal design language. Kola should use:
+
+- native/window-manager decorations where possible;
+- system font/theme preference;
+- desktop shortcuts;
+- visible scrollbars;
+- right-click;
+- drag/drop;
+- compact header/toolbar;
+- resizable panes;
+- no imitation of Windows or macOS chrome.
+
+Kola can align more closely with GNOME conventions on GNOME-like environments without making GNOME-specific behavior mandatory for other desktops.
+
+## 14. Selection and annotation UX
+
+Text selection is one of the most important interactions in Kola.
+
+### Pointer devices
+
+Selection opens a compact capsule:
+
+```text
+[Color] [Highlight] [Note] [Copy] [Tag] [More]
+```
+
+Keyboard accelerators remain active.
 
 ### Touch
 
-Use native-feeling drag handles and generous touch targets. The action capsule should avoid obscuring the selected line.
+Use native-feeling text selection handles and a Kola action bar/sheet positioned so it does not cover the selected passage.
 
-## 8. Annotation tools
+### Auto Highlight
 
-Desktop/tablet can use a compact vertical floating tool dock:
+When enabled, valid selection creates a highlight immediately using the current semantic style. A lightweight Undo affordance appears.
 
-- select;
-- highlight;
-- underline;
-- pen;
-- eraser;
-- text note;
-- area selection;
-- shape;
-- undo/redo.
+### Stylus
 
-The dock can be moved to left/right and pinned/unpinned.
+Where pointer type can be distinguished reliably:
 
-Phone should expose the same tools through a compact bottom palette rather than shrinking desktop controls.
+- stylus draws/annotates;
+- finger pans/navigates;
+- eraser/button behavior maps to platform capability.
 
-## 9. Flow Mode UI
+## 15. Annotation tools
 
-Flow Mode should feel like entering a premium reading environment, not converting the file into a web page.
+Domain-specific tool set:
 
-Typography panel:
+- Select
+- Highlight
+- Underline
+- Strikeout
+- Pen
+- Eraser
+- Text note
+- Area selection
+- Shape
+- Arrow
+- Text box
+- Undo
+- Redo
+
+Desktop/tablet can use a movable compact palette. Phone uses a bottom palette/sheet.
+
+## 16. Flow Mode UX
+
+Flow Mode should feel like a purpose-built reading environment, not a conversion preview.
+
+Appearance controls:
 
 - font family;
-- font size;
+- text size;
 - line height;
 - paragraph spacing;
 - content width;
-- alignment when appropriate;
-- theme;
-- optional hyphenation;
-- reset.
+- margins;
+- column count when useful;
+- alignment where appropriate;
+- hyphenation;
+- reader theme;
+- page/background color;
+- ambient background.
 
-At the top or bottom, a subtle control allows instant return to original pages at the equivalent source position.
+Source-preserving blocks expose **View in original**.
 
-Figures and tables that cannot be safely reflowed are rendered as source-preserving blocks with a “View on page” action.
+Switching between Flow and Fidelity should preserve the equivalent source location.
 
-## 10. Reading themes
+## 17. Word/document Flow Mode
 
-Built-in document themes:
+DOCX/ODT/RTF Flow Mode should favor reading structure over editor chrome:
 
-- Paper
-- Warm
-- Dark
-- OLED Black
-- Low Contrast Night
+- title;
+- headings;
+- paragraphs;
+- lists;
+- footnotes;
+- tables;
+- figures;
+- comments where supported.
 
-Application chrome theme is independent:
+No ribbon-like editing UI is necessary because Kola is not a word processor.
+
+## 18. Presentation UX
+
+Fidelity View:
+
+```text
+[slide thumbnails] [current slide] [notes/annotations]
+```
+
+Flow Mode:
+
+```text
+Presentation title
+Slide 1 — title
+Text blocks
+Figure
+Speaker notes
+
+Slide 2 — title
+...
+```
+
+Progress naturally maps to slides while reading coverage captures genuinely viewed slides/content.
+
+## 19. Spreadsheet UX
+
+Fidelity View uses a virtualized sheet/grid surface.
+
+Important controls:
+
+- sheet tabs;
+- cell/range search;
+- zoom;
+- range highlighting;
+- comments/annotations;
+- freeze information where parsed.
+
+Flow Mode converts the selected sheet/table/region into an accessible reading sequence rather than forcing horizontal scrolling.
+
+## 20. Reading progress UX
+
+Kola distinguishes two metrics.
+
+### Position
+
+Where the user currently is.
+
+Examples:
+
+- 63%
+- page 188/300
+- chapter 14/22
+- slide 31/64
+
+### Coverage
+
+How much content was actually meaningfully viewed.
+
+Expanded progress panel:
+
+```text
+Position          63%
+Actually read     48%
+Reading time      3h 42m
+Estimated left    ~2h 10m
+Status            In Progress
+```
+
+Do not over-gamify reading by default.
+
+Library cards show one subtle primary progress indicator; deeper statistics require an intentional action.
+
+## 21. Themes and backgrounds
+
+Four independent layers:
+
+```text
+System appearance
+App chrome theme
+Reader theme
+Ambient background
+```
+
+Built-in app themes:
 
 - System
 - Light
 - Dark
+- OLED Black
+- Soft Gray
+- Warm Neutral
 
-Custom reader theme can be added after v1.
+Built-in reader themes:
 
-## 11. Focus Mode
+- Paper
+- Warm Paper
+- Sepia
+- Soft Gray
+- Sage
+- Night
+- Low-Contrast Night
+- OLED Black
 
-Trigger by toolbar, command palette or keyboard shortcut.
+Ambient backgrounds:
 
-When active:
+- solid color;
+- gradient;
+- subtle texture;
+- local image;
+- blurred local image.
+
+User customization must never compromise minimum readable contrast without a warning/reset path.
+
+## 22. Focus Mode
+
+Focus Mode removes almost all interface chrome.
 
 - sidebars close;
-- tabs/toolbars disappear;
-- page centers;
-- pointer can auto-hide;
-- tapping/moving pointer reveals minimal navigation;
-- Esc exits on desktop.
+- toolbar hides;
+- pointer can hide on desktop;
+- minimal position appears on demand;
+- annotation shortcuts remain available;
+- Reading Lens remains available;
+- Escape exits on desktop;
+- tap gesture reveals controls on touch.
 
-Optional Reading Lens remains available.
+## 23. Reading Lens
 
-## 12. Search UX
+Optional movable focus region:
 
-### In-document search
+- one line;
+- several lines;
+- paragraph;
+- horizontal ruler.
 
-A compact panel shows:
+Surrounding material can be dimmed rather than blurred for performance/accessibility.
+
+## 24. Annotation Rail
+
+When the annotation inspector is closed, subtle edge markers indicate annotations without reducing document width.
+
+- hover previews on pointer devices;
+- tap opens preview on touch;
+- keyboard can jump next/previous annotation.
+
+## 25. Peek
+
+Peek previews references without losing current position.
+
+Use for:
+
+- footnotes;
+- citations;
+- internal document links;
+- figures;
+- tables;
+- slides;
+- annotation links.
+
+Desktop uses hover/click affordance. Touch uses long press or explicit preview action.
+
+## 26. Search
+
+### Current document
+
+Compact search panel:
 
 - query;
-- result count;
+- count;
 - next/previous;
 - snippets;
-- section/page.
+- page/chapter/slide/sheet context.
 
-Results should highlight transiently on the page without becoming stored annotations.
+### Global
 
-### Global search
-
-Command palette and Library search can search the entire local corpus.
-
-Results grouped by:
+Library/command search groups results by:
 
 - Documents
 - Annotations
 - Notes
-- Body matches
+- Body content
 
-Each result includes enough context to understand why it matched.
+Results always jump to a resolvable source location.
 
-## 13. Peek previews
+## 27. Command palette
 
-Preview surfaces should be temporary and preserve reading continuity.
+Desktop/tablet: `Ctrl/Cmd + K`.
 
-Desktop:
+Commands:
 
-- hover after a short intentional delay or click a preview affordance.
+- Open document
+- Search library
+- Search current document
+- Go to page/chapter/slide/sheet
+- Toggle Flow Mode
+- Toggle Focus Mode
+- Add bookmark
+- Change theme
+- Change highlight style
+- Open annotations
+- Export
+- Settings
 
-Touch:
+Search-first, keyboard-first, no visually heavy taxonomy.
 
-- press-and-hold or explicit preview button.
+## 28. Keyboard
 
-Peek is useful for:
+Default examples:
 
-- footnotes;
-- citations;
-- internal page links;
-- figures;
-- annotation links.
-
-## 14. Tabs and history
-
-Desktop supports document tabs.
-
-Each tab preserves:
-
-- reading position;
-- active mode;
-- zoom;
-- panel state.
-
-Internal jumps create navigation history separate from tabs.
-
-Back means “return to where I was before this jump,” not necessarily “close document.”
-
-## 15. Command palette
-
-`Ctrl/Cmd + K`
-
-Visual design:
-
-- centered floating surface;
-- immediate keyboard focus;
-- fuzzy command search;
-- shortcut shown at right;
-- recent commands below empty query.
-
-Categories should not be visually noisy. Search first, taxonomy second.
-
-## 16. Keyboard interaction
-
-Recommended defaults:
-
-- `Ctrl/Cmd + O` — Open document
-- `Ctrl/Cmd + F` — Search current document
-- `Ctrl/Cmd + K` — Command palette
-- `Ctrl/Cmd + L` — Library
+- `Ctrl/Cmd + O` — Open
+- `Ctrl/Cmd + F` — Search document
 - `Ctrl/Cmd + Shift + F` — Search library
-- `B` — Bookmark current location when reader has focus
-- `H` — Highlight selection / toggle highlight tool depending context
-- `N` — Add note to selection
-- `[` / `]` — toggle left/right panel
-- `Esc` — dismiss transient UI / exit Focus Mode
-- `+` / `-` — zoom or font size depending reader mode
+- `Ctrl/Cmd + K` — Command palette
+- `B` — Bookmark current location
+- `H` — Highlight selection/tool
+- `N` — Note
+- `[` — Toggle leading pane
+- `]` — Toggle trailing pane
+- `Esc` — Dismiss / leave Focus Mode
+- `+` / `-` — Zoom or text size according to mode
 
-All single-key shortcuts should be disabled while typing into text fields.
+Single-key shortcuts are inactive while typing.
 
-Every shortcut must be discoverable in menus/settings.
+Platform-standard equivalents override generic mappings when appropriate.
 
-## 17. Touch and gesture interaction
+## 29. Menus and context actions
 
-### PDF page mode
+Desktop actions should be discoverable through:
 
-- pinch to zoom;
-- double tap to smart zoom;
-- drag to pan when zoomed;
-- tap center to toggle controls;
-- page swipe in paged mode.
+- platform application/menu bar where appropriate;
+- toolbar;
+- context menu;
+- command palette;
+- shortcut.
 
-### Reflow mode
+Mobile should not hide essential actions behind context menus requiring long press.
 
-- normal scroll;
-- edge tap optional page-like navigation;
-- text selection behaves like modern native readers.
+## 30. Motion
 
-Gesture customization can come later; avoid shipping many hidden gestures initially.
+Use motion for:
 
-## 18. Stylus behavior
+- hierarchy;
+- continuity;
+- feedback.
 
-When a stylus is detected where supported:
+Do not use decorative perpetual motion.
 
-- pen can draw without switching the whole reader into a different application mode;
-- finger continues to pan by default;
-- stylus button/eraser maps to erase when platform APIs expose it;
-- stroke smoothing must be subtle and configurable later.
+Platform navigation/sheet/dialog motion follows host expectations. Kola-specific transitions may be used for Flow/Fidelity switching, focus mode, and annotation creation.
 
-## 19. Empty and error states
+Always honor reduced motion.
 
-### Empty library
+## 31. Empty state
 
-Do not show a dashboard full of disabled UI.
+Empty library should be simple:
 
-Show:
+- Open a document
+- drag/drop target on desktop
+- supported-format summary
+- statement that files remain local
 
-- large “Open a book” action;
-- drop target on desktop;
-- supported formats;
-- one sentence explaining that files remain local.
+No fake dashboard.
 
-### Unsupported Flow Mode
+## 32. Error states
 
-Do not say only “Error.”
+Failures should preserve reading whenever possible.
 
-Explain:
+Examples:
 
-> This document's layout could not be safely reflowed. You can keep reading in Page Mode.
+- Flow reconstruction imperfect -> show Fidelity View and explain limitations;
+- indexing failed -> document still opens;
+- linked source missing -> Locate File;
+- annotation temporarily unresolved -> preserve annotation and expose repair state;
+- parser unsupported -> explain whether preview/conversion is available.
 
-Optionally describe the detected reason.
+## 33. Accessibility
 
-### Missing linked file
+From the first implementation:
 
-Preserve metadata/annotations and offer:
+- platform accessibility semantics;
+- keyboard traversal;
+- visible focus;
+- scalable text;
+- high contrast;
+- reduced motion;
+- non-color annotation labels;
+- RTL;
+- screen-reader labels;
+- appropriate touch target sizes;
+- Flow Mode optimized for reflow/accessibility.
 
-- Locate File
-- Remove From Library
+## 34. UX anti-patterns
 
-Never delete annotations just because the source path disappeared.
+Kola should avoid:
 
-## 20. Accessibility UX
-
-- every icon-only control has an accessible label and tooltip;
-- focus order follows visual order;
-- keyboard focus is visibly distinct from hover;
-- annotation semantics are not communicated by color alone;
-- minimum touch targets follow platform accessibility guidance;
-- text scales without clipping controls;
-- reader contrast is user adjustable;
-- motion honors reduced-motion preference.
-
-## 21. What Kola should avoid
-
+- one pixel-identical UI on every operating system;
+- desktop UI squeezed onto mobile;
+- phone UI stretched onto desktop;
 - permanent giant toolbars;
 - dashboard card overload;
-- excessive gradients;
-- glass blur beneath reading text;
-- hidden critical actions available only through gestures;
-- modal dialogs for routine reader actions;
-- forcing users to organize before they can read;
-- forcing a proprietary library format;
-- separate inconsistent annotation systems for PDF and EPUB;
-- copying mobile UI directly onto desktop.
+- excessive glass/gradients behind text;
+- critical gesture-only actions;
+- modal dialogs for routine reading actions;
+- separate annotation mental models by file format;
+- dozens of visible buttons just because a desktop has space;
+- hiding desktop functionality behind touch-first bottom sheets;
+- changing Kola terminology between platforms.
 
-## 22. UX quality bar
+## 35. Quality bar
 
-Before a feature is considered complete, verify it with all four input models where applicable:
+Every core flow should be tested with:
 
-1. mouse/trackpad;
-2. keyboard;
-3. touch;
-4. stylus.
+- iPhone compact;
+- Android compact;
+- foldable/medium Android;
+- iPad split view;
+- iPad full width;
+- macOS narrow/wide;
+- Windows snapped/wide;
+- Linux tiled/wide.
 
-And verify at three form factors:
+And with:
 
-1. phone;
-2. tablet/small desktop;
-3. wide desktop.
+- touch;
+- mouse/trackpad;
+- keyboard;
+- stylus where applicable;
+- light/dark;
+- large text;
+- reduced motion;
+- RTL.
 
-The interaction may adapt, but the capability and mental model should remain consistent.
+A feature is not finished merely because it works on the developer's primary device.
