@@ -13,6 +13,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - One consistent annotation model across formats
 - Broad ebook and office-document support
 - Separate position progress and actual reading coverage
+- Private reading analytics, active-time tracking, and Reading List / Next Up planning
 - Deep reader theme/background customization
 - Adaptive-native UI rather than one pixel-identical interface everywhere
 - Evidence-based UI/UX: attractive, measurable, accessible, and validated
@@ -28,6 +29,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - PDFium through a Flutter PDF adapter for PDF fidelity rendering
 - local parsers/converters for ebook and office families
 - SQLite full-text search
+- local Reading Intelligence services over progress/coverage/session data
 - isolates/background workers for parsing/indexing
 - optional `SyncBackend` adapters for user-owned cloud/storage
 - optional Rust/native engines only where broad format support or profiling justifies them
@@ -41,6 +43,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - [Evidence-based UX research](docs/UX_RESEARCH.md)
 - [Scientific UX validation protocol](docs/UX_VALIDATION.md)
 - [Competing visual design directions](docs/VISUAL_DIRECTIONS.md)
+- [Reading intelligence, analytics, goals, and Reading List](docs/READING_ANALYTICS.md)
 - [Universal format strategy](docs/UNIVERSAL_FORMATS.md)
 - [Bring Your Own Cloud sync](docs/SYNC.md)
 - [Project architecture graphs](docs/PROJECT_GRAPH.md)
@@ -62,6 +65,20 @@ The closest practical representation of the original source: PDF pages, slides, 
 ### Reading Progress + Coverage
 
 Kola distinguishes **where you are** from **how much you actually read**, so jumping to the end does not falsely mark a document complete.
+
+### Reading Intelligence
+
+Kola can answer useful private questions such as:
+
+- how long did I actually read today/this week?
+- how much time have I spent on this book?
+- how many sessions have I spent with it?
+- what have I completed this month/year?
+- what is on my Want to Read / Next Up list?
+- which subjects or collections receive most of my reading time?
+- how much trusted reading time is estimated to remain?
+
+Reading time is based on meaningful activity rather than simply counting how long a document stays open. Goals and streaks are optional and deliberately non-punitive.
 
 ### Bring Your Own Cloud
 
@@ -89,7 +106,7 @@ Small edge markers reveal where annotations exist without requiring a permanent 
 
 Kola uses **consistent semantics with native presentation**.
 
-The product model, wording, annotation behavior, Flow Mode, and reading concepts remain consistent. Navigation, menus, title bars, sheets, scroll behavior, density, keyboard integration, selection behavior, and window chrome adapt to the operating system and available window size.
+The product model, wording, annotation behavior, Flow Mode, Reading List, Insights, reading concepts, and sync concepts remain consistent. Navigation, menus, title bars, sheets, scroll behavior, density, keyboard integration, selection behavior, and window chrome adapt to the operating system and available window size.
 
 The objective is not for screenshots to look identical. The objective is for Kola to feel like the same excellent reader intentionally designed for each platform.
 
@@ -124,6 +141,6 @@ Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes 
 
 ## Status
 
-**Architecture, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, and BYOC sync specification phase.**
+**Architecture, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, Reading Intelligence, and BYOC sync specification phase.**
 
 The next engineering milestone is to initialize the Flutter application and prototype the design-system primitives plus Library/Reader shells in the competing visual directions before locking the final default appearance.
