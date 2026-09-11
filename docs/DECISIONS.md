@@ -121,15 +121,31 @@ Short record of settled decisions. Update only when a durable product/technical 
   - time-remaining estimates require enough trusted data and display approximate values.
 - Detailed design: `docs/READING_ANALYTICS.md`.
 
-## D-017 — Kola prioritizes a coherent reading platform over feature-count competition
+## D-017 — Kola is a focused reading product
 
 - Status: accepted
-- Decision: Kola's near-term market wedge is **beautiful universal reading + source-linked Flow Mode + excellent annotations + local-first/BYOC ownership + Reading Intelligence + migration/interoperability**.
+- Decision: Kola's committed product scope is **beautiful universal reading + source-linked Flow Mode + best-in-class annotations + local-first/BYOC ownership + universal local search + Reading Intelligence + migration/interoperability + read-aloud/lookup/compare tools**.
 - Consequences:
-  - reader trust, selection, annotation correctness, search, export, and migration outrank speculative novelty;
-  - optional AI, flashcards, mind maps, browser capture, and social concepts are layered only after the reading foundation is strong;
-  - full public social networking, proprietary content stores, mandatory accounts, and cloud-only AI are not early priorities;
-  - interoperability with Calibre/OPDS/KOReader and import/export from existing ecosystems is treated as acquisition infrastructure, not edge-case polish;
-  - recurring shareable outputs such as quote cards and Reading Wraps are favored over building a social feed because they create organic discovery without violating local-first architecture;
-  - new feature proposals must be evaluated against user value, differentiation, retention, acquisition impact, engineering cost, and displacement of higher-priority work.
+  - reader trust, selection, annotation correctness, search, persistence, export, and reading comfort outrank speculative expansion;
+  - new capabilities should deepen the reading workflow rather than turn Kola into a generic productivity suite;
+  - interoperability with Calibre/OPDS/KOReader and import/export from existing ecosystems is treated as acquisition infrastructure;
+  - feature proposals are evaluated against user value, reading relevance, differentiation, retention, engineering cost, and displacement of higher-priority work.
 - Detailed strategy: `docs/FEATURE_STRATEGY.md`.
+
+## D-018 — AI and study systems are out of scope
+
+- Status: accepted
+- Decision: Kola will not include AI assistants or dedicated study/knowledge-management systems in the committed product roadmap.
+- Explicitly excluded unless this decision is revisited:
+  - BYO AI/local LLM integration;
+  - document chat/Q&A and AI summarization/explanation;
+  - semantic AI search;
+  - flashcards;
+  - spaced repetition/SRS;
+  - persistent knowledge cards;
+  - backlinks/knowledge graphs;
+  - mind maps/concept boards;
+  - Recall Mode;
+  - dedicated study-sheet/quiz systems.
+- Why: these systems broaden Kola away from its strongest identity as a beautiful universal reading and annotation application and materially increase product/UX complexity.
+- Consequence: agents must not reintroduce them as “later roadmap” items without an explicit product decision change.
