@@ -6,11 +6,13 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 0 implementation has started.**
+**Phase 0 implementation is underway and the first application slice is verified.**
 
-The Flutter application foundation now exists in source form: package metadata, Riverpod root, go_router navigation, adaptive shell, tokenized theme system, initial Library/Home/Search/Insights/Reader prototypes, CI, smoke test, and native-platform bootstrap script.
+Kola now has a compilable/analyzable Flutter foundation with Riverpod, go_router, adaptive navigation, design tokens/themes, Home/Library/Search/Insights/Reader prototypes, a smoke test, CI, and a native-platform bootstrap script.
 
-Native Android/iOS/Linux/macOS/Windows project folders are intentionally generated with `bash tool/bootstrap.sh` on a Flutter-equipped machine rather than hand-maintained before the first real toolchain run.
+GitHub CI has verified the current foundation on **Flutter 3.47.4 / Dart 3.13.3**: dependency resolution succeeds, `flutter analyze` reports no issues, and the application smoke test passes.
+
+Native Android/iOS/Linux/macOS/Windows project folders are generated with `bash tool/bootstrap.sh` on a Flutter-equipped development machine.
 
 ## Current product state
 
@@ -21,11 +23,11 @@ Native Android/iOS/Linux/macOS/Windows project folders are intentionally generat
 - Primary app stack: Flutter/Dart.
 - State: Riverpod.
 - Routing: go_router.
-- Persistence direction: SQLite + Drift; package dependencies added, schema not implemented yet.
+- Persistence direction: SQLite + Drift; dependencies exist, schema not implemented yet.
 - Search direction: local FTS/indexing only; current Search screen is a prototype shell.
 - Current UI: tokenized Kola Core prototype skin; final visual direction remains unvalidated.
 - Current Reader: Flow/Fidelity shell only; no document engine attached yet.
-- CI: GitHub Actions runs dependency resolution, formatting check, analysis, and tests.
+- Verification: analyzer + smoke test green in GitHub Actions.
 
 ## Implemented files
 
@@ -53,6 +55,7 @@ tool/bootstrap.sh
 - Compact widths use bottom navigation.
 - Wider windows use NavigationRail; large widths extend labels.
 - Home includes Continue Reading, Next Up, progress/coverage/time concepts, and weekly insight cards.
+- Continue Reading sizing is content-driven to avoid constrained-height overflow.
 - Library uses a responsive book grid.
 - Search communicates the local-search architecture and has prototype results.
 - Insights has responsive metrics and a simple weekly reading chart.
@@ -76,24 +79,23 @@ tool/bootstrap.sh
 
 ## Most recent context change
 
-Started the actual codebase:
+Completed the first verification/fix cycle:
 
-- added current foundational packages (`flutter_riverpod`, `go_router`, `drift`, `sqlite3`, `path_provider`);
-- added Kola spacing/radius/motion/breakpoint/color tokens;
-- added system light/dark application themes;
-- added adaptive navigation shell;
-- added Home, Library, Search, Reading Insights, and Reader prototypes;
-- added Flow/Fidelity prototype switching and immersive reader chrome;
-- added smoke test and Flutter CI;
-- added `tool/bootstrap.sh` to generate native platform projects and run checks;
-- expanded `.gitignore` for Flutter artifacts;
-- updated README with development/bootstrap instructions.
+- CI resolved the Phase 0 dependencies on Flutter 3.47.4 / Dart 3.13.3;
+- fixed missing Cupertino transition and sliver-layout imports exposed by the analyzer;
+- fixed a current Dart lint issue in the Home prototype;
+- `flutter analyze` is now green;
+- the smoke test exposed a real compact-layout overflow in Continue Reading;
+- replaced the fixed-height Continue Reading layout with content-driven sizing;
+- made the app-bar smoke assertion resilient to `SliverAppBar.large` internal duplicate title widgets;
+- `flutter test` is now green;
+- CI now cancels superseded runs so rapid commits do not waste multiple full Flutter setup jobs.
 
 ## Risks / blockers
 
-- This execution environment does not contain Flutter/Dart, so local compilation could not be performed here; GitHub CI is the current verification path.
-- CI may expose Flutter-version/API issues in the first prototype and should be fixed before adding more features.
-- Native platform project folders still need first generation through the bootstrap script.
+- This execution environment itself does not contain Flutter/Dart; GitHub Actions is the verified toolchain path here.
+- Native platform project folders still need generation on a Flutter-equipped development machine.
+- CI currently reports formatting but does not enforce it; restore a strict format gate after the initial source is run through `dart format` on a developer machine.
 - Drift schema and database lifecycle are not implemented yet.
 - Universal Flow Mode, annotation anchoring, and real text selection remain the highest-risk core engineering areas.
 - Current UI uses demo data only and must not leak prototype models into domain/storage layers.
@@ -101,13 +103,13 @@ Started the actual codebase:
 
 ## Next recommended action
 
-1. Inspect/fix the first Flutter CI run until formatting, analysis, and tests are green.
-2. Generate native platform folders with `bash tool/bootstrap.sh` on a Flutter-equipped machine and commit stable generated platform scaffolding.
-3. Add `PlatformProfile` / input-capability abstractions and reduced-motion handling.
-4. Implement the first Drift database schema for documents, reading state, sessions, planned reading items, goals, and annotations.
-5. Replace Home/Library demo records with repository-backed local data.
-6. Define `DocumentAdapter`, `FormatRegistry`, KDG node/source-map interfaces.
-7. Integrate PDF fidelity reading only after those app-owned interfaces exist.
+1. Generate and commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
+2. Add `PlatformProfile` / input-capability abstractions and reduced-motion handling.
+3. Implement the first Drift database schema for documents, reading state, reading sessions, planned reading items, goals, and annotations.
+4. Introduce repository interfaces so Home/Library stop depending on demo records.
+5. Define `DocumentAdapter`, `FormatRegistry`, KDG node/source-map interfaces.
+6. Integrate PDF fidelity reading only after those app-owned interfaces exist.
+7. Restore strict formatting CI after a developer-machine `dart format lib test` pass.
 8. Keep visual primitives tokenized until the UX comparison is run.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
