@@ -13,10 +13,8 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
   DocumentFormat get format => DocumentFormat.pdf;
 
   @override
-  FormatCapabilities get capabilities => const FormatCapabilities(
-    fidelityView: true,
-    outline: true,
-  );
+  FormatCapabilities get capabilities =>
+      const FormatCapabilities(fidelityView: true);
 
   @override
   Future<DocumentMetadata> readMetadata(DocumentSource source) async {
