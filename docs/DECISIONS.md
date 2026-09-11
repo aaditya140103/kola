@@ -88,3 +88,19 @@ Short record of settled decisions. Update only when a durable product/technical 
   - network/sync failures never block local reading or annotation;
   - optional client-side encrypted sync vaults are part of the privacy direction.
 - Detailed design: `docs/SYNC.md`.
+
+## D-015 — UI/UX is evidence-driven, not trend-driven
+
+- Status: accepted
+- Decision: Kola treats visual design as a core product capability, but meaningful UI/interaction decisions must be grounded in accessibility/standards, human-factors evidence, native platform convention, measured Kola user results, or an explicitly documented experiment.
+- Visual thesis: **calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior**.
+- Consequences:
+  - first-impression appeal and long-session usability are both design goals;
+  - the document remains visually dominant in the reader;
+  - visual complexity is kept low while controlled diversity prevents sterile minimalism;
+  - expressive color/motion is concentrated around interaction moments rather than long-form reading content;
+  - platform-native behavior outranks superficial screenshot consistency;
+  - accessibility and readability cannot be traded away for fashionable effects;
+  - important UX changes should be validated using behavioral metrics plus validated subjective UX/aesthetic measures where appropriate.
+- Evidence base: `docs/UX_RESEARCH.md`.
+- Validation protocol: `docs/UX_VALIDATION.md`.
