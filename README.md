@@ -40,6 +40,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - [UI/UX specification](docs/UX_SPEC.md)
 - [Evidence-based UX research](docs/UX_RESEARCH.md)
 - [Scientific UX validation protocol](docs/UX_VALIDATION.md)
+- [Competing visual design directions](docs/VISUAL_DIRECTIONS.md)
 - [Universal format strategy](docs/UNIVERSAL_FORMATS.md)
 - [Bring Your Own Cloud sync](docs/SYNC.md)
 - [Project architecture graphs](docs/PROJECT_GRAPH.md)
@@ -74,7 +75,7 @@ A distraction-free reader surface with nearly all chrome hidden.
 
 ### Peek
 
-Preview footnotes, citations, links, figures, tables, slides, and annotation links without losing the current reading position.
+Preview footnotes, citations, links, figures, tables, slides, and annotation links without losing reading position.
 
 ### Reading Lens
 
@@ -104,6 +105,17 @@ Meaningful UI decisions should be grounded in accessibility/standards, human-fac
 
 See `docs/UX_RESEARCH.md` and `docs/UX_VALIDATION.md`.
 
+## Current visual design hypotheses
+
+Kola is intentionally testing multiple directions before locking the final visual system:
+
+- **Luminous Paper** — premium, calm, restrained translucent chrome around a paper-like document surface;
+- **Editorial Scholar** — typography/grid-led, information-rich, research-friendly;
+- **Soft Expressive** — younger, colorful, personal, tactile and motion-forward;
+- **Kola Core candidate** — Luminous Paper structure + Editorial discipline + Soft Expressive interaction feedback.
+
+The full comparison, token roles, prototype requirements, and evaluation criteria live in `docs/VISUAL_DIRECTIONS.md`.
+
 ## For coding agents
 
 Start with [`AGENTS.md`](AGENTS.md), then read `docs/PROJECT_STATE.md` and `docs/PROJECT_GRAPH.md`. Load only the detailed specification relevant to the task.
@@ -112,6 +124,6 @@ Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes 
 
 ## Status
 
-**Architecture, format strategy, adaptive UX, evidence-based UX methodology, and BYOC sync specification phase.**
+**Architecture, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, and BYOC sync specification phase.**
 
-The next engineering milestone is to initialize the Flutter application, adaptive design primitives, local database, routing/state architecture, and CI. Sync providers should come later; Phase 0 should only keep durable entity identity/change tracking sync-ready.
+The next engineering milestone is to initialize the Flutter application and prototype the design-system primitives plus Library/Reader shells in the competing visual directions before locking the final default appearance.
