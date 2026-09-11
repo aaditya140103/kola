@@ -13,15 +13,16 @@ Kola is not merely a PDF or ebook reader. It is a **universal local reading work
 - One application for major ebook, document, presentation, spreadsheet, comic, text, and fixed-layout formats.
 - One Flutter application codebase for Linux, Windows, macOS, Android, and iOS.
 - Local-only by default and fully functional offline.
+- Optional **Bring Your Own Cloud (BYOC)** sync across devices without requiring Kola-hosted storage.
 - No mandatory account.
 - No mandatory telemetry.
-- No document uploads for core features.
+- No document uploads for core features; document sync is explicit opt-in.
 - Unified annotations across formats.
 - Universal Flow Mode for every readable document where semantic extraction is possible.
 - Reading progress, completion, and actual coverage tracking.
 - Deep control over app themes, reader themes, backgrounds, typography, spacing, and page surfaces.
 - First-class keyboard, mouse, touch, and stylus workflows.
-- User-owned annotations, backups, and exports.
+- User-owned annotations, backups, exports, and sync targets.
 
 ## 2. Product principles
 
@@ -32,6 +33,8 @@ The file being read is always the visual focus. Panels and controls should disap
 ### 2.2 Local-first, not merely offline-capable
 
 Kola stores its library, metadata, reading progress, coverage history, annotations, bookmarks, custom themes, thumbnails, caches, and indexes locally.
+
+Cloud synchronization is optional transport. Local state remains usable and writable before, during, and after sync failures.
 
 ### 2.3 One document model, multiple views
 
@@ -68,6 +71,8 @@ If a document cannot be perfectly reconstructed, Kola should:
 ### 2.6 User ownership
 
 The source file remains untouched unless the user explicitly exports a modified copy. Kola's local database and sidecars hold app state and annotations.
+
+If sync is enabled, the user chooses the provider, remote location, sync scope, and whether document binaries leave the device.
 
 ## 3. Format strategy
 
@@ -182,7 +187,7 @@ User controls:
 - text color;
 - background color;
 - page/surface color;
-- ambient background;
+- ambient background.
 
 **Non-negotiable rule:** Flow Mode is never an unrelated converted copy. Every block retains a source locator when one can be established.
 
@@ -268,7 +273,7 @@ Local-only statistics may include:
 - progress over time;
 - last read date.
 
-Statistics must remain optional and stored locally.
+Statistics remain local unless the user explicitly includes them in BYOC state sync.
 
 ## 6. Annotation system
 
@@ -365,7 +370,7 @@ The area around the document/page can use:
 - gradient;
 - subtle texture;
 - user-selected local image/wallpaper;
-- blurred local image background;
+- blurred local image background.
 
 Kola must maintain minimum text contrast and provide a one-click reset if customization becomes unreadable.
 
@@ -393,7 +398,8 @@ Cards/list rows may show:
 - position progress;
 - reading coverage;
 - last opened;
-- completion state.
+- completion state;
+- local/cloud availability when BYOC is configured.
 
 ## 9. Search and knowledge workflows
 
@@ -429,26 +435,72 @@ Nonintrusive edge markers show where notes/highlights exist without opening a si
 
 ### Command Palette
 
-`Ctrl/Cmd + K` on desktop/tablet for search, navigation, view switching, theme changes, annotation tools, and export.
+`Ctrl/Cmd + K` on desktop/tablet for search, navigation, view switching, theme changes, annotation tools, sync actions, and export.
 
-## 11. Security and privacy
+## 11. Bring Your Own Cloud sync
 
-Core local reading should perform **zero network requests**.
+Kola may synchronize across devices using storage the user controls.
+
+Detailed architecture: [`SYNC.md`](SYNC.md).
+
+### Backend direction
+
+- local sync folder;
+- WebDAV;
+- Google Drive;
+- Microsoft OneDrive;
+- Dropbox;
+- S3-compatible storage.
+
+Provider integrations are adapters. Kola's reading/domain code must not depend directly on a provider.
+
+### Sync scopes
+
+Users choose one:
+
+- **State only:** annotations, bookmarks, progress/coverage, collections, tags, themes, metadata, and selected settings.
+- **Selected documents:** state plus explicitly chosen documents.
+- **Full library:** state plus all eligible managed documents.
+
+State-only is the privacy- and bandwidth-friendly default direction.
+
+### Sync behavior
+
+- local changes are committed immediately;
+- sync runs in the background;
+- offline edits are allowed;
+- sync conflicts never block reading;
+- user-authored conflicting notes are preserved rather than silently discarded;
+- reading coverage merges across compatible graph versions;
+- deletions use tombstones;
+- document blobs use content hashes for stable identity/deduplication.
+
+### Sync privacy
+
+Kola should support optional client-side encrypted sync vaults so third-party storage can hold ciphertext instead of plaintext Kola records/documents.
+
+No cloud connection is made until the user explicitly configures a Sync Vault.
+
+## 12. Security and privacy
+
+Core local reading performs **zero network requests**.
 
 Rules:
 
 - no mandatory account;
-- no cloud database;
+- no mandatory Kola cloud/database;
 - no ads;
 - no remote fonts required;
-- no document upload;
+- no document upload unless the user explicitly enables document sync;
 - no external AI API requirement;
 - no Office macro execution;
 - no embedded JavaScript execution by default;
 - external resources from documents blocked by default;
-- all search indexes/thumbnails remain local.
+- all search indexes/thumbnails remain local;
+- OAuth/provider credentials are stored using OS secure storage, not plaintext app data;
+- disconnected sync must leave all local user data intact.
 
-## 12. Accessibility
+## 13. Accessibility
 
 Kola should support:
 
@@ -464,27 +516,32 @@ Kola should support:
 - Flow Mode as an accessibility representation for fixed-layout files;
 - local text-to-speech in a later phase.
 
-## 13. Performance expectations
+## 14. Performance expectations
 
-- opening a file must not wait for full indexing;
-- parsing and indexing happen off the UI isolate;
+- opening a file must not wait for full indexing or sync;
+- parsing, indexing, and sync happen off the UI isolate/critical reader path;
 - large files use bounded caches;
 - reader interaction targets 60 fps or device refresh rate where practical;
 - huge libraries remain metadata-responsive;
 - already parsed documents reuse versioned caches;
 - spreadsheet/grid rendering virtualizes rows/columns;
 - presentation thumbnails render lazily;
-- Flow Mode can build progressively instead of blocking the whole document.
+- Flow Mode can build progressively instead of blocking the whole document;
+- document blob synchronization supports resumable/background transfer where backend/platform capabilities permit it.
 
-## 14. Non-goals
+## 15. Non-goals
 
 - no cloud dependency;
 - no mandatory sync;
+- no mandatory Kola-hosted cloud;
 - no DRM bypass;
 - no Word/Excel/PowerPoint-class source editing suite;
 - no active macro/script execution;
-- no requirement that every file format have pixel-perfect layout fidelity before it can be read.
+- no requirement that every file format have pixel-perfect layout fidelity before it can be read;
+- no multi-user collaborative document editing in the initial BYOC design.
 
-## 15. Definition of success
+## 16. Definition of success
 
 Kola succeeds when a user can install one application on desktop or mobile, open almost any common unencrypted reading/document file, switch between its original representation and a comfortable Flow Mode, annotate it consistently, track genuine reading progress, search it locally, customize the reading environment deeply, close the app, and later resume with all state intact—without sending the document anywhere.
+
+For users who opt into BYOC, Kola additionally succeeds when those users can connect their own storage on multiple devices and have progress, annotations, and chosen documents converge safely without requiring infrastructure controlled by Kola.
