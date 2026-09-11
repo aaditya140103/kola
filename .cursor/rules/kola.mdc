@@ -1,0 +1,10 @@
+---
+description: Kola canonical project context and patch protocol
+alwaysApply: true
+---
+
+Read `AGENTS.md`, then `docs/PROJECT_STATE.md` and `docs/PROJECT_GRAPH.md` before editing.
+
+Load only the detailed spec relevant to the task. Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes also update `docs/PROJECT_GRAPH.md`; durable decisions update `docs/DECISIONS.md`.
+
+Do not duplicate long project context in Cursor rules.
