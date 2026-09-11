@@ -60,12 +60,6 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
       future: _pathFuture,
