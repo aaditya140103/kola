@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kola/core/database/kola_database.dart';
+import 'package:kola/core/database/kola_database.dart'
+    hide Annotation, PlannedReadingItem, ReadingCoverage, ReadingGoal, ReadingSession, ReadingState;
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/features/annotations/data/drift_annotation_repository.dart';
