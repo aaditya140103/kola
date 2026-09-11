@@ -28,10 +28,11 @@ It should read mainstream ebooks, PDFs, office documents, presentations, spreads
 5. **Two views, one source:** Fidelity View and Flow Mode share document identity.
 6. **Source-linked annotations:** never anchor only to screen coordinates.
 7. **Adaptive-native UX:** same semantics; platform-native presentation/interaction.
-8. **User-owned data:** metadata, progress, annotations, indexes, exports, and sync targets remain user-controlled.
-9. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
-10. **Performance first:** reading/selection/annotation correctness beats decoration.
-11. **No DRM bypass.**
+8. **Evidence-based UX:** meaningful visual/interaction choices need evidence, accessibility, platform convention, or an explicit experiment.
+9. **User-owned data:** metadata, progress, annotations, indexes, exports, and sync targets remain user-controlled.
+10. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
+11. **Performance first:** reading/selection/annotation correctness beats decoration.
+12. **No DRM bypass.**
 
 ## Core stack
 
@@ -137,6 +138,37 @@ Adapt navigation, title/window chrome, dialogs, sheets, context menus, back beha
 
 Use available window size + input capability, not simplistic `isPhone`/`isTablet` logic.
 
+## Evidence-based UX rule
+
+Kola's appearance is a product feature, but "looks modern" is not a sufficient rationale for a meaningful UI change.
+
+Before implementing or substantially changing a visual/interaction pattern, use the smallest relevant evidence class:
+
+1. accessibility/standards requirement;
+2. peer-reviewed human-factors/HCI evidence;
+3. host-platform convention;
+4. measured Kola user preference/behavior;
+5. deliberate experimental/brand choice that does not violate 1–4.
+
+Design direction:
+
+- calm, low-complexity reading surfaces;
+- high craftsmanship and alignment;
+- familiar information architecture;
+- selective expressive motion/color at interaction moments;
+- document content visually dominates reader chrome;
+- progressive disclosure rather than exposing every tool at once;
+- generous touch targets and platform-native interaction behavior;
+- reader typography optimized for sustained reading and user customization.
+
+For meaningful UI/UX work, read:
+
+- `docs/UX_RESEARCH.md` for the evidence base;
+- `docs/UX_VALIDATION.md` for the testing method;
+- then the relevant `DESIGN_SYSTEM.md` / `UX_SPEC.md` section.
+
+Meaningful UX changes should identify their rationale in implementation/PR context as one or more of: `evidence`, `accessibility`, `platform convention`, `measured result`, `experiment`.
+
 ## Stable domain vocabulary
 
 Prefer app-owned models/interfaces such as:
@@ -151,6 +183,8 @@ Do not leak third-party package/provider types through feature/domain layers.
 - Architecture/data: `docs/ARCHITECTURE.md`
 - Adaptive native design: `docs/DESIGN_SYSTEM.md`
 - UX interactions: `docs/UX_SPEC.md`
+- UX evidence/research: `docs/UX_RESEARCH.md`
+- UX scientific validation: `docs/UX_VALIDATION.md`
 - Formats: `docs/UNIVERSAL_FORMATS.md`
 - Optional BYOC sync: `docs/SYNC.md`
 - Build order: `docs/ROADMAP.md`
@@ -174,6 +208,7 @@ Additionally:
 - If architecture or data flow changed -> update `docs/PROJECT_GRAPH.md`.
 - If a durable product/technical choice changed -> update `docs/DECISIONS.md`.
 - If requirements changed -> update the relevant detailed spec.
+- If a meaningful UX pattern changes -> verify it against `UX_RESEARCH.md`; define/record validation work using `UX_VALIDATION.md` where appropriate.
 - Never duplicate long context into agent-specific instruction files.
 
 A patch is incomplete until the required context files are synchronized.
@@ -186,6 +221,8 @@ A patch is incomplete until the required context files are synchronized.
 - Avoid premature package/microservice/module splitting.
 - Do not add mandatory cloud/account/network dependencies to core reading.
 - Do not replace settled architecture without documenting the decision.
+- Do not introduce one-off visual tokens/components when a design-system primitive should own the behavior.
+- Do not trade readability/accessibility for fashion-driven effects.
 - Prefer small coherent changes and tests over broad speculative rewrites.
 
 ## Definition of done for an agent patch
@@ -193,5 +230,6 @@ A patch is incomplete until the required context files are synchronized.
 1. Requested change implemented.
 2. Relevant tests/checks added or updated where applicable.
 3. No invariant above violated.
-4. `docs/PROJECT_STATE.md` updated.
-5. Graph/decision/spec files updated if the patch affected them.
+4. Meaningful UI changes have a stated evidence/validation rationale.
+5. `docs/PROJECT_STATE.md` updated.
+6. Graph/decision/spec files updated if the patch affected them.
