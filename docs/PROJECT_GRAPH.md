@@ -290,6 +290,41 @@ flowchart LR
 
 Clearing cache must never delete user-generated data or durable reading history.
 
+### Current reactive application data path
+
+```mermaid
+flowchart LR
+    DB[(SQLite / Drift)]
+    DocRepo[DriftDocumentRepository]
+    ReadRepo[DriftReadingRepository]
+    AnnRepo[DriftAnnotationRepository]
+    Domain[App-owned domain models]
+    Providers[Riverpod query providers]
+    Home[Home]
+    Library[Library]
+    Insights[Reading Insights]
+    Reader[Reader / annotations later]
+
+    DB --> DocRepo
+    DB --> ReadRepo
+    DB --> AnnRepo
+    DocRepo --> Domain
+    ReadRepo --> Domain
+    AnnRepo --> Domain
+    Domain --> Providers
+    Providers --> Home
+    Providers --> Library
+    Providers --> Insights
+    Providers -. document-specific state .-> Reader
+```
+
+Rules:
+
+- Drift-generated row classes never escape the data layer.
+- Repository writes explicitly invalidate affected Drift tables so streams refresh immediately.
+- UI consumes Riverpod query providers, not SQL or generated database rows.
+- Home, Library, and Insights now use durable local data; the Reader still waits for a real format adapter.
+
 ## 10. Bring Your Own Cloud sync
 
 ```mermaid
