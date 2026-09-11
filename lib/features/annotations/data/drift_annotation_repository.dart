@@ -42,8 +42,8 @@ final class DriftAnnotationRepository implements AnnotationRepository {
   }
 
   @override
-  Future<void> upsert(Annotation annotation) {
-    return _database.customStatement(
+  Future<void> upsert(Annotation annotation) async {
+    await _database.customStatement(
       '''
       INSERT INTO annotations (
         id, document_id, type, anchor_json, quote, note,
@@ -80,14 +80,16 @@ final class DriftAnnotationRepository implements AnnotationRepository {
         annotation.deletedAt,
       ],
     );
+    _database.markTablesUpdated([_database.annotations]);
   }
 
   @override
-  Future<void> remove(String id) {
-    return _database.customStatement(
+  Future<void> remove(String id) async {
+    await _database.customStatement(
       'DELETE FROM annotations WHERE id = ?',
       <Object?>[id],
     );
+    _database.markTablesUpdated([_database.annotations]);
   }
 
   Annotation _annotationFromRow(QueryRow row) {
