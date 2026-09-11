@@ -13,9 +13,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
-          kolaDatabaseProvider.overrideWithValue(database),
-        ],
+        overrides: [kolaDatabaseProvider.overrideWithValue(database)],
         child: const KolaApp(),
       ),
     );
