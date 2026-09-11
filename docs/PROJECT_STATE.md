@@ -6,111 +6,122 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 0 implementation is underway and the first application slice is verified.**
+**Phase 0 now includes a verified UI shell plus the first durable domain/persistence foundation.**
 
-Kola now has a compilable/analyzable Flutter foundation with Riverpod, go_router, adaptive navigation, design tokens/themes, Home/Library/Search/Insights/Reader prototypes, a smoke test, CI, and a native-platform bootstrap script.
+Kola has a working Flutter foundation, adaptive prototype UI, Kola-owned document/reading/annotation contracts, KDG primitives, a universal `DocumentAdapter` interface, and Drift schema v1. GitHub CI verifies dependency resolution, Drift code generation, analyzer, database tests, and the application smoke test on Flutter 3.47.4 / Dart 3.13.3.
 
-GitHub CI has verified the current foundation on **Flutter 3.47.4 / Dart 3.13.3**: dependency resolution succeeds, `flutter analyze` reports no issues, and the application smoke test passes.
+Native Android/iOS/Linux/macOS/Windows project folders are still generated with `bash tool/bootstrap.sh` on a Flutter-equipped development machine.
 
-Native Android/iOS/Linux/macOS/Windows project folders are generated with `bash tool/bootstrap.sh` on a Flutter-equipped development machine.
-
-## Current product state
+## Current product/implementation state
 
 - Product: local-first universal document reader + annotation workspace.
-- Strategic wedge: beautiful universal reader + source-linked Flow Mode + best-in-class annotations + local-first/BYOC ownership + universal local search + Reading Intelligence + migration/interoperability.
-- Product scope excludes AI assistants/LLMs and dedicated study systems.
 - Targets: Linux, Windows, macOS, Android, iOS, tablets, foldables.
-- Primary app stack: Flutter/Dart.
-- State: Riverpod.
-- Routing: go_router.
-- Persistence direction: SQLite + Drift; dependencies exist, schema not implemented yet.
-- Search direction: local FTS/indexing only; current Search screen is a prototype shell.
-- Current UI: tokenized Kola Core prototype skin; final visual direction remains unvalidated.
-- Current Reader: Flow/Fidelity shell only; no document engine attached yet.
-- Verification: analyzer + smoke test green in GitHub Actions.
+- App: Flutter/Dart + Riverpod + go_router.
+- Persistence: SQLite/Drift schema v1 implemented and code-generated at build time.
+- Timestamp storage: ISO-8601 text from schema v1 (D-019).
+- Search: local FTS/indexing direction only; UI remains prototype.
+- UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
+- Reader: Flow/Fidelity shell only; no real format renderer attached yet.
+- Domain: Kola-owned document models, KDG nodes/chunks, reading models, annotations, repository contracts.
+- Format boundary: universal `DocumentAdapter` contract exists; `FormatRegistry` and actual adapters are not implemented yet.
+- Verification: code generation + analyzer + tests are green in GitHub Actions.
 
-## Implemented files
+## Implemented persistence/domain files
 
 ```text
-pubspec.yaml
-analysis_options.yaml
-lib/main.dart
-lib/app/kola_app.dart
-lib/app/router.dart
-lib/design_system/tokens/kola_tokens.dart
-lib/design_system/theme/kola_theme.dart
-lib/shared/widgets/kola_adaptive_scaffold.dart
-lib/features/home/presentation/home_screen.dart
-lib/features/library/presentation/library_screen.dart
-lib/features/search/presentation/search_screen.dart
-lib/features/insights/presentation/insights_screen.dart
-lib/features/reader/presentation/reader_screen.dart
-test/app_smoke_test.dart
-tool/bootstrap.sh
-.github/workflows/flutter-ci.yml
+build.yaml
+lib/core/database/schema.drift
+lib/core/database/kola_database.dart
+lib/core/database/database_provider.dart
+lib/document/model/document_models.dart
+lib/document/graph/kola_document_graph.dart
+lib/document/registry/document_adapter.dart
+lib/features/library/domain/document_repository.dart
+lib/features/progress/domain/reading_models.dart
+lib/features/progress/domain/reading_repository.dart
+lib/features/annotations/domain/annotation_models.dart
+lib/features/annotations/domain/annotation_repository.dart
+test/core/database/kola_database_test.dart
 ```
 
-## Current UI behavior
+Generated `*.g.dart` files are build artifacts and are intentionally not committed.
 
-- Compact widths use bottom navigation.
-- Wider windows use NavigationRail; large widths extend labels.
-- Home includes Continue Reading, Next Up, progress/coverage/time concepts, and weekly insight cards.
-- Continue Reading sizing is content-driven to avoid constrained-height overflow.
-- Library uses a responsive book grid.
-- Search communicates the local-search architecture and has prototype results.
-- Insights has responsive metrics and a simple weekly reading chart.
-- Reader is immersive, hides/reveals chrome, switches between Flow/Fidelity prototypes, and exposes progress/annotation/navigation controls.
-- App light/dark theme follows system theme; reader-surface styling remains separately evolvable.
+## Database schema v1
+
+Durable tables currently cover:
+
+- documents
+- reading_states
+- reading_coverage
+- reading_sessions
+- planned_reading_items
+- reading_goals
+- annotations
+- bookmarks
+
+Foreign keys are enabled on open. Document deletion cascades dependent reading/annotation state where appropriate; the cascade behavior is tested.
+
+## Existing UI foundation
+
+- compact bottom navigation; larger windows use NavigationRail;
+- Home with Continue Reading, Next Up, and weekly insight prototypes;
+- responsive Library grid;
+- Search and Reading Insights shells;
+- immersive Reader shell with Flow/Fidelity switching;
+- system light/dark app theme and tokenized reader styling.
 
 ## Key invariants
 
 - Local reading requires no network.
-- Cloud sync is optional user-controlled transport.
+- Cloud sync remains optional user-controlled transport.
 - Never sync the live SQLite database file.
 - One Flutter codebase.
-- Universal format adapters; no PDF-only product architecture.
-- Flow Mode is universal and source-linked.
-- Annotation anchors are source-based/hybrid.
-- Position progress, reading coverage, and active reading time are distinct.
-- Reading List is separate from Favorites.
+- Format packages never escape through Kola domain contracts.
+- Flow Mode remains universal and source-linked.
+- Annotation anchors remain hybrid/source-based, never screen-coordinate-only.
+- Position, coverage, and active reading time remain distinct.
+- Reading List remains separate from Favorites.
 - AI and dedicated study systems remain out of scope.
-- Visual style is not locked; shared UI stays tokenized.
-- User data is durable; caches/derived aggregates are rebuildable.
+- Visual style is not locked; shared UI remains tokenized.
+- User-generated data is durable; caches/generated code/derived aggregates are rebuildable.
 
 ## Most recent context change
 
-Completed the first verification/fix cycle:
+Completed the domain + persistence foundation:
 
-- CI resolved the Phase 0 dependencies on Flutter 3.47.4 / Dart 3.13.3;
-- fixed missing Cupertino transition and sliver-layout imports exposed by the analyzer;
-- fixed a current Dart lint issue in the Home prototype;
-- `flutter analyze` is now green;
-- the smoke test exposed a real compact-layout overflow in Continue Reading;
-- replaced the fixed-height Continue Reading layout with content-driven sizing;
-- made the app-bar smoke assertion resilient to `SliverAppBar.large` internal duplicate title widgets;
-- `flutter test` is now green;
-- CI now cancels superseded runs so rapid commits do not waste multiple full Flutter setup jobs.
+- added `drift_flutter`, `drift_dev`, and `build_runner` support;
+- added Drift schema v1 and background/platform-appropriate database opening;
+- added Riverpod database provider;
+- added Kola document models and normalized KDG primitives;
+- added universal `DocumentAdapter` and format-capability contract;
+- added reading state/coverage/session/list/goal models;
+- added annotation model with source-linked anchor contract;
+- added document, reading, and annotation repository interfaces;
+- configured ISO-8601 Drift datetime storage and recorded D-019;
+- added database tests for persistence and foreign-key cascade behavior;
+- CI now generates Drift sources before analyze/test;
+- latest full CI run is green.
 
 ## Risks / blockers
 
-- This execution environment itself does not contain Flutter/Dart; GitHub Actions is the verified toolchain path here.
-- Native platform project folders still need generation on a Flutter-equipped development machine.
-- CI currently reports formatting but does not enforce it; restore a strict format gate after the initial source is run through `dart format` on a developer machine.
-- Drift schema and database lifecycle are not implemented yet.
-- Universal Flow Mode, annotation anchoring, and real text selection remain the highest-risk core engineering areas.
-- Current UI uses demo data only and must not leak prototype models into domain/storage layers.
+- Native platform project folders still need first generation on a Flutter-equipped machine.
+- Concrete Drift repository implementations/mappers do not exist yet; UI still uses demo records.
+- Schema v1 has no upgrade migration yet because no released schema exists; migrations become mandatory at the first schema change after release/testing data matters.
+- `FormatRegistry` detection/probing is not implemented.
+- Universal Flow Mode, source-map quality, annotation resolution, and real text selection remain the highest-risk core engineering areas.
+- Broad format adapters still require parser/license evaluation.
 - Final visual direction still requires comparative UX validation.
 
 ## Next recommended action
 
-1. Generate and commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
-2. Add `PlatformProfile` / input-capability abstractions and reduced-motion handling.
-3. Implement the first Drift database schema for documents, reading state, reading sessions, planned reading items, goals, and annotations.
-4. Introduce repository interfaces so Home/Library stop depending on demo records.
-5. Define `DocumentAdapter`, `FormatRegistry`, KDG node/source-map interfaces.
-6. Integrate PDF fidelity reading only after those app-owned interfaces exist.
-7. Restore strict formatting CI after a developer-machine `dart format lib test` pass.
-8. Keep visual primitives tokenized until the UX comparison is run.
+1. Implement concrete Drift repositories and serialization/mapping for documents, reading state, sessions/list/goals, and annotations.
+2. Expose those repositories through Riverpod and replace Home/Library/Insights demo models with repository-backed state.
+3. Add `FormatRegistry`, `FormatMatch`, and capability-driven adapter registration/detection.
+4. Add import/fingerprint plumbing for local files before attaching real renderers.
+5. Integrate the first PDF fidelity adapter behind `DocumentAdapter` only after registry/import identity is stable.
+6. Begin real source-linked annotation/text-selection work after PDF source locations are available.
+7. Generate/commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
+8. Keep visual primitives tokenized until comparative UX validation is run.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
