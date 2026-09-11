@@ -33,8 +33,8 @@ class InsightsScreen extends ConsumerWidget {
               sessions.when(
                 data: (List<ReadingSession> items) => _InsightsBody(
                   sessions: items,
-                  documents: documents.valueOrNull ?? const <KolaDocument>[],
-                  readingListCount: readingList.valueOrNull?.length ?? 0,
+                  documents: documents.value ?? const <KolaDocument>[],
+                  readingListCount: readingList.value?.length ?? 0,
                 ),
                 loading: () => const Padding(
                   padding: EdgeInsets.all(KolaSpacing.xxl),
