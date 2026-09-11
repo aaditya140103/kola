@@ -109,7 +109,7 @@ Durable tables: documents, reading_states, reading_coverage, reading_sessions, p
 
 ## Verification coverage
 
-The import branch passed full Flutter CI on 2026-09-12: dependency resolution, Drift generation, formatter, analyzer, and all tests. Tests cover database cascade behavior, repository round-trips/reactivity, ISO timestamp writes, app-shell rendering, content-format detection, stable import identity, idempotent re-import, moved-source relinking, and unknown-format rejection.
+The import branch passed full Flutter CI on 2026-09-12 after the persistence boundary and widget-test lifecycle fixes: dependency resolution, Drift generation, formatter, analyzer, and all tests. Tests cover database cascade behavior, repository round-trips/reactivity, ISO timestamp writes, app-shell rendering, content-format detection, stable import identity, idempotent re-import, moved-source relinking, and unknown-format rejection.
 
 ## Risks / blockers
 
