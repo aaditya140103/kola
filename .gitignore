@@ -3,6 +3,35 @@
 .env.*
 !.env.example
 
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# Generated ephemeral platform files
+**/Flutter/ephemeral/
+**/flutter/ephemeral/
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+
+# iOS / macOS
+**/Pods/
+**/.symlinks/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
 # OS files
 .DS_Store
 Thumbs.db
