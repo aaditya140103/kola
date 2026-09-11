@@ -159,7 +159,7 @@ class _NextUpRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: KolaSpacing.sm),
+        separatorBuilder: (_, _) => const SizedBox(width: KolaSpacing.sm),
         itemBuilder: (BuildContext context, int index) {
           if (index == items.length) {
             return InkWell(
