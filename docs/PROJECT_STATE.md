@@ -26,7 +26,7 @@ Native Android/iOS/Linux/macOS/Windows project folders are still generated with 
 - Registry: `FormatRegistry` exists; no concrete `DocumentAdapter` is registered yet.
 - Reader: Flow/Fidelity shell only; no real format renderer attached yet.
 - Search: local FTS/indexing direction only; UI remains prototype.
-- Timestamp storage: ISO-8601 text from schema v1 (D-019).
+- Timestamp storage: raw repository writes normalize `DateTime` values to UTC ISO-8601 text before SQLite binding (D-019).
 - UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
 
 ## Implemented data/import foundation
@@ -108,7 +108,7 @@ Durable tables: documents, reading_states, reading_coverage, reading_sessions, p
 
 ## Verification coverage
 
-CI runs dependency resolution, Drift generation, formatter, analyzer, and Flutter tests. Tests now cover database cascade behavior, repository round-trips/reactivity, content-format detection, stable import identity, idempotent re-import, moved-source relinking, and unknown-format rejection.
+The import branch passed full Flutter CI on 2026-09-12: dependency resolution, Drift generation, formatter, analyzer, and all tests. Tests cover database cascade behavior, repository round-trips/reactivity, ISO timestamp writes, app-shell rendering, content-format detection, stable import identity, idempotent re-import, moved-source relinking, and unknown-format rejection.
 
 ## Risks / blockers
 
@@ -121,14 +121,13 @@ CI runs dependency resolution, Drift generation, formatter, analyzer, and Flutte
 
 ## Next recommended action
 
-1. Make the import branch pass CI and merge it.
-2. Implement the first PDF fidelity adapter behind `DocumentAdapter` and register it in `FormatRegistry`.
-3. Resolve a document's readable managed/linked path through one app-owned helper rather than adapter-specific path logic.
-4. Make Reader load a real imported PDF through document ID -> repository -> registry -> adapter.
-5. Add PDF page navigation/zoom before text selection or annotation rendering.
-6. Then add source-linked PDF text selection and annotation anchors.
-7. Generate/commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
-8. Keep visual primitives tokenized until comparative UX validation is run.
+1. Implement the first PDF fidelity adapter behind `DocumentAdapter` and register it in `FormatRegistry`.
+2. Resolve a document's readable managed/linked path through one app-owned helper rather than adapter-specific path logic.
+3. Make Reader load a real imported PDF through document ID -> repository -> registry -> adapter.
+4. Add PDF page navigation/zoom before text selection or annotation rendering.
+5. Then add source-linked PDF text selection and annotation anchors.
+6. Generate/commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
+7. Keep visual primitives tokenized until comparative UX validation is run.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
