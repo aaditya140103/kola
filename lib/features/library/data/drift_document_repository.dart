@@ -86,12 +86,12 @@ final class DriftDocumentRepository implements DocumentRepository {
         document.metadata.language,
         document.metadata.coverCacheKey,
         document.fileSize,
-        document.importedAt,
-        document.lastOpenedAt,
+        DatabaseSerialization.encodeDateTime(document.importedAt),
+        DatabaseSerialization.encodeNullableDateTime(document.lastOpenedAt),
         document.supportStatus.name,
         document.parserVersion,
         document.revision,
-        document.updatedAt,
+        DatabaseSerialization.encodeDateTime(document.updatedAt),
       ],
     );
     _database.markTablesUpdated([_database.documents]);

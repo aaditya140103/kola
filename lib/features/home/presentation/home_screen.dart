@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/model/document_models.dart';
+import 'package:kola/features/library/presentation/import_document_button.dart';
 import 'package:kola/features/progress/domain/reading_models.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -24,13 +25,9 @@ class HomeScreen extends ConsumerWidget {
         SliverAppBar.large(
           pinned: false,
           title: const Text('Your reading space'),
-          actions: <Widget>[
-            IconButton(
-              tooltip: 'Import document',
-              onPressed: () {},
-              icon: const Icon(Icons.add_rounded),
-            ),
-            const SizedBox(width: KolaSpacing.xs),
+          actions: const <Widget>[
+            ImportDocumentButton(),
+            SizedBox(width: KolaSpacing.xs),
           ],
         ),
         SliverPadding(
@@ -61,7 +58,8 @@ class HomeScreen extends ConsumerWidget {
               const _SectionHeader(title: 'Next up'),
               const SizedBox(height: KolaSpacing.md),
               readingList.when(
-                data: (List<PlannedReadingItem> items) => _NextUpRow(items: items),
+                data: (List<PlannedReadingItem> items) =>
+                    _NextUpRow(items: items),
                 loading: () => const _LoadingCard(height: 156),
                 error: (_, _) => const _InlineError(
                   message: 'Your reading list could not be loaded.',
@@ -184,9 +182,14 @@ class _EmptyReadingCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Your library is empty', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Your library is empty',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: KolaSpacing.xs),
-                  const Text('Import a document to start building your reading space.'),
+                  const Text(
+                    'Import a document to start building your reading space.',
+                  ),
                 ],
               ),
             ),
@@ -220,7 +223,9 @@ class _NextUpRow extends StatelessWidget {
                 width: 124,
                 decoration: BoxDecoration(
                   borderRadius: KolaRadius.md,
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -294,14 +299,28 @@ class _InsightStrip extends StatelessWidget {
       Duration(days: now.weekday - DateTime.monday),
     );
     final Duration activeTime = sessions
-        .where((ReadingSession session) => !session.startedAt.isBefore(weekStart))
-        .fold(Duration.zero, (Duration total, ReadingSession session) => total + session.activeTime);
+        .where(
+          (ReadingSession session) => !session.startedAt.isBefore(weekStart),
+        )
+        .fold(
+          Duration.zero,
+          (Duration total, ReadingSession session) => total + session.activeTime,
+        );
 
-    final List<(IconData, String, String)> insights = <(IconData, String, String)>[
-      (Icons.schedule_rounded, _formatDuration(activeTime), 'Reading time'),
-      (Icons.local_library_rounded, '$documentCount', 'Documents'),
-      (Icons.playlist_add_check_rounded, '$readingListCount', 'Reading list'),
-    ];
+    final List<(IconData, String, String)> insights =
+        <(IconData, String, String)>[
+          (
+            Icons.schedule_rounded,
+            _formatDuration(activeTime),
+            'Reading time',
+          ),
+          (Icons.local_library_rounded, '$documentCount', 'Documents'),
+          (
+            Icons.playlist_add_check_rounded,
+            '$readingListCount',
+            'Reading list',
+          ),
+        ];
 
     return Wrap(
       spacing: KolaSpacing.sm,
@@ -320,8 +339,14 @@ class _InsightStrip extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(insight.$2, style: Theme.of(context).textTheme.titleMedium),
-                          Text(insight.$3, style: Theme.of(context).textTheme.bodySmall),
+                          Text(
+                            insight.$2,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          Text(
+                            insight.$3,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ],
                       ),
                     ],
@@ -379,7 +404,9 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         if (action != null)

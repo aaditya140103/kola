@@ -154,5 +154,23 @@ Short record of settled decisions. Update only when a durable product/technical 
 
 - Status: accepted
 - Decision: New Kola database schemas store Drift `DATETIME` values as ISO-8601 text instead of legacy Unix-second integers.
-- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization benefit from timezone preservation and sub-second precision.
-- Consequence: changing timestamp storage mode later requires an explicit schema migration; agents must not silently switch the Drift datetime build option.
+- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization require precise, unambiguous timestamps.
+- Consequences:
+  - raw repository writes must convert `DateTime` values to UTC ISO-8601 strings before calling sqlite3;
+  - reads parse those strings back to `DateTime`;
+  - changing timestamp storage mode later requires an explicit schema migration;
+  - agents must not silently switch the Drift datetime build option or bind raw `DateTime` objects through `customStatement`.
+
+## D-020 — Document identity is content-based; normal import creates a managed copy
+
+- Status: accepted
+- Decision: Imported local documents receive a stable `sha256:<hex>` identity derived by streaming the complete source file. The normal Import action copies the source byte-for-byte into Kola's application-support document store; linked/read-in-place imports remain a supported explicit mode.
+- Why: content identity survives rename/move operations, deduplicates re-imports, and provides a stable future sync key. Managed copies avoid mobile sandbox, temporary-file, and external-provider lifetime failures.
+- Consequences:
+  - the original source file is never modified;
+  - importing identical bytes does not create a second document identity;
+  - re-importing the same content from a moved source relinks the existing record;
+  - source-file hashing and container probing run off the UI isolate;
+  - format detection combines content signatures, container structure, and filename extension rather than trusting the extension alone;
+  - documents may be imported before a renderer exists and remain `partial` until a matching `DocumentAdapter` is registered;
+  - future fingerprint-algorithm changes require explicit versioning/migration rather than silently changing identity semantics.

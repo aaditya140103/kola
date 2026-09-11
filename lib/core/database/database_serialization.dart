@@ -13,6 +13,12 @@ abstract final class DatabaseSerialization {
     return List<String>.unmodifiable(decoded.whereType<String>());
   }
 
+  static String encodeDateTime(DateTime value) =>
+      value.toUtc().toIso8601String();
+
+  static String? encodeNullableDateTime(DateTime? value) =>
+      value == null ? null : encodeDateTime(value);
+
   static String? encodeLocation(DocumentLocation? location) {
     if (location == null) return null;
     return jsonEncode(<String, Object?>{
@@ -29,7 +35,9 @@ abstract final class DatabaseSerialization {
     final Object? rawData = decoded['data'];
     return DocumentLocation(
       scheme: decoded['scheme'] as String? ?? 'unknown',
-      data: rawData is Map<String, Object?> ? rawData : const <String, Object?>{},
+      data: rawData is Map<String, Object?>
+          ? rawData
+          : const <String, Object?>{},
       label: decoded['label'] as String?,
     );
   }
@@ -67,7 +75,9 @@ abstract final class DatabaseSerialization {
       final Object? rawData = rawLocator['data'];
       locator = DocumentLocation(
         scheme: rawLocator['scheme'] as String? ?? 'unknown',
-        data: rawData is Map<String, Object?> ? rawData : const <String, Object?>{},
+        data: rawData is Map<String, Object?>
+            ? rawData
+            : const <String, Object?>{},
         label: rawLocator['label'] as String?,
       );
     }
@@ -88,9 +98,7 @@ abstract final class DatabaseSerialization {
       logicalStart: decoded['logicalStart'] as int?,
       logicalEnd: decoded['logicalEnd'] as int?,
       sourceGeometry: rawGeometry is List<Object?>
-          ? rawGeometry
-                .whereType<Map<String, Object?>>()
-                .toList(growable: false)
+          ? rawGeometry.whereType<Map<String, Object?>>().toList(growable: false)
           : const <Map<String, Object?>>[],
       formatSpecificFallback: rawFallback is Map<String, Object?>
           ? rawFallback

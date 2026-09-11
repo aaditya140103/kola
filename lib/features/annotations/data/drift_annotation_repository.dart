@@ -74,10 +74,10 @@ final class DriftAnnotationRepository implements AnnotationRepository {
         annotation.semanticLabel,
         annotation.colorToken,
         annotation.favorite,
-        annotation.createdAt,
-        annotation.updatedAt,
+        DatabaseSerialization.encodeDateTime(annotation.createdAt),
+        DatabaseSerialization.encodeDateTime(annotation.updatedAt),
         annotation.revision,
-        annotation.deletedAt,
+        DatabaseSerialization.encodeNullableDateTime(annotation.deletedAt),
       ],
     );
     _database.markTablesUpdated([_database.annotations]);

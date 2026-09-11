@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/model/document_models.dart';
+import 'package:kola/features/library/presentation/import_document_button.dart';
 
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
@@ -18,8 +19,12 @@ class LibraryScreen extends ConsumerWidget {
         SliverAppBar.large(
           title: const Text('Library'),
           actions: <Widget>[
-            IconButton(onPressed: () {}, tooltip: 'Filter', icon: const Icon(Icons.tune_rounded)),
-            IconButton(onPressed: () {}, tooltip: 'Import', icon: const Icon(Icons.add_rounded)),
+            IconButton(
+              onPressed: () {},
+              tooltip: 'Filter',
+              icon: const Icon(Icons.tune_rounded),
+            ),
+            const ImportDocumentButton(tooltip: 'Import'),
             const SizedBox(width: KolaSpacing.xs),
           ],
         ),
@@ -108,7 +113,11 @@ class _BookTile extends StatelessWidget {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Icon(Icons.auto_stories_rounded, size: 42, color: scheme.onSurface),
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 42,
+                  color: scheme.onSurface,
+                ),
               ),
             ),
           ),
@@ -117,7 +126,9 @@ class _BookTile extends StatelessWidget {
             document.metadata.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: KolaSpacing.xxs),
           Text(
@@ -156,7 +167,10 @@ class _EmptyLibrary extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: KolaSpacing.md),
-              Text('No documents yet', style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                'No documents yet',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               const SizedBox(height: KolaSpacing.sm),
               const Text(
                 'Import a local document and it will appear here. Kola keeps your library available offline.',

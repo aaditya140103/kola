@@ -45,7 +45,7 @@ final class DriftReadingRepository implements ReadingRepository {
         state.viewMode.name,
         state.zoom,
         state.activeThemeId,
-        state.updatedAt,
+        DatabaseSerialization.encodeDateTime(state.updatedAt),
       ],
     );
     _database.markTablesUpdated([_database.readingStates]);
@@ -90,7 +90,7 @@ final class DriftReadingRepository implements ReadingRepository {
         coverage.totalWeight,
         coverage.completionState.name,
         coverage.readingTime.inMilliseconds,
-        coverage.updatedAt,
+        DatabaseSerialization.encodeDateTime(coverage.updatedAt),
       ],
     );
     _database.markTablesUpdated([_database.readingCoverage]);
@@ -153,14 +153,14 @@ final class DriftReadingRepository implements ReadingRepository {
       <Object?>[
         session.id,
         session.documentId,
-        session.startedAt,
-        session.endedAt,
+        DatabaseSerialization.encodeDateTime(session.startedAt),
+        DatabaseSerialization.encodeNullableDateTime(session.endedAt),
         session.activeTime.inMilliseconds,
         session.passiveTime.inMilliseconds,
         DatabaseSerialization.encodeLocation(session.startLocation),
         DatabaseSerialization.encodeLocation(session.endLocation),
         session.revision,
-        session.updatedAt,
+        DatabaseSerialization.encodeDateTime(session.updatedAt),
       ],
     );
     _database.markTablesUpdated([_database.readingSessions]);
@@ -222,8 +222,8 @@ final class DriftReadingRepository implements ReadingRepository {
         item.status.name,
         item.queuePosition,
         item.notes,
-        item.addedAt,
-        item.updatedAt,
+        DatabaseSerialization.encodeDateTime(item.addedAt),
+        DatabaseSerialization.encodeDateTime(item.updatedAt),
         item.revision,
       ],
     );
@@ -278,9 +278,9 @@ final class DriftReadingRepository implements ReadingRepository {
         goal.targetValue,
         goal.period.name,
         goal.enabled,
-        goal.startsAt,
-        goal.endsAt,
-        goal.updatedAt,
+        DatabaseSerialization.encodeNullableDateTime(goal.startsAt),
+        DatabaseSerialization.encodeNullableDateTime(goal.endsAt),
+        DatabaseSerialization.encodeDateTime(goal.updatedAt),
         goal.revision,
       ],
     );
