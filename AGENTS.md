@@ -61,6 +61,33 @@ Adaptive platform shell
   -> optional Sync Projection -> user-selected SyncBackend
 ```
 
+## Product feature strategy
+
+Before proposing or committing a substantial new feature, read `docs/FEATURE_STRATEGY.md`.
+
+Near-term Kola positioning is intentionally focused on:
+
+```text
+Beautiful universal reader
++ universal source-linked Flow Mode
++ excellent annotations
++ local-first/BYOC ownership
++ reading intelligence
++ effortless migration/interoperability
+```
+
+Do not prioritize fashionable AI/social features ahead of reader trust, annotation quality, migration, or interoperability.
+
+Feature proposals should answer:
+
+1. Does this improve reading, understanding, remembering, organizing, or continuing?
+2. Does it strengthen Kola's core product promises?
+3. Can it remain local-first or explicitly optional-network?
+4. Can it reuse existing document/annotation models rather than create a silo?
+5. Is there evidence users want it?
+6. Will users notice/care enough to justify the complexity?
+7. What higher-priority work will it delay?
+
 ## Universal format contract
 
 Each format adapter should expose as much as it can of:
@@ -209,6 +236,7 @@ Do not leak third-party package/provider types through feature/domain layers.
 
 - Product: `docs/APP.md`
 - Architecture/data: `docs/ARCHITECTURE.md`
+- Product feature strategy: `docs/FEATURE_STRATEGY.md`
 - Adaptive native design: `docs/DESIGN_SYSTEM.md`
 - UX interactions: `docs/UX_SPEC.md`
 - UX evidence/research: `docs/UX_RESEARCH.md`
@@ -240,6 +268,7 @@ Additionally:
 - If requirements changed -> update the relevant detailed spec.
 - If a meaningful UX pattern changes -> verify it against `UX_RESEARCH.md`; define/record validation work using `UX_VALIDATION.md` where appropriate.
 - If a visual style/token/component choice is being locked -> compare it against `VISUAL_DIRECTIONS.md` and record why the selected direction won.
+- If feature scope/prioritization changes materially -> update `FEATURE_STRATEGY.md`.
 - Never duplicate long context into agent-specific instruction files.
 
 A patch is incomplete until the required context files are synchronized.
