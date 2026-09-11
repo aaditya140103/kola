@@ -17,7 +17,7 @@ Do not load every document unless necessary.
 
 Kola is a **local-first, cross-platform universal document reader and annotation workspace** built with one Flutter/Dart codebase for Linux, Windows, macOS, Android, iOS, tablets, and foldables.
 
-It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, reading analytics/planning, themes/backgrounds, local export, and optional **Bring Your Own Cloud (BYOC)** synchronization. Core reading must work without accounts, cloud services, telemetry, or internet access.
+It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, reading analytics/planning, themes/backgrounds, local export, read-aloud/lookup/compare tools, and optional **Bring Your Own Cloud (BYOC)** synchronization. Core reading must work without accounts, cloud services, telemetry, or internet access.
 
 ## Non-negotiable invariants
 
@@ -30,9 +30,10 @@ It should read mainstream ebooks, PDFs, office documents, presentations, spreads
 7. **Adaptive-native UX:** same semantics; platform-native presentation/interaction.
 8. **Evidence-based UX:** meaningful visual/interaction choices need evidence, accessibility, platform convention, or an explicit experiment.
 9. **User-owned data:** metadata, progress, annotations, indexes, exports, analytics/history, and sync targets remain user-controlled.
-10. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
-11. **Performance first:** reading/selection/annotation correctness beats decoration.
-12. **No DRM bypass.**
+10. **Focused product scope:** Kola is a reading/annotation product, not an AI or study platform.
+11. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
+12. **Performance first:** reading/selection/annotation correctness beats decoration.
+13. **No DRM bypass.**
 
 ## Core stack
 
@@ -65,28 +66,45 @@ Adaptive platform shell
 
 Before proposing or committing a substantial new feature, read `docs/FEATURE_STRATEGY.md`.
 
-Near-term Kola positioning is intentionally focused on:
+Kola's committed product identity is:
 
 ```text
 Beautiful universal reader
 + universal source-linked Flow Mode
-+ excellent annotations
++ best-in-class annotations
 + local-first/BYOC ownership
-+ reading intelligence
-+ effortless migration/interoperability
++ universal local search
++ Reading Intelligence
++ migration/interoperability
++ Read Aloud / lookup / translation / compare
 ```
 
-Do not prioritize fashionable AI/social features ahead of reader trust, annotation quality, migration, or interoperability.
+Do not introduce dedicated AI or study systems.
+
+Explicitly out of scope unless the product decision is revisited:
+
+- BYO AI/local LLMs;
+- document chat/Q&A or AI summaries;
+- semantic AI search;
+- flashcards;
+- spaced repetition/SRS;
+- persistent knowledge cards;
+- backlinks/knowledge graphs;
+- mind maps/concept boards;
+- Recall Mode;
+- study-sheet or quiz systems.
 
 Feature proposals should answer:
 
-1. Does this improve reading, understanding, remembering, organizing, or continuing?
-2. Does it strengthen Kola's core product promises?
+1. Does this improve reading, annotation, navigation, ownership, continuity, accessibility, or useful reading insight?
+2. Does it strengthen one of Kola's core product promises?
 3. Can it remain local-first or explicitly optional-network?
 4. Can it reuse existing document/annotation models rather than create a silo?
 5. Is there evidence users want it?
 6. Will users notice/care enough to justify the complexity?
 7. What higher-priority work will it delay?
+
+If a feature mainly turns Kola into an AI, study, social, or generic productivity app, the default decision is **do not add it**.
 
 ## Universal format contract
 
@@ -280,6 +298,7 @@ A patch is incomplete until the required context files are synchronized.
 - Background parsing/indexing/sync must not block the reader UI.
 - Avoid premature package/microservice/module splitting.
 - Do not add mandatory cloud/account/network dependencies to core reading.
+- Do not add AI or dedicated study systems without an explicit product-decision change.
 - Do not replace settled architecture without documenting the decision.
 - Do not introduce one-off visual tokens/components when a design-system primitive should own the behavior.
 - Do not trade readability/accessibility for fashion-driven effects.
