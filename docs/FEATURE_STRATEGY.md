@@ -2,69 +2,92 @@
 
 Research snapshot: September 2026.
 
-This file defines the committed product direction. Kola should be an excellent universal reader, not a collection of unrelated AI, study, social, or productivity systems.
+This file defines the **committed product scope** for Kola.
+
+Kola is a reader. It is not an AI assistant, study suite, knowledge-management system, social network, or productivity super-app.
+
+The product should become deeper and more polished around reading itself rather than broader for its own sake.
 
 ## 1. Product position
 
-> **Kola is a beautiful, private, universal reading application that lets people read almost any document, annotate it precisely, track their reading, and continue across devices without surrendering ownership of their data.**
+> **Kola is a beautiful, private, universal reading application for books and documents: read almost anything, annotate it precisely, search it locally, understand your reading habits, and continue across devices while keeping ownership of your files and data.**
 
-The product is intentionally focused on the reading experience itself.
+The committed product is built around one reading stack:
 
----
+```text
+Universal document support
++ Fidelity View
++ source-linked Flow Mode
++ best-in-class annotation
++ premium adaptive-native UI
++ local-first ownership + optional BYOC
++ universal local search
++ Reading Intelligence
++ import/export/interoperability
++ read-aloud and reader utilities
+```
 
-# 2. S-tier — defining Kola features
+## 2. S-tier — defining Kola features
 
-## S1. Universal document support
+These features define Kola and outrank speculative expansion.
+
+### S1. Universal document support
 
 Kola should read major practical, non-DRM document families through one adapter architecture.
 
-Priority families include:
+Priority families:
 
 - PDF / DjVu / fixed-layout documents;
 - EPUB and major ebook containers;
 - TXT / Markdown / HTML;
-- DOCX and word-processing formats;
-- PPT/PPTX and presentations;
-- XLS/XLSX and spreadsheets;
+- DOCX / ODT / RTF and other maintainable word-processing formats;
+- PPT/PPTX / ODP presentations;
+- XLS/XLSX / ODS / CSV spreadsheets;
 - CBZ/CBR and visual publications;
-- images/scanned documents with optional local OCR;
+- images and scanned documents with local OCR where feasible;
 - additional maintainable non-DRM formats over time.
 
-## S2. Universal source-linked Flow Mode
+The user should not need another app just because the readable file format changed.
 
-Kola's strongest technical differentiator.
+### S2. Universal source-linked Flow Mode
+
+This is Kola's strongest technical differentiator.
 
 Requirements:
 
+- every supported format attempts to project into the Kola Document Graph;
 - source mapping back to the original document;
 - annotation compatibility between Flow and Fidelity views;
 - reading-position continuity between views;
 - safe preservation of figures, tables, equations, slide regions, spreadsheet regions, and other complex structures;
-- honest Flow quality/confidence where reconstruction is approximate;
-- reader-controlled typography, width, spacing, themes, and backgrounds.
+- honest quality/confidence states when reconstruction is approximate;
+- typography, width, spacing, themes, and backgrounds controlled by the reader.
 
 Flow Mode must never become an unrelated converted copy.
 
-## S3. Best-in-class annotation
+### S3. Best-in-class annotation
+
+Annotation quality is a trust feature.
 
 Required capabilities:
 
-- text highlighting;
-- underline and strikeout;
-- text and margin notes;
+- highlight;
+- underline;
+- strikeout;
+- text notes and margin notes;
 - bookmarks;
-- cross-page text selection/highlighting where technically possible;
+- cross-page selection/highlighting where technically possible;
 - image/diagram/area annotation;
 - freehand ink;
 - shapes/arrows/text boxes where appropriate;
 - semantic highlight labels;
-- annotation filtering and search;
+- filtering and search;
 - exact jump back to source;
 - undo/redo;
-- mouse, keyboard, touch, and stylus interaction paths;
+- mouse, keyboard, touch, and stylus workflows;
 - hybrid source anchors rather than screen-coordinate-only storage.
 
-## S4. Premium adaptive-native UI/UX
+### S4. Premium adaptive-native UI/UX
 
 Kola's appearance is part of the product.
 
@@ -72,51 +95,52 @@ Requirements:
 
 - attractive modern visual identity;
 - calm long-form reading surfaces;
-- evidence-based hierarchy/readability;
-- platform-native presentation and behavior;
-- compact, medium, and expanded adaptive layouts;
+- evidence-based hierarchy and readability;
+- native platform presentation and behavior;
+- compact, medium, expanded, large, and extra-large adaptive layouts;
 - excellent desktop, phone, tablet, foldable, mouse, keyboard, touch, and stylus behavior;
 - application themes;
 - reader themes;
 - ambient backgrounds;
-- polished micro-interactions and motion where they add meaning;
+- high-quality micro-interactions and motion where useful;
 - accessibility, reduced motion, high contrast, large text, and screen-reader support.
 
-Reference: `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
+Reference: `UX_RESEARCH.md`, `UX_VALIDATION.md`, `VISUAL_DIRECTIONS.md`.
 
-## S5. Local-first ownership + BYOC
+### S5. Local-first ownership + Bring Your Own Cloud
 
-Kola must remain completely usable without an account or Kola-owned cloud.
+Kola must remain fully usable without an account or Kola-owned cloud.
 
-Core principles:
+Core rules:
 
-- local reading works with zero network requests;
+- local reading makes zero network requests;
 - annotations, progress, reading history, library state, and settings are stored locally;
-- users can connect their own cloud/storage through `SyncBackend` adapters;
-- never synchronize the live SQLite file;
-- state-only, selected-document, and full-library sync scopes;
+- users may connect storage they control through `SyncBackend` adapters;
+- never synchronize the live SQLite database file;
+- support state-only, selected-document, and full-library sync scopes;
 - conflict-aware merge;
 - optional client-side encrypted sync vaults;
 - sync/network failures never block reading.
 
 Reference: `SYNC.md`.
 
-## S6. Universal local search
+### S6. Universal local search
 
-Search targets:
+Search should cover:
 
-- titles/authors/metadata;
+- title/author/metadata;
 - document text;
 - OCR text;
-- annotations;
-- notes;
-- presentation text/speaker notes;
+- annotations and notes;
+- presentation text and speaker notes;
 - spreadsheet cell text;
-- tags/collections.
+- tags and collections.
 
-Every result must resolve back to a useful document location.
+Every result must resolve back to a useful source location.
 
-## S7. Reading Intelligence + Reading List
+### S7. Reading Intelligence + Reading List
+
+Kola should help users understand their reading without turning it into a compulsive scoreboard.
 
 Capabilities:
 
@@ -135,11 +159,13 @@ Capabilities:
 - Paused;
 - Completed;
 - optional Abandoned/DNF;
-- optional goals and gentle streaks.
+- optional gentle goals/streaks.
 
 Reference: `READING_ANALYTICS.md`.
 
-## S8. Interoperability, migration, and export
+### S8. Interoperability, migration, backup, and export
+
+Switching to Kola should not require rebuilding a reading life from zero.
 
 Important directions:
 
@@ -149,146 +175,182 @@ Important directions:
 - KOReader where feasible;
 - reading-list CSV imports;
 - highlight/note imports from open/exportable formats;
-- Markdown/JSON/CSV export;
+- Markdown / JSON / CSV export;
 - annotated PDF export where supported;
 - portable Kola backup;
-- user-controlled document/annotation export.
+- user-controlled document and annotation export.
 
-Interoperability is acquisition infrastructure, not edge-case polish.
-
-## S9. Read Aloud / TTS
+### S9. Read Aloud / TTS
 
 Capabilities:
 
 - local/platform voices first;
 - synchronized sentence/paragraph highlighting;
-- speed/voice controls;
+- speed and voice controls;
 - background playback where permitted;
 - sleep timer;
-- visual and spoken reading positions converge on the same source model;
+- visual and spoken positions resolve to the same source model;
 - accessibility-first implementation.
 
-## S10. Selection tools
+### S10. Reader selection tools
 
-High-frequency selection actions should include:
+High-frequency actions may include:
 
 - dictionary/definition;
-- reference lookup where configured;
-- translation;
+- optional reference lookup;
+- optional translation;
 - copy/share;
 - annotation actions.
 
-Network-backed lookup/translation must remain optional.
+Any network-backed lookup remains optional and explicit.
 
-## S11. Parallel Read / Compare
+### S11. Parallel Read / Compare
 
-Two sources can be viewed together for tasks such as:
+Two sources can be viewed together for:
 
 - original + translation;
 - two versions of a document;
-- two research papers;
+- two papers/books/documents;
 - presentation + reference;
-- textbook + another source.
+- any reading task where side-by-side comparison is useful.
 
-Support independent and synchronized navigation where meaningful.
+Support independent or synchronized navigation where meaningful.
 
----
+### S12. Advanced reading ergonomics
 
-# 3. Explicitly out of scope
+Kola-specific reading aids may include:
 
-The following are **not committed Kola product features** and should not be added unless the product decision is explicitly revisited:
+- Focus Mode;
+- Reading Lens;
+- Peek for footnotes/references/figures;
+- crop margins;
+- document tabs on desktop;
+- history back/forward;
+- customizable shortcuts;
+- fullscreen reading;
+- page/column/layout preferences;
+- touch/stylus ergonomics.
 
-- AI assistants;
+These remain reading features, not study-system features.
+
+## 3. Explicitly out of scope
+
+The following are **not Kola product features** unless this decision is explicitly revisited:
+
+### AI / assistant systems
+
+- AI chat;
 - BYO AI;
-- local LLM integration;
-- document chat/Q&A;
-- AI summaries/explanations;
-- semantic AI search;
-- flashcard systems;
-- spaced-repetition/SRS schedulers;
-- persistent knowledge-card systems;
-- backlinks/knowledge graphs;
-- graph views;
-- mind maps/concept boards;
+- cloud AI;
+- local LLM features;
+- document Q&A using LLMs;
+- AI summaries;
+- AI explanations;
+- AI-generated quizzes;
+- semantic/embedding search that requires an AI model;
+- AI recommendations;
+- AI OCR correction assistants.
+
+### Dedicated study systems
+
+- flashcards;
+- spaced repetition / SRS;
+- study decks;
 - Recall Mode;
-- dedicated study-sheet systems;
-- quiz-generation systems;
-- plugin/extension SDK as a committed product feature;
-- built-in public social network/book clubs;
-- badges/coins/XP gamification;
+- mind maps / concept boards;
+- backlinks / knowledge graph;
+- persistent knowledge cards;
+- study sheets;
+- quiz systems;
+- learning streaks unrelated to ordinary reading goals.
+
+### Other excluded product directions
+
+- built-in public social network;
+- book-club infrastructure as a core feature;
 - proprietary ebook store;
-- mandatory Kola account.
+- badges/coins/XP systems;
+- mandatory Kola account;
+- mandatory Kola-hosted cloud;
+- plugin SDK before there is a separate explicit product decision.
 
-The product should stay centered on **reading, annotation, navigation, personalization, analytics, ownership, and continuity**.
+Ordinary annotations, notes, collections, search, reading analytics, and exports remain part of the reader and should not be reclassified as study tooling.
 
----
+## 4. Product priority order
 
-# 4. Product priority order
+### Phase A — Trust the reader
 
-## Phase 1 — core reader
+Prioritize:
 
 1. adaptive premium visual shell;
-2. local library/persistence;
+2. local library and persistence;
 3. PDF + EPUB excellence;
 4. universal adapter boundaries;
 5. annotation correctness;
 6. Flow Mode foundation;
-7. universal local search;
+7. local search;
 8. themes/backgrounds;
 9. progress + coverage;
 10. Reading Intelligence foundations;
 11. backup/export.
 
-## Phase 2 — complete universal reader
+### Phase B — Universal reader breadth
 
 Add/mature:
 
-- broader document formats;
+- broader ebook/document formats;
+- Office-family reading;
+- presentations and spreadsheets;
+- local OCR;
+- Flow Mode across those formats;
+- ink/stylus;
+- advanced reader ergonomics.
+
+### Phase C — Continuity and interoperability
+
+Add/mature:
+
 - BYOC state sync;
 - migration/import/export;
 - Reading List and analytics;
 - TTS;
 - dictionary/translation;
 - Parallel Read;
-- OPDS/Calibre/KOReader interoperability where feasible.
+- OPDS/Calibre/KOReader interoperability where feasible;
+- robust backup/restore.
 
-## Phase 3 — refinement and depth
+### Phase D — polish and reliability
 
-Focus on:
+Invest in:
 
-- annotation ergonomics;
+- startup/open latency;
 - large-library performance;
-- long-session reading comfort;
-- stronger Flow reconstruction;
-- better Office/presentation/spreadsheet fidelity;
-- sync resilience;
+- huge-document performance;
+- rendering smoothness;
+- crash recovery;
+- annotation durability;
 - accessibility;
-- platform-specific polish;
-- import/export reliability;
-- analytics quality;
-- advanced reader customization.
+- platform-native polish;
+- long-session comfort;
+- battery/memory use;
+- test corpus expansion.
 
-No AI or study-system layer is planned.
+There is no planned AI or study-system phase.
 
----
-
-# 5. Feature proposal rule
+## 5. Feature proposal rule
 
 Before adding a feature, ask:
 
-1. Does it improve reading, annotation, navigation, ownership, continuity, accessibility, or useful reading insight?
-2. Does it strengthen one of the S-tier capabilities?
+1. Does it directly improve reading, annotation, navigation, search, personalization, continuity, ownership, or reading insight?
+2. Does it strengthen one of the S-tier features above?
 3. Can it remain local-first or explicitly optional-network?
-4. Can it reuse existing Kola domain models?
-5. Is there credible user value or evidence?
+4. Can it reuse the existing Kola document/annotation/progress architecture?
+5. Is there credible user value?
 6. Will users notice the benefit enough to justify its complexity?
-7. What higher-priority work would it delay?
+7. What higher-priority reader work would it delay?
+8. Is it AI or a dedicated study system? If yes, **do not add it** under the current scope.
 
-If the feature mainly turns Kola into an AI, study, social, or generic productivity app, the default decision is **do not add it**.
-
----
-
-# 6. Final product identity
+## 6. Final product identity
 
 ```text
 Beautiful universal reader
@@ -298,7 +360,8 @@ Beautiful universal reader
 + universal local search
 + Reading Intelligence
 + migration/interoperability
-+ Read Aloud / translation / compare
++ read-aloud and reader utilities
++ excellent cross-platform ergonomics
 ```
 
-Kola should become deeper, not broader for its own sake.
+Kola should be known for being an unusually beautiful, capable, private **reader**.
