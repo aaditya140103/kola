@@ -154,8 +154,12 @@ Short record of settled decisions. Update only when a durable product/technical 
 
 - Status: accepted
 - Decision: New Kola database schemas store Drift `DATETIME` values as ISO-8601 text instead of legacy Unix-second integers.
-- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization benefit from timezone preservation and sub-second precision.
-- Consequence: changing timestamp storage mode later requires an explicit schema migration; agents must not silently switch the Drift datetime build option.
+- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization require precise, unambiguous timestamps.
+- Consequences:
+  - raw repository writes must convert `DateTime` values to UTC ISO-8601 strings before calling sqlite3;
+  - reads parse those strings back to `DateTime`;
+  - changing timestamp storage mode later requires an explicit schema migration;
+  - agents must not silently switch the Drift datetime build option or bind raw `DateTime` objects through `customStatement`.
 
 ## D-020 — Document identity is content-based; normal import creates a managed copy
 
