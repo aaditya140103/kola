@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
+import 'package:kola/document/model/document_models.dart';
+import 'package:kola/features/progress/domain/reading_models.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<KolaDocument>> documents = ref.watch(documentsProvider);
+    final AsyncValue<List<PlannedReadingItem>> readingList = ref.watch(
+      readingListProvider,
+    );
+    final AsyncValue<List<ReadingSession>> sessions = ref.watch(
+      allReadingSessionsProvider,
+    );
+
     return CustomScrollView(
       slivers: <Widget>[
         SliverAppBar.large(
@@ -37,15 +48,33 @@ class HomeScreen extends StatelessWidget {
                 onPressed: () => context.go('/library'),
               ),
               const SizedBox(height: KolaSpacing.md),
-              _ContinueReadingCard(theme: theme),
+              documents.when(
+                data: (List<KolaDocument> items) => items.isEmpty
+                    ? const _EmptyReadingCard()
+                    : _ContinueReadingCard(document: items.first),
+                loading: () => const _LoadingCard(height: 190),
+                error: (_, _) => const _InlineError(
+                  message: 'Your library could not be loaded.',
+                ),
+              ),
               const SizedBox(height: KolaSpacing.xl),
               const _SectionHeader(title: 'Next up'),
               const SizedBox(height: KolaSpacing.md),
-              const _NextUpRow(),
+              readingList.when(
+                data: (List<PlannedReadingItem> items) => _NextUpRow(items: items),
+                loading: () => const _LoadingCard(height: 156),
+                error: (_, _) => const _InlineError(
+                  message: 'Your reading list could not be loaded.',
+                ),
+              ),
               const SizedBox(height: KolaSpacing.xl),
               const _SectionHeader(title: 'This week'),
               const SizedBox(height: KolaSpacing.md),
-              const _InsightStrip(),
+              _InsightStrip(
+                documentCount: documents.valueOrNull?.length ?? 0,
+                readingListCount: readingList.valueOrNull?.length ?? 0,
+                sessions: sessions.valueOrNull ?? const <ReadingSession>[],
+              ),
             ],
           ),
         ),
@@ -55,118 +84,140 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _ContinueReadingCard extends StatelessWidget {
-  const _ContinueReadingCard({required this.theme});
+  const _ContinueReadingCard({required this.document});
 
-  final ThemeData theme;
+  final KolaDocument document;
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     final ColorScheme scheme = theme.colorScheme;
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool compact = constraints.maxWidth < 720;
-        final Widget cover = Container(
-          width: compact ? 104 : 132,
-          height: compact ? 170 : 206,
-          decoration: BoxDecoration(
-            borderRadius: KolaRadius.md,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                scheme.primaryContainer,
-                scheme.tertiaryContainer,
-              ],
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.auto_stories_rounded,
-            size: compact ? 42 : 52,
-            color: scheme.onPrimaryContainer,
-          ),
-        );
+    final String author = document.metadata.authors.isEmpty
+        ? document.format.name.toUpperCase()
+        : document.metadata.authors.join(', ');
 
-        final Widget details = Expanded(
-          child: Padding(
-            padding: EdgeInsets.all(compact ? KolaSpacing.md : KolaSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'The Design of Everyday Things',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: KolaSpacing.xs),
-                Text('Don Norman', style: theme.textTheme.bodyLarge),
-                const SizedBox(height: KolaSpacing.md),
-                ClipRRect(
-                  borderRadius: KolaRadius.pill,
-                  child: const LinearProgressIndicator(value: 0.68, minHeight: 7),
-                ),
-                const SizedBox(height: KolaSpacing.sm),
-                Wrap(
-                  spacing: KolaSpacing.md,
-                  runSpacing: KolaSpacing.xs,
-                  children: <Widget>[
-                    Text('68% position', style: theme.textTheme.labelLarge),
-                    Text('61% read', style: theme.textTheme.labelLarge),
-                    Text('5h 24m', style: theme.textTheme.labelLarge),
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(KolaSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              width: 104,
+              height: 156,
+              decoration: BoxDecoration(
+                borderRadius: KolaRadius.md,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: <Color>[
+                    scheme.primaryContainer,
+                    scheme.tertiaryContainer,
                   ],
                 ),
-                const SizedBox(height: KolaSpacing.md),
-                FilledButton.icon(
-                  onPressed: () => context.go('/reader/demo'),
-                  icon: const Icon(Icons.menu_book_rounded),
-                  label: const Text('Continue'),
-                ),
-              ],
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.auto_stories_rounded,
+                size: 42,
+                color: scheme.onPrimaryContainer,
+              ),
             ),
-          ),
-        );
+            const SizedBox(width: KolaSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    document.metadata.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: KolaSpacing.xs),
+                  Text(
+                    author,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: KolaSpacing.md),
+                  Text(
+                    document.lastOpenedAt == null
+                        ? 'Ready to start'
+                        : 'Continue where you left off',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: KolaSpacing.md),
+                  FilledButton.icon(
+                    onPressed: () => context.go('/reader/${document.id}'),
+                    icon: const Icon(Icons.menu_book_rounded),
+                    label: const Text('Open'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-        return Card(
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(KolaSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[cover, details],
+class _EmptyReadingCard extends StatelessWidget {
+  const _EmptyReadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(KolaSpacing.xl),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.library_add_rounded, size: 38),
+            const SizedBox(width: KolaSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('Your library is empty', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: KolaSpacing.xs),
+                  const Text('Import a document to start building your reading space.'),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _NextUpRow extends StatelessWidget {
-  const _NextUpRow();
+  const _NextUpRow({required this.items});
+
+  final List<PlannedReadingItem> items;
 
   @override
   Widget build(BuildContext context) {
-    const List<(String, double)> items = <(String, double)>[
-      ('Deep Work', 0.18),
-      ('Rust for Rustaceans', 0.42),
-      ('Designing Data-Intensive Applications', 0.07),
-    ];
-
+    final List<PlannedReadingItem> visible = items.take(6).toList(growable: false);
     return SizedBox(
-      height: 176,
+      height: 156,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: items.length + 1,
+        itemCount: visible.length + 1,
         separatorBuilder: (_, _) => const SizedBox(width: KolaSpacing.sm),
         itemBuilder: (BuildContext context, int index) {
-          if (index == items.length) {
+          if (index == visible.length) {
             return InkWell(
               borderRadius: KolaRadius.md,
               onTap: () {},
               child: Container(
-                width: 120,
+                width: 124,
                 decoration: BoxDecoration(
                   borderRadius: KolaRadius.md,
                   border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
@@ -176,50 +227,80 @@ class _NextUpRow extends StatelessWidget {
                   children: <Widget>[
                     Icon(Icons.add_rounded),
                     SizedBox(height: KolaSpacing.xs),
-                    Text('Add book'),
+                    Text('Add to list'),
                   ],
                 ),
               ),
             );
           }
 
-          final (String title, double progress) = items[index];
+          final PlannedReadingItem item = visible[index];
           return SizedBox(
-            width: 132,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: KolaRadius.md,
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            width: 152,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(KolaSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(Icons.book_rounded),
+                    const Spacer(),
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                    child: const Center(child: Icon(Icons.book_rounded, size: 38)),
-                  ),
+                    const SizedBox(height: KolaSpacing.xs),
+                    Text(
+                      _readingListLabel(item.status),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: KolaSpacing.xs),
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: KolaSpacing.xxs),
-                LinearProgressIndicator(value: progress, minHeight: 3),
-              ],
+              ),
             ),
           );
         },
       ),
     );
   }
+
+  String _readingListLabel(ReadingListStatus status) => switch (status) {
+    ReadingListStatus.wantToRead => 'Want to read',
+    ReadingListStatus.nextUp => 'Next up',
+    ReadingListStatus.reading => 'Reading',
+    ReadingListStatus.paused => 'Paused',
+    ReadingListStatus.completed => 'Completed',
+    ReadingListStatus.abandoned => 'Not for me',
+  };
 }
 
 class _InsightStrip extends StatelessWidget {
-  const _InsightStrip();
+  const _InsightStrip({
+    required this.documentCount,
+    required this.readingListCount,
+    required this.sessions,
+  });
+
+  final int documentCount;
+  final int readingListCount;
+  final List<ReadingSession> sessions;
 
   @override
   Widget build(BuildContext context) {
-    const List<(IconData, String, String)> insights = <(IconData, String, String)>[
-      (Icons.schedule_rounded, '4h 18m', 'Reading time'),
-      (Icons.local_library_rounded, '5', 'Documents'),
-      (Icons.edit_rounded, '12', 'Annotations'),
+    final DateTime now = DateTime.now();
+    final DateTime weekStart = DateTime(now.year, now.month, now.day).subtract(
+      Duration(days: now.weekday - DateTime.monday),
+    );
+    final Duration activeTime = sessions
+        .where((ReadingSession session) => !session.startedAt.isBefore(weekStart))
+        .fold(Duration.zero, (Duration total, ReadingSession session) => total + session.activeTime);
+
+    final List<(IconData, String, String)> insights = <(IconData, String, String)>[
+      (Icons.schedule_rounded, _formatDuration(activeTime), 'Reading time'),
+      (Icons.local_library_rounded, '$documentCount', 'Documents'),
+      (Icons.playlist_add_check_rounded, '$readingListCount', 'Reading list'),
     ];
 
     return Wrap(
@@ -254,6 +335,36 @@ class _InsightStrip extends StatelessWidget {
   }
 }
 
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: const Card(child: Center(child: CircularProgressIndicator())),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(KolaSpacing.lg),
+        child: Text(message),
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, this.action, this.onPressed});
 
@@ -276,4 +387,11 @@ class _SectionHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatDuration(Duration duration) {
+  if (duration.inMinutes < 60) return '${duration.inMinutes}m';
+  final int hours = duration.inHours;
+  final int minutes = duration.inMinutes.remainder(60);
+  return minutes == 0 ? '${hours}h' : '${hours}h ${minutes}m';
 }
