@@ -34,24 +34,24 @@ final class DocumentImportService {
     required FormatRegistry formatRegistry,
     DateTime Function()? now,
   }) : this._(
-         documents: documents,
-         picker: picker,
-         fingerprints: fingerprints,
-         formatDetector: formatDetector,
-         sourceStorage: sourceStorage,
-         formatRegistry: formatRegistry,
-         now: now ?? _utcNow,
+         documents,
+         picker,
+         fingerprints,
+         formatDetector,
+         sourceStorage,
+         formatRegistry,
+         now ?? _utcNow,
        );
 
-  DocumentImportService._({
-    required this._documents,
-    required this._picker,
-    required this._fingerprints,
-    required this._formatDetector,
-    required this._sourceStorage,
-    required this._formatRegistry,
-    required DateTime Function() now,
-  }) : _now = now;
+  DocumentImportService._(
+    this._documents,
+    this._picker,
+    this._fingerprints,
+    this._formatDetector,
+    this._sourceStorage,
+    this._formatRegistry,
+    this._now,
+  );
 
   final DocumentRepository _documents;
   final DocumentFilePicker _picker;
