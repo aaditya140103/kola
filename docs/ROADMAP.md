@@ -1,360 +1,462 @@
 # Kola — Implementation Roadmap
 
-This roadmap optimizes for a strong reader core first. Do not start by implementing every format or every visual effect.
+This roadmap builds Kola as a universal local reader without sacrificing interaction quality. Broad format support is delivered in controlled waves behind one document architecture.
 
-## Phase 0 — Foundation
-
-### Goal
-
-A stable cross-platform Flutter shell with project conventions in place.
-
-### Deliverables
-
-- Flutter app boots on Linux, Windows, macOS, Android and iOS targets.
-- Adaptive app shell.
-- Kola design tokens.
-- light/dark app theme.
-- Riverpod state architecture.
-- go_router navigation.
-- Drift/SQLite database setup.
-- structured local logging.
-- basic settings persistence.
-- CI for formatting, analyze and tests.
-
-### Exit criteria
-
-The same source tree builds on all target platforms with no product features yet.
-
----
-
-## Phase 1 — PDF reading MVP
+## Phase 0 — Adaptive application foundation
 
 ### Goal
 
-Make Kola an excellent basic PDF reader before adding library complexity.
+Create the cross-platform shell correctly before reader features multiply.
 
 ### Deliverables
 
-- open local PDF;
-- PDFium/pdfrx adapter;
-- continuous page view;
-- single-page view;
-- zoom/pan;
-- fit width / fit page;
-- page navigation;
-- current page indicator;
-- table of contents/outline where available;
-- thumbnails;
-- in-document text search;
-- remember reading position;
-- desktop keyboard navigation;
-- mobile gestures;
-- dark application shell.
+- Flutter application for Linux, Windows, macOS, Android, and iOS
+- Riverpod architecture
+- go_router navigation
+- Drift/SQLite
+- structured local logging
+- CI for format/analyze/test
+- Kola design tokens
+- `PlatformProfile`
+- width/window classes
+- `InputProfile`
+- adaptive navigation primitives
+- adaptive dialog/menu/sheet/text-field abstractions
+- platform/system theme detection
+- light/dark app shell
+- reduced-motion and text-scale handling
 
 ### Exit criteria
 
-A user can comfortably read a long PDF, quit Kola, reopen it and resume exactly where they stopped.
+The same product navigation works at compact, medium, expanded, large, and extra-large widths while using the appropriate interaction model for each platform.
 
 ---
 
-## Phase 2 — Annotation core
+## Phase 1 — Document engine foundation
 
 ### Goal
 
-Build the annotation model correctly before broadening formats.
+Build the universal document abstractions before accumulating format-specific UI.
 
 ### Deliverables
 
-- hybrid AnnotationAnchor model;
-- highlight;
-- underline;
-- text note;
-- bookmark;
-- annotation colors and semantic labels;
-- contextual selection toolbar;
-- annotation side panel;
-- annotation filtering;
-- persistent undo/redo for session actions;
-- jump from annotation to source;
-- database migration tests;
-- export annotations to Markdown and JSON.
+- `FormatRegistry`
+- `DocumentAdapter`
+- `FormatCapabilities`
+- `KolaDocumentGraph`
+- source locator model
+- hybrid annotation anchor model
+- document fingerprinting
+- background job infrastructure
+- graph/index cache versioning
+- universal ReaderShell
+- Fidelity/Flow view capability model
 
 ### Exit criteria
 
-Annotations survive restart, zoom changes and normal document navigation reliably.
+A sample adapter can provide metadata, semantic blocks, source mapping, search text, reading position, and annotation anchors without leaking parser-specific types into the app.
 
 ---
 
-## Phase 3 — Library
-
-### Goal
-
-Turn the reader into a local document workspace.
+## Phase 2 — PDF fidelity reader
 
 ### Deliverables
 
-- import/open file;
-- drag and drop desktop import;
-- linked vs managed file handling;
-- document fingerprinting and duplicate detection;
-- metadata extraction;
-- cover/thumbnail generation;
-- grid/list views;
-- Continue Reading;
-- Recent;
-- Favorites;
-- reading status;
-- collections;
-- tags;
-- document details;
-- missing-file recovery.
+- local PDF open
+- PDFium/pdfrx adapter
+- continuous pages
+- single page
+- two-page spread later in phase
+- zoom/pan
+- fit width/page
+- outline
+- thumbnails
+- page search
+- source text geometry
+- position persistence
+- desktop keyboard navigation
+- mobile gestures
 
 ### Exit criteria
 
-A library containing hundreds of documents remains fast and easy to navigate.
+A long PDF can be read comfortably and resumed exactly.
 
 ---
 
-## Phase 4 — EPUB and reflowable documents
-
-### Goal
-
-Prove the normalized document architecture with a second major format.
+## Phase 3 — Annotation core
 
 ### Deliverables
 
-- EPUB adapter;
-- EPUB metadata/cover;
-- chapter navigation;
-- reflow renderer;
-- typography controls;
-- reader themes;
-- EPUB highlight/underline/note anchors;
-- EPUB search;
-- Markdown reader;
-- TXT reader;
-- local HTML reader.
+- highlight
+- underline
+- strikeout
+- notes
+- bookmarks
+- semantic labels
+- selection capsule
+- annotation inspector
+- annotation rail
+- undo/redo
+- source jump
+- Markdown/JSON annotation export
+- anchor repair/unresolved states
 
 ### Exit criteria
 
-PDF and EPUB share the same library, annotation panel, tags and export UX despite different rendering engines.
+Annotations survive restart, zoom, resizing, theme changes, and supported representation changes.
 
 ---
 
-## Phase 5 — Flow Mode for PDF
+## Phase 4 — Library + progress system
 
-### Goal
+### Deliverables
 
-Create Kola's signature source-mapped PDF reading mode.
-
-### Milestone A — extraction
-
-- extract text and glyph/word geometry;
-- normalize whitespace;
-- identify lines;
-- identify text blocks;
-- source-map every extracted range.
-
-### Milestone B — reading order
-
-- detect columns;
-- order blocks;
-- detect repeated header/footer candidates;
-- preserve captions;
-- identify figures/tables that should remain as visual source blocks.
-
-### Milestone C — semantic reflow
-
-- heading detection;
-- paragraph grouping;
-- lists;
-- quotations;
-- source-preserving image/table blocks.
-
-### Milestone D — annotation mapping
-
-- highlight in Flow Mode;
-- resolve to source page geometry;
-- highlight created in Page Mode appears in Flow Mode;
-- preserve reading location while switching modes.
-
-### Milestone E — user controls
-
-- font;
-- size;
-- line height;
-- spacing;
-- width;
-- theme;
-- reset.
+- linked/managed files
+- import/open-with/drag-drop
+- duplicate detection
+- cover/thumbnail cache
+- Home / Continue Reading
+- Library
+- Collections
+- Tags
+- Favorites
+- Unread / In Progress / Completed
+- position progress
+- actual reading coverage
+- reading sessions/time
+- completion thresholds
+- subtle library progress UI
 
 ### Exit criteria
 
-A clean, digitally generated academic PDF with one or two columns can be read and annotated in Flow Mode without losing the connection to the original pages.
-
-### Important scope rule
-
-Do not claim that every PDF is safely reflowable. Fall back to Page Mode when confidence is low.
+Jumping to the end changes position but does not falsely mark a document as read.
 
 ---
 
-## Phase 6 — Search and knowledge workflows
-
-### Goal
-
-Make annotations useful after reading.
+## Phase 5 — EPUB and native reflow formats
 
 ### Deliverables
 
-- SQLite full-text index;
-- background indexing;
-- library-wide search;
-- annotation/note search;
-- tags in search;
-- command palette;
-- study sheet generation from selected annotations;
-- annotation backlinks;
-- copy quote with source metadata;
-- export filtered annotations.
+- EPUB 2/3
+- KEPUB where compatible
+- HTML/XHTML
+- Markdown
+- TXT
+- structured Flow renderer
+- typography controls
+- reader themes
+- source-linked annotations
+- local search
 
 ### Exit criteria
 
-A user can find a phrase across thousands of indexed pages and jump directly back to the source.
+PDF and EPUB share the same library, progress, annotation, and search models.
 
 ---
 
-## Phase 7 — Advanced reading UX
+## Phase 6 — Universal Flow Mode foundation
 
 ### Deliverables
 
-- Focus Mode;
-- Reading Lens;
-- Annotation Rail;
-- Peek for footnotes/internal links;
-- navigation back/forward history;
-- document tabs on desktop;
-- crop margins;
-- persistent crop profiles;
-- two-page spread;
-- RTL spread;
-- presentation/fullscreen mode;
-- customizable keyboard shortcuts.
+- source-mapped graph rendering
+- native/reconstructed/extracted/OCR flow-quality states
+- source-preserving visual blocks
+- switch Flow <-> Fidelity without losing position
+- Flow annotations resolve back to source
+- appearance panel
+- content width/margins/line spacing/fonts/themes
+
+### PDF reconstruction milestones
+
+- word/glyph geometry
+- line/block grouping
+- reading order
+- multi-column detection
+- header/footer filtering
+- headings/lists/quotes
+- figure/table preservation
+
+### Exit criteria
+
+A well-formed digital PDF can be read and annotated in Flow Mode while remaining linked to the original pages.
 
 ---
 
-## Phase 8 — Ink and stylus
+## Phase 7 — Office text documents
 
 ### Deliverables
 
-- freehand strokes;
-- pressure data where available;
-- eraser;
-- lasso/select/move strokes;
-- shape tool;
-- arrows;
-- text box;
-- finger-pan/stylus-draw separation;
-- export ink into annotated PDF where supported.
+- DOCX first-class read support
+- ODT
+- RTF
+- DOC through safe local legacy adapter/conversion where feasible
+- Fidelity/layout representation where practical
+- Flow Mode
+- headings/lists/tables/images/footnotes
+- search
+- annotations
+- progress/coverage
+
+### Exit criteria
+
+A Word-family document behaves like a Kola document, not a separate embedded viewer.
 
 ---
 
-## Phase 9 — Comics and additional formats
+## Phase 8 — Presentations
 
 ### Deliverables
 
-- CBZ;
-- CBR;
-- manga RTL behavior;
-- image folders;
-- DOCX read-only adapter;
-- DjVu investigation/adapter.
-
-Do not let low-quality DOCX conversion delay the core reader.
+- PPTX
+- ODP
+- PPT through safe local legacy adapter/conversion where feasible
+- slide thumbnails
+- slide fidelity surface
+- speaker notes
+- slide/region annotations
+- presentation Flow Mode
+- search
+- slide-based progress/coverage
+- fullscreen presentation reading
 
 ---
 
-## Phase 10 — Accessibility and reading assistance expansion
-
-These requirements begin earlier, but this phase hardens them.
+## Phase 9 — Spreadsheets
 
 ### Deliverables
 
-- screen-reader audit;
-- full keyboard audit;
-- large text audit;
-- reduced motion;
-- high-contrast themes;
-- improved RTL;
-- local text-to-speech using platform voices;
-- word/sentence tracking where platform APIs allow.
+- XLSX
+- XLSM read-only with macros never executed
+- ODS
+- CSV/TSV
+- XLS/XLSB where maintainable local parsing exists
+- virtualized sheet grid
+- sheet tabs
+- search
+- range/cell annotations
+- semantic table/range Flow Mode
+- progress/coverage mapping
+
+### Exit criteria
+
+Large sheets remain responsive and readable without attempting to become a spreadsheet editor.
 
 ---
 
-## Phase 11 — Export, backup and portability hardening
+## Phase 10 — Ebook breadth
+
+Add adapters in compatibility waves:
+
+- MOBI
+- AZW/AZW3 where unencrypted
+- FB2/FBZ
+- PRC
+- PDB families
+- PML/PMLZ
+- LIT
+- LRF
+- RB
+- SNB
+- TCR
+- CHM
+- HTMLZ/TXTZ
+- OEB/OPF packages
+- DAISY/DTBook where practical
+
+Rules:
+
+- no DRM bypass;
+- test each adapter against a legal corpus;
+- advertise support status honestly;
+- Flow Mode/search/progress are required for first-class status.
+
+---
+
+## Phase 11 — Comics, images, and fixed-layout breadth
 
 ### Deliverables
 
-- complete local library backup;
-- restore workflow;
-- annotation sidecar export/import;
-- Markdown templates;
-- HTML export;
-- annotated PDF export where supported;
-- portable app-data migration documentation.
+- CBZ
+- CBR
+- CB7
+- CBC
+- image folders
+- DjVu
+- XPS/OXPS
+- manga RTL
+- local OCR foundation
+- OCR Flow Mode
 
 ---
 
-## Phase 12 — Performance hardening
+## Phase 12 — Search and knowledge workflows
 
-### Test corpus
+### Deliverables
 
-Benchmark:
-
-- 1,000-page text PDF;
-- image-heavy textbook;
-- multi-column paper;
-- 500 MB PDF;
-- 2,000-book metadata library;
-- 10,000-book metadata library;
-- document with thousands of annotations;
-- large EPUB.
-
-### Measure
-
-- cold/warm startup;
-- time to first page;
-- scroll frame times;
-- memory use;
-- page cache hit/miss behavior;
-- indexing speed;
-- database query latency;
-- Flow Mode extraction time.
-
-Do not optimize based on assumptions; profile first.
+- SQLite FTS index over KDG
+- global search
+- annotations/notes search
+- command palette
+- study-sheet export
+- annotation links/backlinks
+- copy quote with source metadata
+- filtered exports
 
 ---
 
-# Suggested first public release
+## Phase 13 — Advanced reading UX
 
-A credible **Kola 1.0** does not need every item above.
+### Deliverables
 
-Recommended 1.0 scope:
+- Focus Mode
+- Reading Lens
+- Peek
+- navigation back/forward history
+- desktop document tabs
+- crop margins
+- persistent crop profiles
+- customizable shortcuts
+- full-screen/presentation reading
 
-- PDF + EPUB + TXT + Markdown;
-- excellent PDF Page Mode;
-- EPUB/reflow reader;
-- highlights, underlines, notes and bookmarks;
-- local library;
-- collections and tags;
-- local search;
-- annotation export;
-- Focus Mode;
-- polished desktop/mobile adaptive UI;
-- beta PDF Flow Mode for compatible digital PDFs;
-- no accounts and no cloud dependency.
+---
 
-# Work ordering rule
+## Phase 14 — Ink and stylus
 
-When choosing between a flashy new feature and fixing annotation correctness, reader latency, selection quality, or crash recovery, fix the core behavior first.
+### Deliverables
 
-Kola earns trust by never losing the reader's place or annotations.
+- freehand ink
+- pressure where available
+- eraser
+- lasso/move
+- shapes/arrows
+- text boxes
+- finger-pan/stylus-draw separation
+- source-aware export where supported
+
+---
+
+## Phase 15 — Theme and personalization expansion
+
+Core theming exists earlier; this phase hardens customization.
+
+### Deliverables
+
+- custom app chrome themes
+- custom reader themes
+- semantic highlight remapping
+- ambient solid/gradient/texture backgrounds
+- local image backgrounds
+- optional background blur
+- theme import/export in local backup
+- contrast safety checks
+
+---
+
+## Phase 16 — Platform-native polish pass
+
+Audit each platform with users who actively use that OS.
+
+### iOS/iPadOS
+
+- navigation/back/sheets
+- tab/sidebar adaptation
+- selection
+- safe areas
+- keyboard/Pencil
+
+### macOS
+
+- menu bar
+- toolbar/titlebar
+- settings placement
+- sidebar/inspector
+- drag/drop
+- shortcuts
+
+### Android
+
+- Material 3 behavior
+- predictive back
+- adaptive navigation
+- foldables/tablets
+- keyboard/mouse/stylus
+
+### Windows
+
+- titlebar/caption behavior
+- navigation pane
+- Fluent-style materials where appropriate
+- snap/resizing
+- pointer/keyboard workflows
+
+### Linux
+
+- window-manager integration
+- GNOME/KDE sanity checks
+- system theme/font
+- desktop menus/context actions
+- tiled/narrow windows
+
+---
+
+## Phase 17 — Accessibility and reading assistance hardening
+
+- screen-reader audit
+- keyboard audit
+- large text
+- high contrast
+- reduced motion
+- RTL
+- dyslexia-friendly reader option
+- local text-to-speech
+- sentence/word tracking where available
+
+---
+
+## Phase 18 — Backup/export portability
+
+- complete local backup
+- restore
+- annotation sidecars
+- Markdown
+- HTML
+- JSON
+- annotated PDF where technically supported
+- portable theme/settings export
+- migration documentation
+
+---
+
+## Phase 19 — Performance and robustness hardening
+
+Benchmark and profile:
+
+- 1,000-page PDF
+- 500 MB image-heavy document
+- large EPUB
+- huge DOCX
+- 500-slide presentation
+- very large workbook
+- thousands of annotations
+- 10,000-document library
+- OCR-heavy scans
+- legacy ebook conversion corpus
+
+Measure:
+
+- cold/warm startup
+- time to first readable content
+- frame times
+- memory
+- cache behavior
+- graph build speed
+- indexing speed
+- search latency
+- Flow generation
+- spreadsheet virtualization
+
+## Engineering rule
+
+Feature breadth never overrides reader correctness.
+
+When choosing between adding another format and fixing selection, annotation anchors, input behavior, crashes, progress correctness, or reading performance, fix the core behavior first.
