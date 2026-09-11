@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/core/database/kola_database.dart'
@@ -27,11 +29,14 @@ void main() {
 
   test('document writes invalidate the live library stream', () async {
     final DateTime now = DateTime.utc(2026, 9, 12, 10, 15, 30, 123, 456);
-    expect(await documents.watchAll().first, isEmpty);
+    final StreamIterator<List<KolaDocument>> iterator =
+        StreamIterator<List<KolaDocument>>(
+          documents.watchAll().timeout(const Duration(seconds: 5)),
+        );
+    addTearDown(iterator.cancel);
 
-    final Future<List<KolaDocument>> changed = documents
-        .watchAll()
-        .firstWhere((List<KolaDocument> items) => items.isNotEmpty);
+    expect(await iterator.moveNext(), isTrue);
+    expect(iterator.current, isEmpty);
 
     await documents.upsert(
       KolaDocument(
@@ -50,8 +55,8 @@ void main() {
       ),
     );
 
-    final List<KolaDocument> emitted = await changed;
-    expect(emitted.single.id, 'doc-1');
+    expect(await iterator.moveNext(), isTrue);
+    expect(iterator.current.single.id, 'doc-1');
 
     final KolaDocument? stored = await documents.getById('doc-1');
     expect(stored?.metadata.title, 'Example Book');
