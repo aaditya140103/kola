@@ -20,6 +20,7 @@ flowchart TD
     Search[Local Search]
     Ann[Annotations]
     Progress[Progress + Coverage]
+    Intelligence[Reading Intelligence]
     DB[(SQLite / Drift)]
     Files[(Local Files)]
     Cache[(Disposable Caches)]
@@ -35,8 +36,10 @@ flowchart TD
     ND --> Search
     SM --> Ann
     ND --> Progress
+    Progress --> Intelligence
     Ann --> DB
     Progress --> DB
+    Intelligence --> DB
     Search --> DB
     Registry --> Files
     Fidelity --> Cache
@@ -155,7 +158,73 @@ flowchart LR
 
 `Position Progress != Reading Coverage`.
 
-## 6. Adaptive-native UX policy
+## 6. Reading Intelligence
+
+### Active-time tracking
+
+```mermaid
+stateDiagram-v2
+    [*] --> Inactive
+    Inactive --> ActiveReading: reader visible + activity
+    ActiveReading --> PassiveCandidate: no interaction, readable viewport remains
+    PassiveCandidate --> ActiveReading: interaction resumes
+    PassiveCandidate --> Idle: inactivity exceeds trusted dwell window
+    ActiveReading --> Idle: app background / lock / hidden
+    Idle --> ActiveReading: reading resumes
+    Idle --> [*]
+```
+
+Only trusted reading states contribute to active reading time.
+
+### Analytics pipeline
+
+```mermaid
+flowchart LR
+    Reader[Reader Events]
+    Tracker[ReadingActivityTracker]
+    Sessions[Durable Reading Sessions]
+    Coverage[Coverage Deltas]
+    Insights[ReadingInsightsService]
+    Goals[Goals]
+    List[Reading List / Next Up]
+    Dashboard[Reading Dashboard]
+    DB[(SQLite / Drift)]
+
+    Reader --> Tracker --> Sessions --> DB
+    Reader --> Coverage --> DB
+    Goals --> DB
+    List --> DB
+    DB --> Insights --> Dashboard
+```
+
+### Reading list states
+
+```mermaid
+flowchart LR
+    Want[Want to Read]
+    Next[Next Up]
+    Reading[Reading]
+    Paused[Paused]
+    Done[Completed]
+    Abandoned[Abandoned / Not for Me]
+
+    Want --> Next --> Reading
+    Reading --> Paused --> Reading
+    Reading --> Done
+    Reading --> Abandoned
+    Paused --> Abandoned
+```
+
+Rules:
+
+- Reading List is separate from Favorites.
+- Streaks/goals are optional and secondary.
+- Analytics stay local unless explicitly included in BYOC sync.
+- Sync durable sessions/list/goals; derive chart aggregates locally.
+
+Detailed design: `docs/READING_ANALYTICS.md`.
+
+## 7. Adaptive-native UX policy
 
 ```mermaid
 flowchart TD
@@ -175,11 +244,11 @@ flowchart TD
     Policy --> Presentation
 ```
 
-Stable semantics: Library, Search, Collections, Reader, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, optional Sync.
+Stable semantics: Library, Search, Collections, Reading List, Insights, Reader, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, optional Sync.
 
 Adaptive presentation: navigation, window chrome, sheets/dialogs, menus, back behavior, scrollbars, selection UI, density, haptics, hover/right-click, shortcuts.
 
-## 7. Theme model
+## 8. Theme model
 
 ```mermaid
 flowchart TD
@@ -197,7 +266,7 @@ flowchart TD
 
 App chrome and reader surface themes are intentionally independent.
 
-## 8. Persistence boundaries
+## 9. Persistence boundaries
 
 ```mermaid
 flowchart LR
@@ -208,6 +277,7 @@ flowchart LR
     Durable --> DB[(SQLite / Drift)]
     Durable --> A[Annotations]
     Durable --> P[Progress / Coverage]
+    Durable --> R[Reading Sessions / Goals / Reading List]
     Durable --> C[Collections / Tags]
     Durable --> T[Settings / Themes]
 
@@ -215,11 +285,12 @@ flowchart LR
     Cache --> Raster[Rendered Pages]
     Cache --> Reflow[Reflow Analysis]
     Cache --> Index[Rebuildable Index Data]
+    Cache --> Analytics[Rebuildable Analytics Aggregates]
 ```
 
-Clearing cache must never delete user-generated data.
+Clearing cache must never delete user-generated data or durable reading history.
 
-## 9. Bring Your Own Cloud sync
+## 10. Bring Your Own Cloud sync
 
 ```mermaid
 flowchart LR
@@ -269,7 +340,7 @@ flowchart TB
 
 **Rules:** never sync the live SQLite file; sync is optional; local reading continues through all sync failures.
 
-## 10. Evidence-based UX loop
+## 11. Evidence-based UX loop
 
 ```mermaid
 flowchart TD
@@ -332,7 +403,7 @@ Calm reading surface
 Detailed rationale: `docs/UX_RESEARCH.md`.
 Testing protocol: `docs/UX_VALIDATION.md`.
 
-## 11. Agent change protocol
+## 12. Agent change protocol
 
 ```mermaid
 flowchart TD
