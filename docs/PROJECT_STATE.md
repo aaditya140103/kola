@@ -72,11 +72,11 @@ test/document/registry/pdf_registration_test.dart
 
 ## Verification
 
-Import/persistence milestone is merged on `main` and previously passed full Flutter CI. PR #2 validates the PDF fidelity milestone. Added tests cover managed/linked/missing source resolution and ensure the PDF adapter does not claim unfinished Flow/search/selection/annotation capabilities.
+Import/persistence is merged on `main`. PR #2 passed full Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution (including `pdfrx`/PDFium), Drift generation, formatting, analyzer, and all tests are green. Tests cover managed/linked/missing source resolution and ensure the PDF adapter does not claim unfinished Flow/search/selection/annotation capabilities. Physical-device PDF rendering is still a separate validation requirement.
 
 ## Current risks / blockers
 
-- Real PDF rendering still needs hands-on Linux/Android/iOS/Windows/macOS device testing after CI compilation succeeds.
+- Real PDF rendering still needs hands-on Linux/Android/iOS/Windows/macOS device testing; CI verifies compilation/tests, not visual/device behavior.
 - Password-protected/corrupt PDF UX is not yet Kola-specific.
 - PDF current-page/zoom state is not persisted into `reading_states` yet.
 - PDF text extraction, source-coordinate mapping, selection, search, annotations, and Flow remain unimplemented.
@@ -85,7 +85,7 @@ Import/persistence milestone is merged on `main` and previously passed full Flut
 
 ## Next recommended action
 
-1. Make PR #2 pass CI and merge it.
+1. Merge verified PR #2.
 2. Persist PDF page/zoom position into `ReadingState` and restore it on reopen.
 3. Extract PDF page text and geometry through pdfrx/PDFium into Kola-owned source locations.
 4. Build local PDF search/index chunks from that extraction.
