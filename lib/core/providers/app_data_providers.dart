@@ -8,6 +8,13 @@ final documentsProvider = StreamProvider<List<KolaDocument>>((ref) {
   return ref.watch(documentRepositoryProvider).watchAll();
 });
 
+final documentProvider = FutureProvider.family<KolaDocument?, String>((
+  ref,
+  documentId,
+) {
+  return ref.watch(documentRepositoryProvider).getById(documentId);
+});
+
 final readingListProvider = StreamProvider<List<PlannedReadingItem>>((ref) {
   return ref.watch(readingRepositoryProvider).watchReadingList();
 });

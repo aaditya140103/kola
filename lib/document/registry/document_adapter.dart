@@ -119,7 +119,7 @@ abstract interface class DocumentAdapter {
   FormatCapabilities get capabilities;
 
   Future<DocumentMetadata> readMetadata(DocumentSource source);
-  Future<DocumentHandle> open(DocumentSource source);
+  Future<DocumentHandle> open(KolaDocument document);
   Future<FidelityDescriptor?> buildFidelityView(DocumentHandle handle);
 
   Stream<GraphChunk> buildDocumentGraph(

@@ -1,176 +1,25 @@
 # Kola — Decision Ledger
 
-Short record of settled decisions. Update only when a durable product/technical choice changes.
+Compact record of settled product/technical choices. Update only for durable decisions.
 
-## D-001 — Flutter is the primary application layer
-
-- Status: accepted
-- Decision: Use one Flutter/Dart codebase for Linux, Windows, macOS, Android, and iOS.
-- Why: one product codebase with strong custom rendering and adaptive UI.
-
-## D-002 — Kola is local-first
-
-- Status: accepted
-- Decision: Core reading, annotation, indexing, progress, and library features work without accounts or network access.
-- Consequence: cloud services may never become required for basic reading.
-
-## D-003 — Universal adapter architecture
-
-- Status: accepted
-- Decision: Every document format is accessed through an app-owned `DocumentAdapter` contract.
-- Consequence: feature code must not depend directly on PDF/EPUB/package-specific types.
-
-## D-004 — One normalized document graph
-
-- Status: accepted
-- Decision: Search, Flow Mode, annotations, structure, and progress operate on Kola-owned normalized document structures plus source maps.
-
-## D-005 — Flow Mode is universal
-
-- Status: accepted
-- Decision: Flow Mode is a source-linked projection of normalized content, not a PDF-only feature.
-- Consequence: unsupported complex regions remain source-preserving visual blocks.
-
-## D-006 — Hybrid source-linked annotation anchors
-
-- Status: accepted
-- Decision: Combine structural locator, quote/context, offsets, and source geometry where available.
-- Consequence: never rely only on screen coordinates.
-
-## D-007 — SQLite + Drift for durable local app data
-
-- Status: accepted
-- Decision: Documents metadata, annotations, progress, collections, tags, and settings live in SQLite through Drift.
-- Consequence: caches remain separate and disposable.
-
-## D-008 — Adaptive-native UX
-
-- Status: accepted
-- Decision: Keep Kola semantics consistent while adapting navigation, chrome, menus, sheets, density, input behavior, and motion to platform/window/input.
-- Consequence: do not scale one identical UI across all devices.
-
-## D-009 — Window capability beats device labels
-
-- Status: accepted
-- Decision: Layout derives from available space and input capabilities, not simplistic phone/tablet/desktop checks.
-
-## D-010 — Progress and coverage are separate
-
-- Status: accepted
-- Decision: Track current document position independently from actual reading coverage.
-
-## D-011 — App and reader themes are separate
-
-- Status: accepted
-- Decision: Application chrome theme and document/reading theme/background can differ.
-
-## D-012 — Rust is deferred
-
-- Status: accepted
-- Decision: Do not add a Rust/FFI core until profiling or missing capabilities justify it.
-
-## D-013 — Context files are mandatory maintenance
-
-- Status: accepted
-- Decision: Every agent patch updates `docs/PROJECT_STATE.md`; architecture/data-flow changes update `docs/PROJECT_GRAPH.md`; durable choices update this file.
-- Why: preserve continuity across agents while minimizing repeated context loading.
-
-## D-014 — Bring Your Own Cloud, never mandatory Kola cloud
-
-- Status: accepted
-- Decision: Kola may synchronize across devices through a user-selected `SyncBackend` such as local folder, WebDAV, Google Drive, OneDrive, Dropbox, or S3-compatible storage.
-- Consequences:
-  - local reading remains complete without sync;
-  - Kola never requires a Kola-hosted cloud account;
-  - the live SQLite database is never synchronized as a file;
-  - sync uses versioned portable records plus a local merge engine;
-  - users choose state-only, selected-document, or full-library sync;
-  - network/sync failures never block local reading or annotation;
-  - optional client-side encrypted sync vaults are part of the privacy direction.
-- Detailed design: `docs/SYNC.md`.
-
-## D-015 — UI/UX is evidence-driven, not trend-driven
-
-- Status: accepted
-- Decision: Kola treats visual design as a core product capability, but meaningful UI/interaction decisions must be grounded in accessibility/standards, human-factors evidence, native platform convention, measured Kola user results, or an explicitly documented experiment.
-- Visual thesis: **calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior**.
-- Consequences:
-  - first-impression appeal and long-session usability are both design goals;
-  - the document remains visually dominant in the reader;
-  - visual complexity is kept low while controlled diversity prevents sterile minimalism;
-  - expressive color/motion is concentrated around interaction moments rather than long-form reading content;
-  - platform-native behavior outranks superficial screenshot consistency;
-  - accessibility and readability cannot be traded away for fashionable effects;
-  - important UX changes should be validated using behavioral metrics plus validated subjective UX/aesthetic measures where appropriate.
-- Evidence base: `docs/UX_RESEARCH.md`.
-- Validation protocol: `docs/UX_VALIDATION.md`.
-
-## D-016 — Reading Intelligence is private, active-time based, and non-punitive
-
-- Status: accepted
-- Decision: Kola will provide a local Reading Intelligence layer containing active reading-time tracking, reading sessions, per-document insights, reading history, Reading List / Want to Read, Next Up queue, optional goals, optional streaks, completion history, and analytics.
-- Consequences:
-  - time is based on trusted active/passive-reading states, not simple document-open duration;
-  - Reading List is a first-class model separate from Favorites;
-  - planned items may exist without a local document file and later link to an imported document;
-  - goals and streaks are optional and visually secondary;
-  - missed goals must not use punitive or guilt-oriented UX;
-  - users can correct/delete erroneous reading sessions and disable analytics/history tracking;
-  - analytics remain local unless explicitly included in BYOC sync;
-  - durable session/list/goal records sync; chart aggregates are preferably derived locally;
-  - time-remaining estimates require enough trusted data and display approximate values.
-- Detailed design: `docs/READING_ANALYTICS.md`.
-
-## D-017 — Kola is a focused reading product
-
-- Status: accepted
-- Decision: Kola's committed product scope is **beautiful universal reading + source-linked Flow Mode + best-in-class annotations + local-first/BYOC ownership + universal local search + Reading Intelligence + migration/interoperability + read-aloud/lookup/compare tools**.
-- Consequences:
-  - reader trust, selection, annotation correctness, search, persistence, export, and reading comfort outrank speculative expansion;
-  - new capabilities should deepen the reading workflow rather than turn Kola into a generic productivity suite;
-  - interoperability with Calibre/OPDS/KOReader and import/export from existing ecosystems is treated as acquisition infrastructure;
-  - feature proposals are evaluated against user value, reading relevance, differentiation, retention, engineering cost, and displacement of higher-priority work.
-- Detailed strategy: `docs/FEATURE_STRATEGY.md`.
-
-## D-018 — AI and study systems are out of scope
-
-- Status: accepted
-- Decision: Kola will not include AI assistants or dedicated study/knowledge-management systems in the committed product roadmap.
-- Explicitly excluded unless this decision is revisited:
-  - BYO AI/local LLM integration;
-  - document chat/Q&A and AI summarization/explanation;
-  - semantic AI search;
-  - flashcards;
-  - spaced repetition/SRS;
-  - persistent knowledge cards;
-  - backlinks/knowledge graphs;
-  - mind maps/concept boards;
-  - Recall Mode;
-  - dedicated study-sheet/quiz systems.
-- Why: these systems broaden Kola away from its strongest identity as a beautiful universal reading and annotation application and materially increase product/UX complexity.
-- Consequence: agents must not reintroduce them as “later roadmap” items without an explicit product decision change.
-
-## D-019 — Drift timestamps use ISO-8601 text
-
-- Status: accepted
-- Decision: New Kola database schemas store Drift `DATETIME` values as ISO-8601 text instead of legacy Unix-second integers.
-- Why: reading sessions, annotation edits, conflict resolution, and future BYOC synchronization require precise, unambiguous timestamps.
-- Consequences:
-  - raw repository writes must convert `DateTime` values to UTC ISO-8601 strings before calling sqlite3;
-  - reads parse those strings back to `DateTime`;
-  - changing timestamp storage mode later requires an explicit schema migration;
-  - agents must not silently switch the Drift datetime build option or bind raw `DateTime` objects through `customStatement`.
-
-## D-020 — Document identity is content-based; normal import creates a managed copy
-
-- Status: accepted
-- Decision: Imported local documents receive a stable `sha256:<hex>` identity derived by streaming the complete source file. The normal Import action copies the source byte-for-byte into Kola's application-support document store; linked/read-in-place imports remain a supported explicit mode.
-- Why: content identity survives rename/move operations, deduplicates re-imports, and provides a stable future sync key. Managed copies avoid mobile sandbox, temporary-file, and external-provider lifetime failures.
-- Consequences:
-  - the original source file is never modified;
-  - importing identical bytes does not create a second document identity;
-  - re-importing the same content from a moved source relinks the existing record;
-  - source-file hashing and container probing run off the UI isolate;
-  - format detection combines content signatures, container structure, and filename extension rather than trusting the extension alone;
-  - documents may be imported before a renderer exists and remain `partial` until a matching `DocumentAdapter` is registered;
-  - future fingerprint-algorithm changes require explicit versioning/migration rather than silently changing identity semantics.
+- **D-001 — Flutter application layer:** one Flutter/Dart codebase targets Linux, Windows, macOS, Android, and iOS.
+- **D-002 — Local-first:** core reading, annotation, indexing, progress, and library behavior requires no account/network.
+- **D-003 — Universal adapter architecture:** every format is accessed through Kola-owned `DocumentAdapter`; third-party parser types do not leak into generic feature/domain code.
+- **D-004 — One normalized document graph:** Flow, search, annotations, structure, and progress operate on Kola-owned normalized structures + source maps.
+- **D-005 — Universal Flow Mode:** Flow is a source-linked projection for all readable formats, not a PDF-only feature; unsafe regions remain source-preserving visual blocks.
+- **D-006 — Hybrid annotation anchors:** combine source locator, quote/context, logical offsets, and geometry where available; never anchor only to screen coordinates.
+- **D-007 — SQLite + Drift:** durable local metadata/progress/annotations/planning/settings live in SQLite through Drift; caches remain disposable.
+- **D-008 — Adaptive-native UX:** Kola semantics stay stable while navigation/chrome/menus/sheets/input/motion adapt to platform/window/input.
+- **D-009 — Capability-based layout:** use available space + input capability, not simplistic phone/tablet/desktop branches.
+- **D-010 — Position != coverage:** current location and actually-read coverage are persisted separately.
+- **D-011 — App theme != reader theme:** application chrome and document reading surface can use different themes/backgrounds.
+- **D-012 — Rust deferred:** no Rust/FFI core until profiling or missing capabilities justify it.
+- **D-013 — Context maintenance is mandatory:** every patch updates `PROJECT_STATE`; architecture changes update `PROJECT_GRAPH`; durable choices update this ledger.
+- **D-014 — BYOC, never mandatory Kola cloud:** optional `SyncBackend` transports versioned portable records to user-controlled local folder/WebDAV/Drive/OneDrive/Dropbox/S3; never sync live SQLite; failures never block reading; optional client-side encryption is planned.
+- **D-015 — Evidence-driven UX:** meaningful design changes require accessibility/standards, HCI evidence, native convention, measured Kola results, or explicit experiment. Visual thesis: calm reading surfaces + familiar structure + high craftsmanship + selective expression + native behavior.
+- **D-016 — Private Reading Intelligence:** active reading time, sessions, history, Reading List/Next Up, goals/streaks, and analytics stay local by default; goals are optional/non-punitive; durable records may sync through BYOC.
+- **D-017 — Focused reading product:** committed scope is beautiful universal reading + source-linked Flow + annotations + local-first/BYOC ownership + local search + Reading Intelligence + interoperability + read-aloud/lookup/compare.
+- **D-018 — AI/study systems out of scope:** no BYO AI, document chat/summaries, semantic AI search, flashcards/SRS, knowledge graphs/backlinks, mind maps, Recall Mode, or quiz/study-sheet systems unless this decision is explicitly revisited.
+- **D-019 — ISO-8601 timestamps:** Drift datetime values are stored as UTC ISO-8601 text; raw `customStatement` writes serialize `DateTime` before SQLite binding; changing storage mode requires migration.
+- **D-020 — Content identity + managed import:** documents use streamed full-file `sha256:<hex>` identity; normal Import makes a durable byte-for-byte managed copy while linked/read-in-place remains explicit. Original files are untouched; identical bytes deduplicate; moved content retains identity; detection uses signatures + container structure + extension.
+- **D-021 — First PDF engine is pdfrx/PDFium:** Kola uses `pdfrx ^2.6.1` for initial PDF fidelity rendering and requires Dart >=3.13 / Flutter >=3.47. Package-specific Flutter UI lives behind `FidelityRendererRegistry`; PDF document lifecycle/semantics live behind `DocumentAdapter`; generic Reader code must not import `pdfrx`. Capability flags expose only behavior integrated into Kola. Initial PDF capability is fidelity rendering only—Flow, search, text selection, text annotations, outline UI, and export stay disabled until source-linked integration exists. `DocumentAdapter.open()` receives a stable `KolaDocument`, not only a path/source, so handles preserve document identity across file moves/renames.

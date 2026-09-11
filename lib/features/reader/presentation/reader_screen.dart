@@ -1,24 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kola/core/providers/app_data_providers.dart';
+import 'package:kola/core/providers/document_engine_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
+import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
+import 'package:kola/document/model/document_models.dart';
+import 'package:kola/document/registry/document_adapter.dart';
 
-class ReaderScreen extends StatefulWidget {
+class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({required this.documentId, super.key});
 
   final String documentId;
 
   @override
-  State<ReaderScreen> createState() => _ReaderScreenState();
+  ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends State<ReaderScreen> {
-  bool _flowMode = true;
+class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  bool _flowMode = false;
   bool _controlsVisible = true;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
+    final AsyncValue<KolaDocument?> document = ref.watch(
+      documentProvider(widget.documentId),
+    );
+
+    return document.when(
+      data: (KolaDocument? value) {
+        if (value == null) {
+          return _ReaderMessage(
+            title: 'Document not found',
+            message: 'This library item no longer exists.',
+            onBack: () => context.pop(),
+          );
+        }
+        return _buildReader(context, value);
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (Object error, StackTrace stackTrace) => _ReaderMessage(
+        title: 'Could not load document',
+        message: error.toString(),
+        onBack: () => context.pop(),
+      ),
+    );
+  }
+
+  Widget _buildReader(BuildContext context, KolaDocument document) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final FormatCapabilities capabilities =
+        ref.watch(formatRegistryProvider).capabilitiesFor(document.format) ??
+        const FormatCapabilities();
+    final DocumentFidelityRenderer? fidelityRenderer = ref
+        .watch(fidelityRendererRegistryProvider)
+        .rendererFor(document.format);
+
+    final Widget surface = _flowMode
+        ? const _FlowUnavailable()
+        : fidelityRenderer?.build(context, document) ??
+              _FidelityUnavailable(document: document);
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLow,
@@ -28,15 +71,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onTap: () => setState(() => _controlsVisible = !_controlsVisible),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 840),
-                    child: _flowMode
-                        ? _FlowReadingSurface(documentId: widget.documentId)
-                        : const _FidelityPlaceholder(),
-                  ),
+                onTap: () => setState(
+                  () => _controlsVisible = !_controlsVisible,
                 ),
+                child: surface,
               ),
             ),
             AnimatedSlide(
@@ -47,24 +85,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 duration: KolaMotion.quick,
                 opacity: _controlsVisible ? 1 : 0,
                 child: _ReaderTopBar(
+                  document: document,
                   flowMode: _flowMode,
+                  flowAvailable: capabilities.flowMode,
                   onBack: () => context.pop(),
-                  onModeChanged: (bool value) => setState(() => _flowMode = value),
-                ),
-              ),
-            ),
-            Positioned(
-              left: KolaSpacing.md,
-              right: KolaSpacing.md,
-              bottom: KolaSpacing.md,
-              child: AnimatedSlide(
-                duration: KolaMotion.standard,
-                offset: _controlsVisible ? Offset.zero : const Offset(0, 1.5),
-                curve: Curves.easeOutCubic,
-                child: AnimatedOpacity(
-                  duration: KolaMotion.quick,
-                  opacity: _controlsVisible ? 1 : 0,
-                  child: const _ReaderBottomBar(),
+                  onModeChanged: (bool value) {
+                    if (value && !capabilities.flowMode) return;
+                    setState(() => _flowMode = value);
+                  },
                 ),
               ),
             ),
@@ -77,52 +105,94 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
 class _ReaderTopBar extends StatelessWidget {
   const _ReaderTopBar({
+    required this.document,
     required this.flowMode,
+    required this.flowAvailable,
     required this.onBack,
     required this.onModeChanged,
   });
 
+  final KolaDocument document;
   final bool flowMode;
+  final bool flowAvailable;
   final VoidCallback onBack;
   final ValueChanged<bool> onModeChanged;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String subtitle = document.metadata.authors.isEmpty
+        ? document.format.name.toUpperCase()
+        : document.metadata.authors.join(', ');
+
     return Padding(
       padding: const EdgeInsets.all(KolaSpacing.md),
       child: Material(
         color: scheme.surface.withValues(alpha: 0.92),
         borderRadius: KolaRadius.pill,
         clipBehavior: Clip.antiAlias,
+        elevation: 2,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: KolaSpacing.xs, vertical: KolaSpacing.xxs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: KolaSpacing.xs,
+            vertical: KolaSpacing.xxs,
+          ),
           child: Row(
             children: <Widget>[
-              IconButton(onPressed: onBack, tooltip: 'Back', icon: const Icon(Icons.arrow_back_rounded)),
+              IconButton(
+                onPressed: onBack,
+                tooltip: 'Back',
+                icon: const Icon(Icons.arrow_back_rounded),
+              ),
               const SizedBox(width: KolaSpacing.xs),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text('The Design of Everyday Things', maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text('Chapter 3 · Knowledge in the head and world', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      document.metadata.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
               SegmentedButton<bool>(
-                segments: const <ButtonSegment<bool>>[
-                  ButtonSegment<bool>(value: false, icon: Icon(Icons.description_rounded), tooltip: 'Fidelity'),
-                  ButtonSegment<bool>(value: true, icon: Icon(Icons.auto_stories_rounded), tooltip: 'Flow'),
+                segments: <ButtonSegment<bool>>[
+                  const ButtonSegment<bool>(
+                    value: false,
+                    icon: Icon(Icons.description_rounded),
+                    tooltip: 'Fidelity',
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    enabled: flowAvailable,
+                    icon: const Icon(Icons.auto_stories_rounded),
+                    tooltip: flowAvailable ? 'Flow' : 'Flow not available yet',
+                  ),
                 ],
                 selected: <bool>{flowMode},
                 showSelectedIcon: false,
-                onSelectionChanged: (Set<bool> selection) => onModeChanged(selection.first),
+                onSelectionChanged: (Set<bool> selection) =>
+                    onModeChanged(selection.first),
               ),
-              IconButton(onPressed: () {}, tooltip: 'Search document', icon: const Icon(Icons.search_rounded)),
-              IconButton(onPressed: () {}, tooltip: 'Appearance', icon: const Icon(Icons.format_size_rounded)),
-              IconButton(onPressed: () {}, tooltip: 'More', icon: const Icon(Icons.more_horiz_rounded)),
+              IconButton(
+                onPressed: null,
+                tooltip: 'Search will be enabled after PDF text indexing',
+                icon: const Icon(Icons.search_rounded),
+              ),
+              IconButton(
+                onPressed: () {},
+                tooltip: 'More',
+                icon: const Icon(Icons.more_horiz_rounded),
+              ),
             ],
           ),
         ),
@@ -131,151 +201,98 @@ class _ReaderTopBar extends StatelessWidget {
   }
 }
 
-class _FlowReadingSurface extends StatelessWidget {
-  const _FlowReadingSurface({required this.documentId});
+class _FidelityUnavailable extends StatelessWidget {
+  const _FidelityUnavailable({required this.document});
 
-  final String documentId;
+  final KolaDocument document;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 108, 24, 108),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.brightness == Brightness.dark ? const Color(0xFF191D1C) : const Color(0xFFF8F4EA),
-          borderRadius: KolaRadius.lg,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              blurRadius: 30,
-              offset: const Offset(0, 12),
-              color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.24 : 0.10),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 64),
-          child: DefaultTextStyle.merge(
-            style: theme.textTheme.bodyLarge?.copyWith(height: 1.75),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('CHAPTER 3', style: theme.textTheme.labelLarge?.copyWith(letterSpacing: 1.6)),
-                const SizedBox(height: KolaSpacing.md),
-                Text(
-                  'Knowledge in the Head and in the World',
-                  style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700, height: 1.12),
-                ),
-                const SizedBox(height: KolaSpacing.xl),
-                const Text(
-                  'This is Kola’s first Flow Mode shell. The final renderer will not display a converted copy of the document. It will render source-mapped semantic blocks from the Kola Document Graph so selections, highlights, progress, and navigation can resolve back to the original file.',
-                ),
-                const SizedBox(height: KolaSpacing.lg),
-                const Text(
-                  'The reading surface is deliberately quieter than the surrounding application chrome. Typography, content width, line spacing, and background will become reader-controlled settings while the source document remains unchanged.',
-                ),
-                const SizedBox(height: KolaSpacing.lg),
-                _PrototypeHighlight(
-                  child: const Text(
-                    'Annotations created here will eventually share the same durable source anchor as annotations created in Fidelity View.',
-                  ),
-                ),
-                const SizedBox(height: KolaSpacing.lg),
-                const Text(
-                  'Tap anywhere outside the controls to hide the reader chrome. This interaction is only a prototype; platform-specific behavior and accessibility validation will be handled by the adaptive design system.',
-                ),
-                const SizedBox(height: KolaSpacing.xl),
-                Text('Prototype document id: $documentId', style: theme.textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return _CenteredReaderNotice(
+      icon: Icons.description_outlined,
+      title: 'Fidelity view is not available yet',
+      message:
+          '${document.format.name.toUpperCase()} was imported successfully, but its renderer has not been integrated yet.',
     );
   }
 }
 
-class _PrototypeHighlight extends StatelessWidget {
-  const _PrototypeHighlight({required this.child});
-
-  final Widget child;
+class _FlowUnavailable extends StatelessWidget {
+  const _FlowUnavailable();
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.72),
-        borderRadius: KolaRadius.sm,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KolaSpacing.xs, vertical: KolaSpacing.xxs),
-        child: child,
-      ),
+    return const _CenteredReaderNotice(
+      icon: Icons.auto_stories_outlined,
+      title: 'Flow Mode is not available yet',
+      message:
+          'Kola will enable Flow only after source-mapped semantic extraction is implemented for this format.',
     );
   }
 }
 
-class _FidelityPlaceholder extends StatelessWidget {
-  const _FidelityPlaceholder();
+class _CenteredReaderNotice extends StatelessWidget {
+  const _CenteredReaderNotice({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 108, 24, 108),
-      child: AspectRatio(
-        aspectRatio: 0.707,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: KolaRadius.sm,
-            border: Border.all(color: scheme.outlineVariant),
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.description_rounded, size: 56),
-                SizedBox(height: KolaSpacing.md),
-                Text('Fidelity renderer plugs in here'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReaderBottomBar extends StatelessWidget {
-  const _ReaderBottomBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: Material(
-          color: scheme.surface.withValues(alpha: 0.94),
-          borderRadius: KolaRadius.pill,
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KolaSpacing.md, vertical: KolaSpacing.xs),
-            child: Row(
-              children: <Widget>[
-                const Text('68%'),
-                const SizedBox(width: KolaSpacing.md),
-                const Expanded(child: LinearProgressIndicator(value: 0.68, minHeight: 5)),
-                const SizedBox(width: KolaSpacing.md),
-                IconButton(onPressed: () {}, tooltip: 'Bookmark', icon: const Icon(Icons.bookmark_border_rounded)),
-                IconButton(onPressed: () {}, tooltip: 'Annotate', icon: const Icon(Icons.edit_rounded)),
-                IconButton(onPressed: () {}, tooltip: 'Contents', icon: const Icon(Icons.list_alt_rounded)),
-              ],
-            ),
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: Padding(
+          padding: const EdgeInsets.all(KolaSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 52),
+              const SizedBox(height: KolaSpacing.md),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: KolaSpacing.sm),
+              Text(message, textAlign: TextAlign.center),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ReaderMessage extends StatelessWidget {
+  const _ReaderMessage({
+    required this.title,
+    required this.message,
+    required this.onBack,
+  });
+
+  final String title;
+  final String message;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ),
+      body: _CenteredReaderNotice(
+        icon: Icons.error_outline_rounded,
+        title: title,
+        message: message,
       ),
     );
   }

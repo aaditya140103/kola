@@ -1,15 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kola/core/providers/document_engine_providers.dart';
 import 'package:kola/core/providers/repository_providers.dart';
 import 'package:kola/document/import/document_file_picker.dart';
 import 'package:kola/document/import/document_fingerprint_service.dart';
 import 'package:kola/document/import/document_format_detector.dart';
 import 'package:kola/document/import/document_import_service.dart';
 import 'package:kola/document/import/document_source_storage.dart';
-import 'package:kola/document/registry/format_registry.dart';
-
-final formatRegistryProvider = Provider<FormatRegistry>((ref) {
-  return FormatRegistry();
-});
 
 final documentFilePickerProvider = Provider<DocumentFilePicker>((ref) {
   return const NativeDocumentFilePicker();
