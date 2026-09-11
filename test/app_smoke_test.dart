@@ -1,19 +1,32 @@
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/app/kola_app.dart';
-import 'package:kola/core/database/database_provider.dart';
-import 'package:kola/core/database/kola_database.dart';
+import 'package:kola/core/providers/app_data_providers.dart';
+import 'package:kola/document/model/document_models.dart';
+import 'package:kola/features/progress/domain/reading_models.dart';
 
 void main() {
   testWidgets('Kola opens the reading home', (WidgetTester tester) async {
-    final KolaDatabase database = KolaDatabase(NativeDatabase.memory());
-    addTearDown(database.close);
-
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [kolaDatabaseProvider.overrideWithValue(database)],
+        overrides: [
+          documentsProvider.overrideWith(
+            (ref) => Stream<List<KolaDocument>>.value(
+              const <KolaDocument>[],
+            ),
+          ),
+          readingListProvider.overrideWith(
+            (ref) => Stream<List<PlannedReadingItem>>.value(
+              const <PlannedReadingItem>[],
+            ),
+          ),
+          allReadingSessionsProvider.overrideWith(
+            (ref) => Stream<List<ReadingSession>>.value(
+              const <ReadingSession>[],
+            ),
+          ),
+        ],
         child: const KolaApp(),
       ),
     );
