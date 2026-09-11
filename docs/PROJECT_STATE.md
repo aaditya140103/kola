@@ -6,9 +6,9 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 0 now includes a verified UI shell plus the first durable domain/persistence foundation.**
+**Phase 1: real local document ingestion and stable document identity.**
 
-Kola has a working Flutter foundation, adaptive prototype UI, Kola-owned document/reading/annotation contracts, KDG primitives, a universal `DocumentAdapter` interface, and Drift schema v1. GitHub CI verifies dependency resolution, Drift code generation, analyzer, database tests, and the application smoke test on Flutter 3.47.4 / Dart 3.13.3.
+Kola now has the adaptive Flutter shell, reactive Drift repositories, live Home/Library/Insights data, universal document contracts, `FormatRegistry`, content-based format detection, streamed SHA-256 fingerprints, managed/linked source handling, and a native file-picker import path. No real renderer/parser adapter is registered yet.
 
 Native Android/iOS/Linux/macOS/Windows project folders are still generated with `bash tool/bootstrap.sh` on a Flutter-equipped development machine.
 
@@ -17,55 +17,77 @@ Native Android/iOS/Linux/macOS/Windows project folders are still generated with 
 - Product: local-first universal document reader + annotation workspace.
 - Targets: Linux, Windows, macOS, Android, iOS, tablets, foldables.
 - App: Flutter/Dart + Riverpod + go_router.
-- Persistence: SQLite/Drift schema v1 implemented and code-generated at build time.
-- Timestamp storage: ISO-8601 text from schema v1 (D-019).
-- Search: local FTS/indexing direction only; UI remains prototype.
-- UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
+- Persistence: SQLite/Drift schema v1 with concrete reactive repositories.
+- UI data path: Drift repositories -> Kola domain models -> Riverpod -> Home/Library/Insights.
+- Import: native `file_picker` -> format detection + SHA-256 -> managed copy/linked source -> repository.
+- Identity: stable `sha256:<hex>` full-file content fingerprint (D-020).
+- Normal Import mode: managed byte-for-byte local copy in application-support storage (D-020).
+- Format detection: signature + ZIP/container structure + extension evidence; probing runs off UI isolate.
+- Registry: `FormatRegistry` exists; no concrete `DocumentAdapter` is registered yet.
 - Reader: Flow/Fidelity shell only; no real format renderer attached yet.
-- Domain: Kola-owned document models, KDG nodes/chunks, reading models, annotations, repository contracts.
-- Format boundary: universal `DocumentAdapter` contract exists; `FormatRegistry` and actual adapters are not implemented yet.
-- Verification: code generation + analyzer + tests are green in GitHub Actions.
+- Search: local FTS/indexing direction only; UI remains prototype.
+- Timestamp storage: ISO-8601 text from schema v1 (D-019).
+- UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
 
-## Implemented persistence/domain files
+## Implemented data/import foundation
 
 ```text
-build.yaml
 lib/core/database/schema.drift
 lib/core/database/kola_database.dart
-lib/core/database/database_provider.dart
+lib/core/providers/repository_providers.dart
+lib/core/providers/app_data_providers.dart
+lib/core/providers/import_providers.dart
 lib/document/model/document_models.dart
 lib/document/graph/kola_document_graph.dart
 lib/document/registry/document_adapter.dart
-lib/features/library/domain/document_repository.dart
-lib/features/progress/domain/reading_models.dart
-lib/features/progress/domain/reading_repository.dart
-lib/features/annotations/domain/annotation_models.dart
-lib/features/annotations/domain/annotation_repository.dart
-test/core/database/kola_database_test.dart
+lib/document/registry/format_match.dart
+lib/document/registry/format_registry.dart
+lib/document/import/document_file_picker.dart
+lib/document/import/document_fingerprint_service.dart
+lib/document/import/document_format_detector.dart
+lib/document/import/document_source_storage.dart
+lib/document/import/document_import_service.dart
+lib/features/library/data/drift_document_repository.dart
+lib/features/progress/data/drift_reading_repository.dart
+lib/features/annotations/data/drift_annotation_repository.dart
 ```
 
-Generated `*.g.dart` files are build artifacts and are intentionally not committed.
+Generated `*.g.dart` files remain build artifacts and are not committed.
+
+## Import pipeline
+
+```text
+Native picker
+  -> selected local path
+  -> [parallel] SHA-256 fingerprint + format probe
+  -> stable content identity
+  -> managed copy (default) OR linked source
+  -> FormatRegistry lookup
+  -> adapter metadata if available / filename fallback otherwise
+  -> DocumentRepository
+  -> SQLite
+  -> reactive Library/Home update
+```
+
+Rules:
+
+- original source files are never modified;
+- identical bytes do not create duplicate identities;
+- moved/renamed identical content relinks the existing record;
+- unknown files are rejected before library mutation;
+- recognized formats without an adapter persist as `partial`, never as fake full support;
+- managed copies are durable user-library files, not disposable cache data.
 
 ## Database schema v1
 
-Durable tables currently cover:
-
-- documents
-- reading_states
-- reading_coverage
-- reading_sessions
-- planned_reading_items
-- reading_goals
-- annotations
-- bookmarks
-
-Foreign keys are enabled on open. Document deletion cascades dependent reading/annotation state where appropriate; the cascade behavior is tested.
+Durable tables: documents, reading_states, reading_coverage, reading_sessions, planned_reading_items, reading_goals, annotations, bookmarks. Foreign keys are enabled; document deletion cascades dependent state where appropriate.
 
 ## Existing UI foundation
 
 - compact bottom navigation; larger windows use NavigationRail;
-- Home with Continue Reading, Next Up, and weekly insight prototypes;
-- responsive Library grid;
+- Home with live Continue Reading, Next Up, and weekly insight data;
+- responsive live Library grid;
+- Home/Library Import actions invoke the native picker;
 - Search and Reading Insights shells;
 - immersive Reader shell with Flow/Fidelity switching;
 - system light/dark app theme and tokenized reader styling.
@@ -76,50 +98,35 @@ Foreign keys are enabled on open. Document deletion cascades dependent reading/a
 - Cloud sync remains optional user-controlled transport.
 - Never sync the live SQLite database file.
 - One Flutter codebase.
-- Format packages never escape through Kola domain contracts.
+- Format packages never escape Kola domain contracts.
 - Flow Mode remains universal and source-linked.
 - Annotation anchors remain hybrid/source-based, never screen-coordinate-only.
 - Position, coverage, and active reading time remain distinct.
 - Reading List remains separate from Favorites.
 - AI and dedicated study systems remain out of scope.
-- Visual style is not locked; shared UI remains tokenized.
-- User-generated data is durable; caches/generated code/derived aggregates are rebuildable.
+- User-generated data and managed source copies are durable; caches/generated code/derived aggregates are rebuildable.
 
-## Most recent context change
+## Verification coverage
 
-Completed the domain + persistence foundation:
-
-- added `drift_flutter`, `drift_dev`, and `build_runner` support;
-- added Drift schema v1 and background/platform-appropriate database opening;
-- added Riverpod database provider;
-- added Kola document models and normalized KDG primitives;
-- added universal `DocumentAdapter` and format-capability contract;
-- added reading state/coverage/session/list/goal models;
-- added annotation model with source-linked anchor contract;
-- added document, reading, and annotation repository interfaces;
-- configured ISO-8601 Drift datetime storage and recorded D-019;
-- added database tests for persistence and foreign-key cascade behavior;
-- CI now generates Drift sources before analyze/test;
-- latest full CI run is green.
+CI runs dependency resolution, Drift generation, formatter, analyzer, and Flutter tests. Tests now cover database cascade behavior, repository round-trips/reactivity, content-format detection, stable import identity, idempotent re-import, moved-source relinking, and unknown-format rejection.
 
 ## Risks / blockers
 
-- Native platform project folders still need first generation on a Flutter-equipped machine.
-- Concrete Drift repository implementations/mappers do not exist yet; UI still uses demo records.
-- Schema v1 has no upgrade migration yet because no released schema exists; migrations become mandatory at the first schema change after release/testing data matters.
-- `FormatRegistry` detection/probing is not implemented.
+- No real `DocumentAdapter` exists yet, so imported recognized documents are library records with `partial` support.
+- Native platform project folders still need stable generation/commit on a Flutter-equipped machine.
+- File-provider/sandbox edge cases must be exercised on real Android/iOS devices even though normal import creates a managed copy.
+- Legacy/proprietary format detection still needs deeper probes as adapters arrive.
+- Schema v1 has no upgrade migration yet because no released schema exists.
 - Universal Flow Mode, source-map quality, annotation resolution, and real text selection remain the highest-risk core engineering areas.
-- Broad format adapters still require parser/license evaluation.
-- Final visual direction still requires comparative UX validation.
 
 ## Next recommended action
 
-1. Implement concrete Drift repositories and serialization/mapping for documents, reading state, sessions/list/goals, and annotations.
-2. Expose those repositories through Riverpod and replace Home/Library/Insights demo models with repository-backed state.
-3. Add `FormatRegistry`, `FormatMatch`, and capability-driven adapter registration/detection.
-4. Add import/fingerprint plumbing for local files before attaching real renderers.
-5. Integrate the first PDF fidelity adapter behind `DocumentAdapter` only after registry/import identity is stable.
-6. Begin real source-linked annotation/text-selection work after PDF source locations are available.
+1. Make the import branch pass CI and merge it.
+2. Implement the first PDF fidelity adapter behind `DocumentAdapter` and register it in `FormatRegistry`.
+3. Resolve a document's readable managed/linked path through one app-owned helper rather than adapter-specific path logic.
+4. Make Reader load a real imported PDF through document ID -> repository -> registry -> adapter.
+5. Add PDF page navigation/zoom before text selection or annotation rendering.
+6. Then add source-linked PDF text selection and annotation anchors.
 7. Generate/commit stable native platform scaffolding with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
 8. Keep visual primitives tokenized until comparative UX validation is run.
 
@@ -127,4 +134,4 @@ Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
 ## Required update after every patch
 
-If architecture changes, also update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. If feature scope changes, update `FEATURE_STRATEGY.md`. Meaningful UX changes must remain consistent with `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
+If architecture changes, also update `PROJECT_GRAPH.md`. If a durable decision changes, update `DECISIONS.md`. If feature scope changes, update the relevant detailed spec. Meaningful UX changes must remain consistent with `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
