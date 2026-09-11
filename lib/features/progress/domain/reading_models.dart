@@ -56,9 +56,12 @@ final class ReadingCoverage {
   final Duration readingTime;
   final DateTime updatedAt;
 
-  double get fraction => totalWeight <= 0
-      ? 0
-      : (coveredWeight / totalWeight).clamp(0.0, 1.0);
+  double get fraction {
+    if (totalWeight <= 0) {
+      return 0;
+    }
+    return (coveredWeight / totalWeight).clamp(0.0, 1.0).toDouble();
+  }
 }
 
 final class ReadingSession {
