@@ -21,7 +21,7 @@ final class DriftDocumentRepository implements DocumentRepository {
             last_opened_at DESC,
             imported_at DESC
           ''',
-          readsFrom: <TableInfo<Table, Object?>>{_database.documents},
+          readsFrom: {_database.documents},
         )
         .watch()
         .map(
@@ -37,7 +37,7 @@ final class DriftDocumentRepository implements DocumentRepository {
         .customSelect(
           'SELECT * FROM documents WHERE id = ? LIMIT 1',
           variables: <Variable<Object>>[Variable<String>(id)],
-          readsFrom: <TableInfo<Table, Object?>>{_database.documents},
+          readsFrom: {_database.documents},
         )
         .get();
 
@@ -45,8 +45,8 @@ final class DriftDocumentRepository implements DocumentRepository {
   }
 
   @override
-  Future<void> upsert(KolaDocument document) {
-    return _database.customStatement(
+  Future<void> upsert(KolaDocument document) async {
+    await _database.customStatement(
       '''
       INSERT INTO documents (
         id, content_hash, source_kind, source_uri, managed_path, format,
@@ -94,14 +94,24 @@ final class DriftDocumentRepository implements DocumentRepository {
         document.updatedAt,
       ],
     );
+    _database.markTablesUpdated([_database.documents]);
   }
 
   @override
-  Future<void> remove(String id) {
-    return _database.customStatement(
+  Future<void> remove(String id) async {
+    await _database.customStatement(
       'DELETE FROM documents WHERE id = ?',
       <Object?>[id],
     );
+    _database.markTablesUpdated([
+      _database.documents,
+      _database.readingStates,
+      _database.readingCoverage,
+      _database.readingSessions,
+      _database.annotations,
+      _database.bookmarks,
+      _database.plannedReadingItems,
+    ]);
   }
 
   KolaDocument _documentFromRow(QueryRow row) {
