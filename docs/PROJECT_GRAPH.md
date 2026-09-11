@@ -75,6 +75,50 @@ flowchart LR
     Map --> Anchor
 ```
 
+### Current import/identity path
+
+```mermaid
+flowchart LR
+    Pick[Native File Picker]
+    Source[Selected Local File]
+    Detect[Signature + Container + Extension Detection]
+    Hash[Stream SHA-256]
+    Identity[Stable sha256 Document ID]
+    Mode{Import Mode}
+    Managed[Managed Local Copy]
+    Linked[Linked Source]
+    Registry[FormatRegistry]
+    Adapter[Optional DocumentAdapter]
+    Metadata[Metadata / Filename Fallback]
+    Repo[DocumentRepository]
+    DB[(SQLite / Drift)]
+    Streams[Reactive Riverpod Library State]
+
+    Pick --> Source
+    Source --> Detect
+    Source --> Hash --> Identity
+    Identity --> Mode
+    Mode -- normal import --> Managed
+    Mode -- explicit linked mode --> Linked
+    Detect --> Registry --> Adapter
+    Managed --> Metadata
+    Linked --> Metadata
+    Adapter -. when registered .-> Metadata
+    Identity --> Repo
+    Detect --> Repo
+    Metadata --> Repo --> DB --> Streams
+```
+
+Import rules:
+
+- file hashing and container probing run off the UI isolate;
+- document identity is content-based (`sha256:<hex>`), not path-based;
+- normal Import creates a managed byte-for-byte local copy; linked mode remains available;
+- importing identical bytes is idempotent; moved identical content relinks one identity;
+- unknown formats are rejected without mutating the library;
+- recognized formats without a registered adapter may persist as `partial` rather than pretending full reader support;
+- source documents are never modified during import.
+
 ### Adapter families
 
 ```mermaid
@@ -323,7 +367,7 @@ Rules:
 - Drift-generated row classes never escape the data layer.
 - Repository writes explicitly invalidate affected Drift tables so streams refresh immediately.
 - UI consumes Riverpod query providers, not SQL or generated database rows.
-- Home, Library, and Insights now use durable local data; the Reader still waits for a real format adapter.
+- Home, Library, and Insights use durable local data; the Reader still waits for a real format adapter.
 
 ## 10. Bring Your Own Cloud sync
 
