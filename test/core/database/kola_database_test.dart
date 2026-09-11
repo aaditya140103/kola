@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/core/database/kola_database.dart';
@@ -14,7 +15,7 @@ void main() {
   });
 
   test('stores document and reading state with foreign keys enabled', () async {
-    final DateTime now = DateTime.utc(2026, 9, 12);
+    final String now = DateTime.utc(2026, 9, 12).toIso8601String();
 
     await database.customStatement(
       '''
@@ -47,7 +48,7 @@ void main() {
     final rows = await database
         .customSelect(
           'SELECT title FROM documents WHERE id = ?',
-          variables: <Variable<Object>>[Variable<String>('doc-1')],
+          variables: <Variable<Object>>[Variable.withString('doc-1')],
         )
         .get();
 
@@ -55,7 +56,7 @@ void main() {
   });
 
   test('deleting a document cascades its reading state', () async {
-    final DateTime now = DateTime.utc(2026, 9, 12);
+    final String now = DateTime.utc(2026, 9, 12).toIso8601String();
 
     await database.customStatement(
       '''
@@ -93,7 +94,7 @@ void main() {
     final rows = await database
         .customSelect(
           'SELECT document_id FROM reading_states WHERE document_id = ?',
-          variables: <Variable<Object>>[Variable<String>('doc-2')],
+          variables: <Variable<Object>>[Variable.withString('doc-2')],
         )
         .get();
 
