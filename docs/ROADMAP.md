@@ -289,18 +289,21 @@ Rules:
 
 ---
 
-## Phase 12 — Search and knowledge workflows
+## Phase 12 — Search, export, and reader command workflows
 
 ### Deliverables
 
 - SQLite FTS index over KDG
 - global search
 - annotations/notes search
+- metadata/tag/collection search
 - command palette
-- study-sheet export
-- annotation links/backlinks
 - copy quote with source metadata
-- filtered exports
+- filtered annotation exports
+- saved search/filter presets where useful
+- fast jump from search result to exact source location
+
+This phase must remain a reading/navigation/search phase. It does not add flashcards, backlinks, knowledge graphs, mind maps, study sheets, quizzes, AI search, or other study/AI subsystems.
 
 ---
 
@@ -317,6 +320,7 @@ Rules:
 - persistent crop profiles
 - customizable shortcuts
 - full-screen/presentation reading
+- Parallel Read / Compare foundation
 
 ---
 
@@ -335,7 +339,28 @@ Rules:
 
 ---
 
-## Phase 15 — Theme and personalization expansion
+## Phase 15 — Reading Intelligence expansion
+
+### Deliverables
+
+- active reading-time heuristics
+- durable reading sessions
+- per-document insights
+- Want to Read / Next Up
+- reading history
+- completion history
+- daily/weekly/monthly/yearly analytics
+- estimated time remaining when enough trusted data exists
+- optional gentle goals/streaks
+- session correction/deletion
+
+### Exit criteria
+
+Reading analytics remain understandable, correctable, private, and clearly separate from simple app-open duration.
+
+---
+
+## Phase 16 — Theme and personalization expansion
 
 Core theming exists earlier; this phase hardens customization.
 
@@ -352,7 +377,28 @@ Core theming exists earlier; this phase hardens customization.
 
 ---
 
-## Phase 16 — Platform-native polish pass
+## Phase 17 — BYOC sync + interoperability
+
+### Deliverables
+
+- sync-ready durable entity revisions
+- local-folder sync backend
+- WebDAV
+- selected provider adapters where maintainable
+- state-only / selected-document / full-library scopes
+- conflict-aware merge
+- Calibre/OPDS interoperability
+- KOReader interoperability where feasible
+- reading-list import/export
+- portable migration flows
+
+### Exit criteria
+
+Sync failure never blocks local reading, and a user can leave Kola with their data intact.
+
+---
+
+## Phase 18 — Platform-native polish pass
 
 Audit each platform with users who actively use that OS.
 
@@ -399,7 +445,7 @@ Audit each platform with users who actively use that OS.
 
 ---
 
-## Phase 17 — Accessibility and reading assistance hardening
+## Phase 19 — Accessibility and reading assistance hardening
 
 - screen-reader audit
 - keyboard audit
@@ -410,10 +456,12 @@ Audit each platform with users who actively use that OS.
 - dyslexia-friendly reader option
 - local text-to-speech
 - sentence/word tracking where available
+- dictionary/lookup integration
+- optional translation integration
 
 ---
 
-## Phase 18 — Backup/export portability
+## Phase 20 — Backup/export portability
 
 - complete local backup
 - restore
@@ -421,13 +469,14 @@ Audit each platform with users who actively use that OS.
 - Markdown
 - HTML
 - JSON
+- CSV where useful
 - annotated PDF where technically supported
 - portable theme/settings export
 - migration documentation
 
 ---
 
-## Phase 19 — Performance and robustness hardening
+## Phase 21 — Performance and robustness hardening
 
 Benchmark and profile:
 
@@ -454,9 +503,29 @@ Measure:
 - search latency
 - Flow generation
 - spreadsheet virtualization
+- reading-session tracking overhead
+- sync overhead when enabled
+
+## Explicit product exclusions
+
+This roadmap contains **no planned phase** for:
+
+- AI assistants or LLM integrations;
+- BYO AI;
+- AI document Q&A or summarization;
+- semantic AI search;
+- flashcards;
+- spaced repetition;
+- study decks;
+- knowledge graphs/backlinks;
+- mind maps;
+- Recall Mode;
+- dedicated quiz/study-sheet systems.
+
+These features require an explicit product-decision change before entering the roadmap.
 
 ## Engineering rule
 
 Feature breadth never overrides reader correctness.
 
-When choosing between adding another format and fixing selection, annotation anchors, input behavior, crashes, progress correctness, or reading performance, fix the core behavior first.
+When choosing between adding another format and fixing selection, annotation anchors, input behavior, crashes, progress correctness, reading performance, or data durability, fix the core behavior first.
