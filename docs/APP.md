@@ -4,35 +4,36 @@
 
 ## 1. Product vision
 
-Kola should make digital reading calmer, faster, more flexible, and more private than conventional document viewers while remaining completely usable without an account, subscription, cloud service, or internet connection.
+Kola should make digital reading calmer, faster, more flexible, attractive, and more private than conventional document viewers while remaining completely usable without an account, subscription, cloud service, or internet connection.
 
-Kola is not merely a PDF or ebook reader. It is a **universal local reading workspace** in which supported files can be opened, searched, highlighted, annotated, reviewed, tracked, and exported through one consistent interaction model.
+Kola is not merely a PDF or ebook reader. It is a **universal local reading workspace** in which supported files can be opened, searched, highlighted, annotated, tracked, personalized, synchronized optionally, and exported through one coherent interaction model.
 
 ### Product promise
 
 - One application for major ebook, document, presentation, spreadsheet, comic, text, and fixed-layout formats.
 - One Flutter application codebase for Linux, Windows, macOS, Android, and iOS.
-- Local-only by default and fully functional offline.
-- Optional **Bring Your Own Cloud (BYOC)** sync across devices without requiring Kola-hosted storage.
+- Local-first and fully functional offline.
+- Optional **Bring Your Own Cloud (BYOC)** sync without requiring Kola-hosted storage.
 - No mandatory account.
 - No mandatory telemetry.
 - No document uploads for core features; document sync is explicit opt-in.
 - Unified annotations across formats.
-- Universal Flow Mode for every readable document where semantic extraction is possible.
-- Reading progress, completion, and actual coverage tracking.
-- Deep control over app themes, reader themes, backgrounds, typography, spacing, and page surfaces.
+- Universal source-linked Flow Mode where semantic extraction is possible.
+- Reading progress, actual coverage, active reading time, completion history, and Reading List tracking.
+- Deep control over app themes, reader themes, backgrounds, typography, spacing, and document surfaces.
 - First-class keyboard, mouse, touch, and stylus workflows.
-- User-owned annotations, backups, exports, and sync targets.
+- User-owned annotations, backups, exports, analytics, and sync targets.
+- No AI assistant subsystem and no dedicated study-system subsystem.
 
 ## 2. Product principles
 
 ### 2.1 Reading first
 
-The file being read is always the visual focus. Panels and controls should disappear when not useful.
+The file being read is always the visual focus. Panels and controls disappear when they are not useful.
 
 ### 2.2 Local-first, not merely offline-capable
 
-Kola stores its library, metadata, reading progress, coverage history, annotations, bookmarks, custom themes, thumbnails, caches, and indexes locally.
+Kola stores its library, metadata, reading progress, coverage history, reading sessions, annotations, bookmarks, Reading List, custom themes, thumbnails, caches, and indexes locally.
 
 Cloud synchronization is optional transport. Local state remains usable and writable before, during, and after sync failures.
 
@@ -49,13 +50,13 @@ Examples:
 - XLSX: sheet view + Flow Mode
 - comic: page view + optional OCR/reading flow
 
-Annotations must remain tied to the original source location whenever that mapping is technically possible.
+Annotations must remain tied to the original source location whenever technically possible.
 
 ### 2.4 Universal Flow Mode
 
 Flow Mode is a product-wide capability, not a PDF feature.
 
-Every adapter produces or attempts to produce a source-mapped semantic representation of the document. Flow Mode renders that representation using the user's preferred typography and reading theme.
+Every adapter produces or attempts to produce a source-mapped semantic representation of the document. Flow Mode renders that representation using the user's preferred typography and reader theme.
 
 ### 2.5 Honest degradation
 
@@ -74,11 +75,27 @@ The source file remains untouched unless the user explicitly exports a modified 
 
 If sync is enabled, the user chooses the provider, remote location, sync scope, and whether document binaries leave the device.
 
+### 2.7 Focused product scope
+
+Kola deepens the reading experience instead of expanding into unrelated product categories.
+
+The following are not part of the committed product scope:
+
+- AI chat, BYO AI, local LLM, document Q&A, AI summaries, or other AI-assistant features;
+- flashcards or spaced repetition;
+- mind maps or concept boards;
+- knowledge graphs/backlinks as a study system;
+- Recall Mode, study decks, quizzes, or dedicated study sheets;
+- public social-network features;
+- proprietary ebook store.
+
+Ordinary notes, annotations, tags, collections, local search, Reading Intelligence, exports, TTS, lookup, translation, and document comparison remain reader features.
+
 ## 3. Format strategy
 
-Kola's long-term target is **market-complete support for unencrypted readable formats**.
+Kola's long-term target is **market-complete support for practical unencrypted readable formats** where maintainable local parsing/rendering is possible.
 
-The detailed capability strategy lives in [`UNIVERSAL_FORMATS.md`](UNIVERSAL_FORMATS.md).
+Detailed strategy: [`UNIVERSAL_FORMATS.md`](UNIVERSAL_FORMATS.md).
 
 ### Major ebook targets
 
@@ -102,7 +119,7 @@ The detailed capability strategy lives in [`UNIVERSAL_FORMATS.md`](UNIVERSAL_FOR
 - RTF
 - PDF
 - DjVu
-- DAISY/DTBook as an accessibility expansion
+- DAISY/DTBook where practical
 
 ### Office and productivity documents
 
@@ -135,7 +152,7 @@ The detailed capability strategy lives in [`UNIVERSAL_FORMATS.md`](UNIVERSAL_FOR
 
 ### DRM policy
 
-Kola does not bypass DRM. A supported container is readable only when Kola can legally and technically decode the file locally.
+Kola does not bypass DRM. A supported container is readable only when Kola can legally and technically decode it locally.
 
 ## 4. Core reader modes
 
@@ -189,13 +206,13 @@ User controls:
 - page/surface color;
 - ambient background.
 
-**Non-negotiable rule:** Flow Mode is never an unrelated converted copy. Every block retains a source locator when one can be established.
+**Non-negotiable rule:** Flow Mode is never an unrelated converted copy. Every annotatable block retains a source locator when one can be established.
 
 ### 4.3 Focus Mode
 
 A distraction-free mode that removes almost all application chrome while preserving progress and annotation controls on demand.
 
-### 4.4 Comic/Visual Mode
+### 4.4 Comic / Visual Mode
 
 - single page;
 - double page;
@@ -214,21 +231,31 @@ A distraction-free mode that removes almost all application chrome while preserv
 
 ### 4.6 Sheet Mode
 
-- tabs for sheets;
-- frozen header support where parsed;
-- zoomable grid;
-- cell/range comments;
+- sheet tabs;
+- frozen headers where parsed;
+- zoomable/virtualized grid;
+- cell/range comments and annotations;
 - search;
-- range highlighting/annotations;
 - Flow Mode for accessible table traversal.
 
-## 5. Reading progress and completion
+### 4.7 Parallel Read / Compare
 
-Kola should distinguish **where the user is** from **how much the user has actually read**.
+Two reading surfaces may appear side by side for:
+
+- original + translation;
+- two document versions;
+- two books/papers/documents;
+- presentation + reference material.
+
+Navigation can be independent or synchronized where meaningful.
+
+## 5. Reading progress, time, and completion
+
+Kola distinguishes **where the user is**, **how much has actually been read**, and **how much trusted active time was spent reading**.
 
 ### Position progress
 
-Shows the current canonical position in the document:
+Examples:
 
 - `63%`
 - `Page 188 of 300`
@@ -238,16 +265,20 @@ Shows the current canonical position in the document:
 
 ### Reading coverage
 
-A second metric records content that has genuinely entered the reading viewport for a meaningful interval.
-
-Example:
+A separate metric records semantic content that genuinely entered the reading viewport for a meaningful interval.
 
 ```text
 Current position: 63%
 Read coverage:    48%
 ```
 
-This avoids marking a book as nearly complete merely because the user jumped to its last page.
+Jumping to the end must not mark the whole document as read.
+
+### Active reading time
+
+Reading time is based on meaningful reading activity, not merely how long a document window remains open.
+
+Users must be able to inspect, correct, and delete erroneous sessions.
 
 ### Completion state
 
@@ -259,25 +290,31 @@ Documents can be:
 - Nearly finished
 - Completed
 - Manually marked complete
+- optional Abandoned / DNF
 
-Default automatic completion can use a configurable threshold such as 95% coverage.
+### Reading Intelligence
 
-### Reading statistics
+Local-only analytics may include:
 
-Local-only statistics may include:
-
-- total reading time;
-- session duration;
-- pages/chapters/slides covered;
-- daily/weekly reading history;
+- total active reading time;
+- session duration/count;
+- average/longest session;
+- pages/chapters/slides/semantic units covered;
+- daily/weekly/monthly/yearly history;
 - progress over time;
-- last read date.
+- first/last read date;
+- completion history;
+- estimated time remaining where confidence is sufficient;
+- annotation counts;
+- Reading List / Want to Read / Next Up.
 
 Statistics remain local unless the user explicitly includes them in BYOC state sync.
 
+Detailed design: `READING_ANALYTICS.md`.
+
 ## 6. Annotation system
 
-Annotations are a first-class domain shared across all formats.
+Annotations are a first-class domain shared across formats.
 
 ### Types
 
@@ -294,7 +331,6 @@ Annotations are a first-class domain shared across all formats.
 - Cell/range annotation
 - Slide-region annotation
 - Text box
-- Link between annotations
 
 ### Semantic highlight presets
 
@@ -305,7 +341,7 @@ Annotations are a first-class domain shared across all formats.
 - Idea / Connection
 - Review
 
-The semantic label is stored independently of its visible color.
+The semantic label is stored independently from its visible color.
 
 ### Source anchors
 
@@ -319,7 +355,7 @@ Application chrome and document appearance are separate systems.
 
 ### Application themes
 
-Built-ins:
+Built-ins may include:
 
 - System
 - Light
@@ -328,7 +364,7 @@ Built-ins:
 - Soft Gray
 - Warm Neutral
 
-Users can create custom themes with:
+Users can create custom themes controlling:
 
 - accent color;
 - navigation/background color;
@@ -336,11 +372,11 @@ Users can create custom themes with:
 - border strength;
 - contrast level;
 - corner/radius scale;
-- optional reduced-transparency mode.
+- reduced-transparency preference.
 
 ### Reader themes
 
-Built-ins:
+Built-ins may include:
 
 - Paper
 - Warm Paper
@@ -360,7 +396,7 @@ Custom reader themes can control:
 - document background;
 - page background;
 - margins;
-- optional subtle texture.
+- subtle texture.
 
 ### Ambient backgrounds
 
@@ -372,11 +408,11 @@ The area around the document/page can use:
 - user-selected local image/wallpaper;
 - blurred local image background.
 
-Kola must maintain minimum text contrast and provide a one-click reset if customization becomes unreadable.
+Kola must preserve minimum text contrast and provide a one-click reset if customization becomes unreadable.
 
 ## 8. Library experience
 
-Library views:
+Library views may include:
 
 - Home / Continue Reading
 - All Documents
@@ -388,6 +424,8 @@ Library views:
 - Unread
 - In Progress
 - Completed
+- Want to Read
+- Next Up
 
 Cards/list rows may show:
 
@@ -397,13 +435,14 @@ Cards/list rows may show:
 - format;
 - position progress;
 - reading coverage;
-- last opened;
+- time spent reading;
+- last opened/read;
 - completion state;
 - local/cloud availability when BYOC is configured.
 
-## 9. Search and knowledge workflows
+## 9. Universal local search
 
-All local search should cover:
+Local search covers:
 
 - title;
 - author;
@@ -419,11 +458,13 @@ All local search should cover:
 
 Search results must jump to a resolvable source location.
 
-## 10. Signature interactions
+Search remains classic local full-text/indexed search; no AI/embedding subsystem is part of the committed product.
+
+## 10. Signature reader interactions
 
 ### Peek
 
-Preview footnotes, citations, internal links, slide references, figures, tables, and annotation links without losing reading position.
+Preview footnotes, citations, internal links, slide references, figures, tables, and other source references without losing reading position.
 
 ### Reading Lens
 
@@ -435,7 +476,15 @@ Nonintrusive edge markers show where notes/highlights exist without opening a si
 
 ### Command Palette
 
-`Ctrl/Cmd + K` on desktop/tablet for search, navigation, view switching, theme changes, annotation tools, sync actions, and export.
+`Ctrl/Cmd + K` on desktop/tablet for search, navigation, view switching, themes, annotation tools, sync actions, and export.
+
+### Read Aloud
+
+Use local/platform TTS first, with synchronized source position, speed/voice controls, and background playback where permitted.
+
+### Lookup / translation
+
+Selection can expose dictionary, optional reference lookup, and optional translation without requiring an always-online reader.
 
 ## 11. Bring Your Own Cloud sync
 
@@ -458,7 +507,7 @@ Provider integrations are adapters. Kola's reading/domain code must not depend d
 
 Users choose one:
 
-- **State only:** annotations, bookmarks, progress/coverage, collections, tags, themes, metadata, and selected settings.
+- **State only:** annotations, bookmarks, progress/coverage, reading sessions/history, Reading List, collections, tags, themes, metadata, and selected settings.
 - **Selected documents:** state plus explicitly chosen documents.
 - **Full library:** state plus all eligible managed documents.
 
@@ -470,7 +519,7 @@ State-only is the privacy- and bandwidth-friendly default direction.
 - sync runs in the background;
 - offline edits are allowed;
 - sync conflicts never block reading;
-- user-authored conflicting notes are preserved rather than silently discarded;
+- conflicting user-authored notes are preserved rather than silently discarded;
 - reading coverage merges across compatible graph versions;
 - deletions use tombstones;
 - document blobs use content hashes for stable identity/deduplication.
@@ -492,12 +541,12 @@ Rules:
 - no ads;
 - no remote fonts required;
 - no document upload unless the user explicitly enables document sync;
-- no external AI API requirement;
+- no AI/LLM assistant subsystem;
 - no Office macro execution;
 - no embedded JavaScript execution by default;
 - external resources from documents blocked by default;
 - all search indexes/thumbnails remain local;
-- OAuth/provider credentials are stored using OS secure storage, not plaintext app data;
+- OAuth/provider credentials stored through OS secure storage, not plaintext app data;
 - disconnected sync must leave all local user data intact.
 
 ## 13. Accessibility
@@ -514,7 +563,7 @@ Kola should support:
 - RTL documents;
 - dyslexia-friendly typography options;
 - Flow Mode as an accessibility representation for fixed-layout files;
-- local text-to-speech in a later phase.
+- local text-to-speech.
 
 ## 14. Performance expectations
 
@@ -527,21 +576,25 @@ Kola should support:
 - spreadsheet/grid rendering virtualizes rows/columns;
 - presentation thumbnails render lazily;
 - Flow Mode can build progressively instead of blocking the whole document;
-- document blob synchronization supports resumable/background transfer where backend/platform capabilities permit it.
+- document synchronization supports resumable/background transfer where provider/platform capabilities permit it;
+- reading-session tracking adds negligible UI overhead.
 
 ## 15. Non-goals
 
+- no AI assistants, LLM integrations, BYO AI, AI summaries, or AI document chat;
+- no flashcards, spaced repetition, study decks, mind maps, knowledge graph/backlinks system, Recall Mode, or quiz system;
 - no cloud dependency;
 - no mandatory sync;
 - no mandatory Kola-hosted cloud;
 - no DRM bypass;
 - no Word/Excel/PowerPoint-class source editing suite;
 - no active macro/script execution;
-- no requirement that every file format have pixel-perfect layout fidelity before it can be read;
-- no multi-user collaborative document editing in the initial BYOC design.
+- no requirement that every format have pixel-perfect layout fidelity before it can be read;
+- no public social network as a core product feature;
+- no multi-user collaborative document editing in the initial product direction.
 
 ## 16. Definition of success
 
-Kola succeeds when a user can install one application on desktop or mobile, open almost any common unencrypted reading/document file, switch between its original representation and a comfortable Flow Mode, annotate it consistently, track genuine reading progress, search it locally, customize the reading environment deeply, close the app, and later resume with all state intact—without sending the document anywhere.
+Kola succeeds when a user can install one application on desktop or mobile, open almost any common unencrypted readable file, switch between its original representation and a comfortable Flow Mode, annotate it consistently, search it locally, understand real reading progress/time, customize the reading environment deeply, and later resume with all state intact—without sending the document anywhere.
 
-For users who opt into BYOC, Kola additionally succeeds when those users can connect their own storage on multiple devices and have progress, annotations, and chosen documents converge safely without requiring infrastructure controlled by Kola.
+For users who opt into BYOC, Kola additionally succeeds when they can connect their own storage on multiple devices and have progress, annotations, reading history, Reading List, and chosen documents converge safely without requiring infrastructure controlled by Kola.
