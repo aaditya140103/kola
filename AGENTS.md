@@ -165,9 +165,21 @@ For meaningful UI/UX work, read:
 
 - `docs/UX_RESEARCH.md` for the evidence base;
 - `docs/UX_VALIDATION.md` for the testing method;
+- `docs/VISUAL_DIRECTIONS.md` for the active competing visual hypotheses;
 - then the relevant `DESIGN_SYSTEM.md` / `UX_SPEC.md` section.
 
 Meaningful UX changes should identify their rationale in implementation/PR context as one or more of: `evidence`, `accessibility`, `platform convention`, `measured result`, `experiment`.
+
+### Current visual hypotheses
+
+Do not treat one visual style as final yet. The current comparison set is:
+
+- **Luminous Paper** — calm premium surfaces + restrained translucent chrome;
+- **Editorial Scholar** — typography/grid-first, information-rich, research-friendly;
+- **Soft Expressive** — younger, colorful, tactile, highly personal;
+- **Kola Core candidate** — Luminous Paper structure + Editorial discipline + Soft Expressive interaction feedback.
+
+Until validated, shared UI primitives should be tokenized enough that these directions can be compared without rewriting feature logic.
 
 ## Stable domain vocabulary
 
@@ -185,6 +197,7 @@ Do not leak third-party package/provider types through feature/domain layers.
 - UX interactions: `docs/UX_SPEC.md`
 - UX evidence/research: `docs/UX_RESEARCH.md`
 - UX scientific validation: `docs/UX_VALIDATION.md`
+- Competing visual directions: `docs/VISUAL_DIRECTIONS.md`
 - Formats: `docs/UNIVERSAL_FORMATS.md`
 - Optional BYOC sync: `docs/SYNC.md`
 - Build order: `docs/ROADMAP.md`
@@ -209,6 +222,7 @@ Additionally:
 - If a durable product/technical choice changed -> update `docs/DECISIONS.md`.
 - If requirements changed -> update the relevant detailed spec.
 - If a meaningful UX pattern changes -> verify it against `UX_RESEARCH.md`; define/record validation work using `UX_VALIDATION.md` where appropriate.
+- If a visual style/token/component choice is being locked -> compare it against `VISUAL_DIRECTIONS.md` and record why the selected direction won.
 - Never duplicate long context into agent-specific instruction files.
 
 A patch is incomplete until the required context files are synchronized.
