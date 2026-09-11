@@ -15,6 +15,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - Separate position progress and actual reading coverage
 - Deep reader theme/background customization
 - Adaptive-native UI rather than one pixel-identical interface everywhere
+- Evidence-based UI/UX: attractive, measurable, accessible, and validated
 - User-owned data, sync targets, and exportable annotations
 - Reader correctness and performance before decorative complexity
 
@@ -37,6 +38,8 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - [Technical architecture](docs/ARCHITECTURE.md)
 - [Adaptive Native Design System](docs/DESIGN_SYSTEM.md)
 - [UI/UX specification](docs/UX_SPEC.md)
+- [Evidence-based UX research](docs/UX_RESEARCH.md)
+- [Scientific UX validation protocol](docs/UX_VALIDATION.md)
 - [Universal format strategy](docs/UNIVERSAL_FORMATS.md)
 - [Bring Your Own Cloud sync](docs/SYNC.md)
 - [Project architecture graphs](docs/PROJECT_GRAPH.md)
@@ -89,6 +92,18 @@ The product model, wording, annotation behavior, Flow Mode, and reading concepts
 
 The objective is not for screenshots to look identical. The objective is for Kola to feel like the same excellent reader intentionally designed for each platform.
 
+## UI/UX research rule
+
+Kola's interface is treated as a measurable product system, not decoration.
+
+The visual thesis is:
+
+> **Calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior.**
+
+Meaningful UI decisions should be grounded in accessibility/standards, human-factors evidence, native platform convention, measured Kola user results, or an explicit design experiment. Important designs should be tested using both behavioral metrics and subjective UX/aesthetic measures rather than preference alone.
+
+See `docs/UX_RESEARCH.md` and `docs/UX_VALIDATION.md`.
+
 ## For coding agents
 
 Start with [`AGENTS.md`](AGENTS.md), then read `docs/PROJECT_STATE.md` and `docs/PROJECT_GRAPH.md`. Load only the detailed specification relevant to the task.
@@ -97,6 +112,6 @@ Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes 
 
 ## Status
 
-**Architecture, format strategy, adaptive UX, and BYOC sync specification phase.**
+**Architecture, format strategy, adaptive UX, evidence-based UX methodology, and BYOC sync specification phase.**
 
 The next engineering milestone is to initialize the Flutter application, adaptive design primitives, local database, routing/state architecture, and CI. Sync providers should come later; Phase 0 should only keep durable entity identity/change tracking sync-ready.
