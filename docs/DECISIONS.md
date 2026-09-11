@@ -74,3 +74,17 @@ Short record of settled decisions. Update only when a durable product/technical 
 - Status: accepted
 - Decision: Every agent patch updates `docs/PROJECT_STATE.md`; architecture/data-flow changes update `docs/PROJECT_GRAPH.md`; durable choices update this file.
 - Why: preserve continuity across agents while minimizing repeated context loading.
+
+## D-014 — Bring Your Own Cloud, never mandatory Kola cloud
+
+- Status: accepted
+- Decision: Kola may synchronize across devices through a user-selected `SyncBackend` such as local folder, WebDAV, Google Drive, OneDrive, Dropbox, or S3-compatible storage.
+- Consequences:
+  - local reading remains complete without sync;
+  - Kola never requires a Kola-hosted cloud account;
+  - the live SQLite database is never synchronized as a file;
+  - sync uses versioned portable records plus a local merge engine;
+  - users choose state-only, selected-document, or full-library sync;
+  - network/sync failures never block local reading or annotation;
+  - optional client-side encrypted sync vaults are part of the privacy direction.
+- Detailed design: `docs/SYNC.md`.
