@@ -19,25 +19,28 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - Evidence-based UI/UX: attractive, measurable, accessible, and validated
 - User-owned data, sync targets, and exportable annotations
 - Reader correctness and performance before decorative complexity
+- **No AI assistant layer and no dedicated study-system layer**
 
 ## Product wedge
 
-Kola should not compete by having the longest settings menu. The near-term product story is:
+Kola should not compete by having the longest feature list. The product story is:
 
-> **Read almost anything beautifully. Annotate it deeply. Keep your data. Understand your reading life. Move between devices and ecosystems without lock-in.**
+> **Read almost anything beautifully. Annotate it deeply. Keep your data. Understand your reading life. Continue anywhere without lock-in.**
 
 The strategic combination is:
 
 ```text
 Beautiful universal reader
 + source-linked Flow Mode
-+ excellent annotations
++ best-in-class annotations
 + local-first / BYOC ownership
++ universal local search
 + Reading Intelligence
 + migration and interoperability
++ excellent reader utilities
 ```
 
-Study tools, capture/read-later workflows, optional local/BYO AI, plugins, and lightweight sharing are planned as layers on top of that foundation rather than replacements for it.
+Kola is intentionally **not** becoming an AI chat app, flashcard app, mind-map tool, spaced-repetition system, or knowledge-graph application. Those directions are out of scope unless the product decision is explicitly changed later.
 
 ## Architecture direction
 
@@ -56,7 +59,7 @@ Study tools, capture/read-later workflows, optional local/BYO AI, plugins, and l
 ## Specifications
 
 - [Product specification](docs/APP.md)
-- [Feature strategy and market differentiation](docs/FEATURE_STRATEGY.md)
+- [Focused feature strategy](docs/FEATURE_STRATEGY.md)
 - [Technical architecture](docs/ARCHITECTURE.md)
 - [Adaptive Native Design System](docs/DESIGN_SYSTEM.md)
 - [UI/UX specification](docs/UX_SPEC.md)
@@ -82,6 +85,10 @@ A semantic reading mode for supported documents that preserves source mapping. P
 
 The closest practical representation of the original source: PDF pages, slides, spreadsheet sheets, document layout, comic pages, and other native structures.
 
+### Best-in-class annotations
+
+Highlights, notes, ink, area annotations, semantic labels, source-linked anchors, exact source jumps, search/filtering, and excellent mouse/keyboard/touch/stylus workflows all operate through one annotation model.
+
 ### Reading Progress + Coverage
 
 Kola distinguishes **where you are** from **how much you actually read**, so jumping to the end does not falsely mark a document complete.
@@ -95,7 +102,7 @@ Kola can answer useful private questions such as:
 - how many sessions have I spent with it?
 - what have I completed this month/year?
 - what is on my Want to Read / Next Up list?
-- which subjects or collections receive most of my reading time?
+- which collections receive most of my reading time?
 - how much trusted reading time is estimated to remain?
 
 Reading time is based on meaningful activity rather than simply counting how long a document stays open. Goals and streaks are optional and deliberately non-punitive.
@@ -116,11 +123,11 @@ Preview footnotes, citations, links, figures, tables, slides, and annotation lin
 
 ### Reading Lens
 
-An optional reading guide that isolates a few lines or a paragraph for dense material.
+An optional reading guide that isolates a few lines or a paragraph for dense content and accessibility.
 
-### Annotation Rail
+### Parallel Read
 
-Small edge markers reveal where annotations exist without requiring a permanent sidebar.
+View two documents or two representations side by side for comparison, translation, revisions, or reference work.
 
 ## Cross-platform design rule
 
@@ -163,6 +170,6 @@ Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes 
 
 ## Status
 
-**Architecture, feature strategy, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, Reading Intelligence, and BYOC sync specification phase.**
+**Architecture, focused feature strategy, format strategy, adaptive UX, evidence-based UX methodology, visual-direction exploration, Reading Intelligence, and BYOC sync specification phase.**
 
-The next engineering milestone is to initialize the Flutter application and prototype the design-system primitives plus Library/Reader shells in the competing visual directions before locking the final default appearance.
+The next engineering milestone is to initialize the Flutter application and prototype the design-system primitives plus Library/Reader shells before locking the final default appearance.
