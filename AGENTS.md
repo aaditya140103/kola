@@ -17,20 +17,21 @@ Do not load every document unless necessary.
 
 Kola is a **local-first, cross-platform universal document reader and annotation workspace** built with one Flutter/Dart codebase for Linux, Windows, macOS, Android, iOS, tablets, and foldables.
 
-It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, themes/backgrounds, and local export. Core reading must work without accounts, cloud services, telemetry, or internet access.
+It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, themes/backgrounds, local export, and optional **Bring Your Own Cloud (BYOC)** synchronization. Core reading must work without accounts, cloud services, telemetry, or internet access.
 
 ## Non-negotiable invariants
 
 1. **Local-first:** local reading makes zero network requests.
-2. **One codebase:** Flutter/Dart owns app + UI across targets.
-3. **Universal model:** format parsers feed Kola-owned normalized document structures.
-4. **Two views, one source:** Fidelity View and Flow Mode share document identity.
-5. **Source-linked annotations:** never anchor only to screen coordinates.
-6. **Adaptive-native UX:** same semantics; platform-native presentation/interaction.
-7. **User-owned data:** metadata, progress, annotations, indexes, and exports remain local.
-8. **Graceful degradation:** reflow/index/parser failures must not block readable source content.
-9. **Performance first:** reading/selection/annotation correctness beats decoration.
-10. **No DRM bypass.**
+2. **Optional sync:** cloud sync is user-configured transport; Kola never requires a Kola-hosted cloud.
+3. **One codebase:** Flutter/Dart owns app + UI across targets.
+4. **Universal model:** format parsers feed Kola-owned normalized document structures.
+5. **Two views, one source:** Fidelity View and Flow Mode share document identity.
+6. **Source-linked annotations:** never anchor only to screen coordinates.
+7. **Adaptive-native UX:** same semantics; platform-native presentation/interaction.
+8. **User-owned data:** metadata, progress, annotations, indexes, exports, and sync targets remain user-controlled.
+9. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
+10. **Performance first:** reading/selection/annotation correctness beats decoration.
+11. **No DRM bypass.**
 
 ## Core stack
 
@@ -55,6 +56,7 @@ Adaptive platform shell
   -> NormalizedDocument + SourceMap
   -> Fidelity View | Flow Mode | Search | Annotation
   -> SQLite/Drift + local files + disposable caches
+  -> optional Sync Projection -> user-selected SyncBackend
 ```
 
 ## Universal format contract
@@ -110,11 +112,26 @@ Both persist locally and are format-independent at the domain level.
 
 Application chrome theme and document reading theme are separate. A dark shell may show a warm/paper reader surface. Support system/light/dark app chrome and reader themes/background customization.
 
+## Sync rule
+
+BYOC sync is optional and must never become part of the reader's critical path.
+
+- Never sync the live SQLite database file.
+- Project syncable entities into versioned portable records.
+- Merge into local SQLite transactionally.
+- Provider integrations live behind a `SyncBackend` abstraction.
+- Initial backend families: local folder, WebDAV, Google Drive, OneDrive, Dropbox, S3-compatible storage.
+- Users choose state-only, selected-document, or full-library sync.
+- Client-side encrypted vaults are a planned privacy option.
+- Network/sync errors never block local reading or annotation.
+
+Detailed design: `docs/SYNC.md`.
+
 ## UX rule
 
 **Consistent semantics, native presentation.**
 
-Keep Library, Search, Collections, Continue Reading, Fidelity View, Flow Mode, Focus Mode, annotations, progress, and themes conceptually stable.
+Keep Library, Search, Collections, Continue Reading, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, and Sync conceptually stable.
 
 Adapt navigation, title/window chrome, dialogs, sheets, context menus, back behavior, scroll physics, scrollbars, selection UI, haptics, hover/right-click, keyboard accelerators, safe areas, density, and touch targets by platform/window/input.
 
@@ -124,9 +141,9 @@ Use available window size + input capability, not simplistic `isPhone`/`isTablet
 
 Prefer app-owned models/interfaces such as:
 
-`Document`, `DocumentSource`, `DocumentMetadata`, `DocumentAdapter`, `DocumentHandle`, `NormalizedDocument`, `DocumentSection`, `DocumentBlock`, `SourceMap`, `DocumentLocation`, `Annotation`, `AnnotationAnchor`, `ReadingState`, `ReadingSession`, `ReadingCoverage`, `ReaderTheme`, `Collection`, `SearchResult`, `ExportRequest`.
+`Document`, `DocumentSource`, `DocumentMetadata`, `DocumentAdapter`, `DocumentHandle`, `NormalizedDocument`, `DocumentSection`, `DocumentBlock`, `SourceMap`, `DocumentLocation`, `Annotation`, `AnnotationAnchor`, `ReadingState`, `ReadingSession`, `ReadingCoverage`, `ReaderTheme`, `Collection`, `SearchResult`, `ExportRequest`, `SyncVault`, `SyncBackend`, `SyncRecord`.
 
-Do not leak third-party package types through feature/domain layers.
+Do not leak third-party package/provider types through feature/domain layers.
 
 ## Detailed specs — read only when relevant
 
@@ -135,6 +152,7 @@ Do not leak third-party package types through feature/domain layers.
 - Adaptive native design: `docs/DESIGN_SYSTEM.md`
 - UX interactions: `docs/UX_SPEC.md`
 - Formats: `docs/UNIVERSAL_FORMATS.md`
+- Optional BYOC sync: `docs/SYNC.md`
 - Build order: `docs/ROADMAP.md`
 - Research: `docs/RESEARCH.md`
 - Settled decisions: `docs/DECISIONS.md`
@@ -164,9 +182,9 @@ A patch is incomplete until the required context files are synchronized.
 
 - Preserve source compatibility and user data where practical.
 - Keep caches disposable; user-generated data is never a cache.
-- Background parsing/indexing must not block the reader UI.
+- Background parsing/indexing/sync must not block the reader UI.
 - Avoid premature package/microservice/module splitting.
-- Do not add cloud/account/network dependencies to core reading.
+- Do not add mandatory cloud/account/network dependencies to core reading.
 - Do not replace settled architecture without documenting the decision.
 - Prefer small coherent changes and tests over broad speculative rewrites.
 
