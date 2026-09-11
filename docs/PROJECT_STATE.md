@@ -27,6 +27,7 @@ Native Android/iOS/Linux/macOS/Windows project folders are still generated with 
 - Reader: Flow/Fidelity shell only; no real format renderer attached yet.
 - Search: local FTS/indexing direction only; UI remains prototype.
 - Timestamp storage: raw repository writes normalize `DateTime` values to UTC ISO-8601 text before SQLite binding (D-019).
+- Decision ledger: D-019 and D-020 are synchronized with the implemented persistence/import behavior.
 - UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
 
 ## Implemented data/import foundation
