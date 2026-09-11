@@ -1,0 +1,112 @@
+CREATE TABLE documents (
+  id TEXT NOT NULL PRIMARY KEY,
+  content_hash TEXT,
+  source_kind TEXT NOT NULL,
+  source_uri TEXT NOT NULL,
+  managed_path TEXT,
+  format TEXT NOT NULL,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  authors_json TEXT NOT NULL DEFAULT '[]',
+  language TEXT,
+  cover_cache_key TEXT,
+  file_size INTEGER,
+  imported_at DATETIME NOT NULL,
+  last_opened_at DATETIME,
+  support_status TEXT NOT NULL DEFAULT 'supported',
+  parser_version TEXT,
+  revision INTEGER NOT NULL DEFAULT 1,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE reading_states (
+  document_id TEXT NOT NULL PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  locator_json TEXT,
+  position_progress REAL NOT NULL DEFAULT 0 CHECK (position_progress >= 0 AND position_progress <= 1),
+  view_mode TEXT NOT NULL DEFAULT 'flow',
+  zoom REAL NOT NULL DEFAULT 1,
+  active_theme_id TEXT,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE reading_coverage (
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  graph_version TEXT NOT NULL,
+  coverage_blob BLOB,
+  covered_weight REAL NOT NULL DEFAULT 0,
+  total_weight REAL NOT NULL DEFAULT 0,
+  completion_state TEXT NOT NULL DEFAULT 'inProgress',
+  reading_time_ms INTEGER NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (document_id, graph_version)
+);
+
+CREATE TABLE reading_sessions (
+  id TEXT NOT NULL PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  started_at DATETIME NOT NULL,
+  ended_at DATETIME,
+  active_ms INTEGER NOT NULL DEFAULT 0,
+  passive_ms INTEGER NOT NULL DEFAULT 0,
+  start_locator_json TEXT,
+  end_locator_json TEXT,
+  revision INTEGER NOT NULL DEFAULT 1,
+  updated_at DATETIME NOT NULL
+);
+
+CREATE TABLE planned_reading_items (
+  id TEXT NOT NULL PRIMARY KEY,
+  linked_document_id TEXT REFERENCES documents(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  authors_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL DEFAULT 'wantToRead',
+  queue_position INTEGER,
+  notes TEXT,
+  added_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE reading_goals (
+  id TEXT NOT NULL PRIMARY KEY,
+  metric TEXT NOT NULL,
+  target_value REAL NOT NULL,
+  period TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  starts_at DATETIME,
+  ends_at DATETIME,
+  updated_at DATETIME NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE annotations (
+  id TEXT NOT NULL PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  anchor_json TEXT NOT NULL,
+  quote TEXT,
+  note TEXT,
+  semantic_label TEXT,
+  color_token TEXT,
+  favorite BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  deleted_at DATETIME
+);
+
+CREATE TABLE bookmarks (
+  id TEXT NOT NULL PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  anchor_json TEXT NOT NULL,
+  label TEXT,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX documents_last_opened_idx ON documents(last_opened_at);
+CREATE INDEX reading_sessions_document_started_idx ON reading_sessions(document_id, started_at);
+CREATE INDEX planned_reading_status_queue_idx ON planned_reading_items(status, queue_position);
+CREATE INDEX annotations_document_updated_idx ON annotations(document_id, updated_at);
+CREATE INDEX bookmarks_document_idx ON bookmarks(document_id);
