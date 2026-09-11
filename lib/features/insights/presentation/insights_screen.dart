@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
+import 'package:kola/document/model/document_models.dart';
+import 'package:kola/features/progress/domain/reading_models.dart';
 
-class InsightsScreen extends StatelessWidget {
+class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<ReadingSession>> sessions = ref.watch(
+      allReadingSessionsProvider,
+    );
+    final AsyncValue<List<KolaDocument>> documents = ref.watch(documentsProvider);
+    final AsyncValue<List<PlannedReadingItem>> readingList = ref.watch(
+      readingListProvider,
+    );
+
     return CustomScrollView(
       slivers: <Widget>[
         const SliverAppBar.large(title: Text('Reading insights')),
@@ -18,15 +30,23 @@ class InsightsScreen extends StatelessWidget {
           ),
           sliver: SliverList.list(
             children: <Widget>[
-              const _MetricGrid(),
-              const SizedBox(height: KolaSpacing.xl),
-              Text('Last 7 days', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: KolaSpacing.md),
-              const _WeekChart(),
-              const SizedBox(height: KolaSpacing.xl),
-              Text('Most read', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: KolaSpacing.md),
-              const _MostReadList(),
+              sessions.when(
+                data: (List<ReadingSession> items) => _InsightsBody(
+                  sessions: items,
+                  documents: documents.valueOrNull ?? const <KolaDocument>[],
+                  readingListCount: readingList.valueOrNull?.length ?? 0,
+                ),
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(KolaSpacing.xxl),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, _) => const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(KolaSpacing.xl),
+                    child: Text('Reading insights could not be loaded.'),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -35,16 +55,73 @@ class InsightsScreen extends StatelessWidget {
   }
 }
 
-class _MetricGrid extends StatelessWidget {
-  const _MetricGrid();
+class _InsightsBody extends StatelessWidget {
+  const _InsightsBody({
+    required this.sessions,
+    required this.documents,
+    required this.readingListCount,
+  });
+
+  final List<ReadingSession> sessions;
+  final List<KolaDocument> documents;
+  final int readingListCount;
 
   @override
   Widget build(BuildContext context) {
-    const List<(String, String, IconData)> metrics = <(String, String, IconData)>[
-      ('Today', '42 min', Icons.today_rounded),
-      ('This week', '4h 18m', Icons.date_range_rounded),
-      ('Completed', '6', Icons.task_alt_rounded),
-      ('Annotations', '38', Icons.edit_note_rounded),
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime weekStart = today.subtract(
+      Duration(days: now.weekday - DateTime.monday),
+    );
+    final Duration todayTime = _sumActiveTime(
+      sessions.where((ReadingSession session) => !session.startedAt.isBefore(today)),
+    );
+    final Duration weekTime = _sumActiveTime(
+      sessions.where((ReadingSession session) => !session.startedAt.isBefore(weekStart)),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _MetricGrid(
+          todayTime: todayTime,
+          weekTime: weekTime,
+          sessionCount: sessions.length,
+          readingListCount: readingListCount,
+        ),
+        const SizedBox(height: KolaSpacing.xl),
+        Text('Last 7 days', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: KolaSpacing.md),
+        _WeekChart(sessions: sessions),
+        const SizedBox(height: KolaSpacing.xl),
+        Text('Most read', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: KolaSpacing.md),
+        _MostReadList(sessions: sessions, documents: documents),
+      ],
+    );
+  }
+}
+
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({
+    required this.todayTime,
+    required this.weekTime,
+    required this.sessionCount,
+    required this.readingListCount,
+  });
+
+  final Duration todayTime;
+  final Duration weekTime;
+  final int sessionCount;
+  final int readingListCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<(String, String, IconData)> metrics = <(String, String, IconData)>[
+      ('Today', _formatDuration(todayTime), Icons.today_rounded),
+      ('This week', _formatDuration(weekTime), Icons.date_range_rounded),
+      ('Sessions', '$sessionCount', Icons.timer_outlined),
+      ('Reading list', '$readingListCount', Icons.playlist_add_check_rounded),
     ];
 
     return LayoutBuilder(
@@ -89,12 +166,29 @@ class _MetricGrid extends StatelessWidget {
 }
 
 class _WeekChart extends StatelessWidget {
-  const _WeekChart();
+  const _WeekChart({required this.sessions});
+
+  final List<ReadingSession> sessions;
 
   @override
   Widget build(BuildContext context) {
-    const List<double> values = <double>[0.42, 0.7, 0.28, 0.92, 0.54, 0.78, 0.61];
-    const List<String> labels = <String>['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final List<Duration> totals = List<Duration>.generate(7, (int index) {
+      final DateTime day = today.subtract(Duration(days: 6 - index));
+      final DateTime nextDay = day.add(const Duration(days: 1));
+      return _sumActiveTime(
+        sessions.where(
+          (ReadingSession session) =>
+              !session.startedAt.isBefore(day) && session.startedAt.isBefore(nextDay),
+        ),
+      );
+    });
+    final int maxMinutes = totals.fold<int>(
+      0,
+      (int maxValue, Duration duration) =>
+          duration.inMinutes > maxValue ? duration.inMinutes : maxValue,
+    );
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -104,7 +198,11 @@ class _WeekChart extends StatelessWidget {
           padding: const EdgeInsets.all(KolaSpacing.lg),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: List<Widget>.generate(values.length, (int index) {
+            children: List<Widget>.generate(7, (int index) {
+              final DateTime day = today.subtract(Duration(days: 6 - index));
+              final double fraction = maxMinutes == 0
+                  ? 0.04
+                  : (totals[index].inMinutes / maxMinutes).clamp(0.04, 1.0);
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: KolaSpacing.xs),
@@ -115,7 +213,7 @@ class _WeekChart extends StatelessWidget {
                         child: Align(
                           alignment: Alignment.bottomCenter,
                           child: FractionallySizedBox(
-                            heightFactor: values[index],
+                            heightFactor: fraction,
                             child: Container(
                               decoration: BoxDecoration(
                                 color: scheme.primaryContainer,
@@ -126,7 +224,7 @@ class _WeekChart extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: KolaSpacing.xs),
-                      Text(labels[index], style: Theme.of(context).textTheme.labelMedium),
+                      Text(_weekdayLabel(day.weekday), style: Theme.of(context).textTheme.labelMedium),
                     ],
                   ),
                 ),
@@ -140,27 +238,75 @@ class _WeekChart extends StatelessWidget {
 }
 
 class _MostReadList extends StatelessWidget {
-  const _MostReadList();
+  const _MostReadList({required this.sessions, required this.documents});
+
+  final List<ReadingSession> sessions;
+  final List<KolaDocument> documents;
 
   @override
   Widget build(BuildContext context) {
-    const List<(String, String)> items = <(String, String)>[
-      ('The Design of Everyday Things', '5h 24m'),
-      ('Rust for Rustaceans', '4h 12m'),
-      ('GPU Architecture Notes', '3h 48m'),
-    ];
+    final Map<String, Duration> totals = <String, Duration>{};
+    for (final ReadingSession session in sessions) {
+      totals.update(
+        session.documentId,
+        (Duration current) => current + session.activeTime,
+        ifAbsent: () => session.activeTime,
+      );
+    }
+
+    final List<MapEntry<String, Duration>> ranked = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final Map<String, KolaDocument> byId = <String, KolaDocument>{
+      for (final KolaDocument document in documents) document.id: document,
+    };
+    final List<MapEntry<String, Duration>> visible = ranked.take(5).toList(growable: false);
+
+    if (visible.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(KolaSpacing.xl),
+          child: Text('Start reading and your most-read documents will appear here.'),
+        ),
+      );
+    }
 
     return Card(
       child: Column(
-        children: List<Widget>.generate(items.length, (int index) {
-          final (String title, String time) = items[index];
+        children: List<Widget>.generate(visible.length, (int index) {
+          final MapEntry<String, Duration> item = visible[index];
+          final String title = byId[item.key]?.metadata.title ?? 'Document';
           return ListTile(
             leading: CircleAvatar(child: Text('${index + 1}')),
             title: Text(title),
-            trailing: Text(time),
+            trailing: Text(_formatDuration(item.value)),
           );
         }),
       ),
     );
   }
 }
+
+Duration _sumActiveTime(Iterable<ReadingSession> sessions) {
+  return sessions.fold(
+    Duration.zero,
+    (Duration total, ReadingSession session) => total + session.activeTime,
+  );
+}
+
+String _formatDuration(Duration duration) {
+  if (duration.inMinutes < 60) return '${duration.inMinutes}m';
+  final int hours = duration.inHours;
+  final int minutes = duration.inMinutes.remainder(60);
+  return minutes == 0 ? '${hours}h' : '${hours}h ${minutes}m';
+}
+
+String _weekdayLabel(int weekday) => switch (weekday) {
+  DateTime.monday => 'M',
+  DateTime.tuesday => 'T',
+  DateTime.wednesday => 'W',
+  DateTime.thursday => 'T',
+  DateTime.friday => 'F',
+  DateTime.saturday => 'S',
+  DateTime.sunday => 'S',
+  _ => '',
+};
