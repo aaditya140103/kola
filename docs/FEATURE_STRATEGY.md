@@ -2,26 +2,17 @@
 
 Research snapshot: September 2026.
 
-This file defines the **committed product feature direction**. It is intentionally narrower than a general brainstorm.
-
-Kola should not become a collection of unrelated study, social, productivity, and AI tools. It should be an excellent universal reader with a small number of unusually strong capabilities.
+This file defines the committed product direction. Kola should be an excellent universal reader, not a collection of unrelated AI, study, social, or productivity systems.
 
 ## 1. Product position
 
-> **Kola is a beautiful, private, universal reading application that lets people read almost any document, annotate it precisely, understand it with optional BYO AI, track their reading, and continue across devices without surrendering ownership of their data.**
+> **Kola is a beautiful, private, universal reading application that lets people read almost any document, annotate it precisely, track their reading, and continue across devices without surrendering ownership of their data.**
 
-The product has two strategic layers:
-
-1. **S-tier reading core** — the capabilities that define Kola.
-2. **Optional BYO AI layer** — intelligence that operates on the reading core without becoming mandatory infrastructure.
-
-Everything else must justify itself against those two layers.
+The product is intentionally focused on the reading experience itself.
 
 ---
 
 # 2. S-tier — defining Kola features
-
-These are the highest-priority product capabilities. They should receive engineering and design attention before speculative expansion.
 
 ## S1. Universal document support
 
@@ -32,20 +23,16 @@ Priority families include:
 - PDF / DjVu / fixed-layout documents;
 - EPUB and major ebook containers;
 - TXT / Markdown / HTML;
-- DOCX / word-processing formats;
+- DOCX and word-processing formats;
 - PPT/PPTX and presentations;
 - XLS/XLSX and spreadsheets;
 - CBZ/CBR and visual publications;
 - images/scanned documents with optional local OCR;
 - additional maintainable non-DRM formats over time.
 
-The user should not need a separate app just because the readable file format changed.
-
 ## S2. Universal source-linked Flow Mode
 
-This is Kola's strongest technical differentiator.
-
-Every supported document attempts to project into the Kola Document Graph and therefore into Flow Mode.
+Kola's strongest technical differentiator.
 
 Requirements:
 
@@ -53,14 +40,12 @@ Requirements:
 - annotation compatibility between Flow and Fidelity views;
 - reading-position continuity between views;
 - safe preservation of figures, tables, equations, slide regions, spreadsheet regions, and other complex structures;
-- Flow quality/confidence exposed honestly where reconstruction is approximate;
-- typography, width, spacing, themes, and backgrounds controlled by the reader.
+- honest Flow quality/confidence where reconstruction is approximate;
+- reader-controlled typography, width, spacing, themes, and backgrounds.
 
 Flow Mode must never become an unrelated converted copy.
 
 ## S3. Best-in-class annotation
-
-Annotation quality is a trust feature.
 
 Required capabilities:
 
@@ -94,7 +79,7 @@ Requirements:
 - application themes;
 - reader themes;
 - ambient backgrounds;
-- high-quality micro-interactions and motion where they add meaning;
+- polished micro-interactions and motion where they add meaning;
 - accessibility, reduced motion, high contrast, large text, and screen-reader support.
 
 Reference: `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
@@ -118,8 +103,6 @@ Reference: `SYNC.md`.
 
 ## S6. Universal local search
 
-Search must work across the entire local reading library.
-
 Search targets:
 
 - titles/authors/metadata;
@@ -133,11 +116,7 @@ Search targets:
 
 Every result must resolve back to a useful document location.
 
-Classic local full-text search is mandatory and remains available regardless of AI configuration.
-
 ## S7. Reading Intelligence + Reading List
-
-Kola should understand the user's reading activity without turning reading into a compulsive scoreboard.
 
 Capabilities:
 
@@ -162,8 +141,6 @@ Reference: `READING_ANALYTICS.md`.
 
 ## S8. Interoperability, migration, and export
 
-Switching to Kola should not require rebuilding a reading life from zero.
-
 Important directions:
 
 - folder libraries;
@@ -181,8 +158,6 @@ Interoperability is acquisition infrastructure, not edge-case polish.
 
 ## S9. Read Aloud / TTS
 
-Reading should be able to continue away from the screen.
-
 Capabilities:
 
 - local/platform voices first;
@@ -193,7 +168,7 @@ Capabilities:
 - visual and spoken reading positions converge on the same source model;
 - accessibility-first implementation.
 
-## S10. Selection tools: dictionary, lookup, translation
+## S10. Selection tools
 
 High-frequency selection actions should include:
 
@@ -201,8 +176,7 @@ High-frequency selection actions should include:
 - reference lookup where configured;
 - translation;
 - copy/share;
-- annotation actions;
-- optional AI actions when BYO AI is configured.
+- annotation actions.
 
 Network-backed lookup/translation must remain optional.
 
@@ -220,155 +194,38 @@ Support independent and synchronized navigation where meaningful.
 
 ---
 
-# 3. Optional BYO AI layer
+# 3. Explicitly out of scope
 
-AI is a major Kola feature layer, but **Kola must never require Kola-hosted AI**.
+The following are **not committed Kola product features** and should not be added unless the product decision is explicitly revisited:
 
-Users bring the intelligence provider they want, or use a compatible local/on-device model.
-
-Detailed design belongs in `AI.md`.
-
-## AI backend direction
-
-Potential backends:
-
-- operating-system/on-device model APIs;
-- local model runtime;
-- Ollama-compatible local endpoint;
-- user-configured OpenAI-compatible endpoint;
-- user-supplied API key/provider adapters where explicitly supported later.
-
-AI must be disabled cleanly when no provider is configured.
-
-## AI reading actions
-
-### Explain
-
-- explain selected passage;
-- explain terminology;
-- explain equation/concept where extracted context permits it;
-- simplify difficult prose;
-- adjust explanation depth.
-
-### Summarize
-
-- summarize selection;
-- current page/slide/section;
-- chapter;
-- whole document;
-- selected documents;
-- produce short, medium, or detailed summaries.
-
-### Ask the document
-
-- question answering over the current document;
-- Q&A over multiple explicitly selected documents;
-- follow-up questions within a reading session;
-- answers cite source locations whenever technically possible.
-
-### Compare documents
-
-- summarize similarities/differences;
-- compare arguments;
-- compare versions/revisions;
-- compare definitions or claims;
-- identify agreements and contradictions;
-- cite both sources.
-
-### Translation and rewriting
-
-- translate selected content;
-- translate sections;
-- simplify wording;
-- rewrite dense text into clearer language;
-- preserve the original source next to generated output.
-
-### Structure extraction
-
-- generate document outline suggestions;
-- identify headings/sections when source structure is weak;
-- produce key-point lists;
-- create local glossary of important terms;
-- identify people/places/concepts mentioned in the selected scope.
-
-### Reading assistance
-
-- explain highlighted passages;
-- answer “what does this refer to?” using nearby context;
-- produce a reading brief before entering a long document;
-- recap what the user has read so far;
-- summarize changes since the user's previous reading position;
-- answer questions against the user's explicitly selected local library scope.
-
-### Research assistance
-
-- extract claims and supporting evidence;
-- identify cited references present in the document text;
-- compare evidence across selected documents;
-- find passages relevant to a user question through AI-assisted retrieval;
-- create source-grounded synthesis across selected documents.
-
-### Document cleanup assistance
-
-- suggest OCR corrections;
-- detect suspicious OCR text;
-- propose reading-order corrections for Flow Mode diagnostics;
-- suggest metadata/title/author cleanup;
-- never silently rewrite the source file.
-
-### Analytics assistance
-
-Using local Reading Intelligence data when the user permits it:
-
-- summarize reading habits;
-- answer “what did I spend the most time reading this month?”;
-- summarize recently completed books/documents;
-- help choose from the user's Next Up queue;
-- recommend items already present in the user's own library/list based on explicit criteria.
-
-## AI UX rules
-
-- AI is clearly optional.
-- AI output is visually distinct from source content.
-- Generated text never becomes an annotation or source edit without explicit user action.
-- Source-grounded answers show citations/locations where possible.
-- The UI shows the scope used: selection, section, document, or selected documents.
-- The user controls whether content may leave the device when a remote provider is used.
-- Prefer local/on-device processing when practical.
-- Never imply that an AI answer is part of the original document.
-
----
-
-# 4. Explicitly out of scope
-
-The following are **not committed Kola product features** and should not be added by agents unless the product decision is explicitly revisited:
-
-- flashcard system;
-- spaced-repetition/SRS scheduler;
-- Highlight → Flashcard workflow;
-- persistent knowledge-card system;
-- backlinks/knowledge graph;
-- graph view;
+- AI assistants;
+- BYO AI;
+- local LLM integration;
+- document chat/Q&A;
+- AI summaries/explanations;
+- semantic AI search;
+- flashcard systems;
+- spaced-repetition/SRS schedulers;
+- persistent knowledge-card systems;
+- backlinks/knowledge graphs;
+- graph views;
 - mind maps/concept boards;
 - Recall Mode;
-- dedicated study-sheet system;
+- dedicated study-sheet systems;
+- quiz-generation systems;
 - plugin/extension SDK as a committed product feature;
 - built-in public social network/book clubs;
 - badges/coins/XP gamification;
 - proprietary ebook store;
-- mandatory Kola account;
-- mandatory Kola-hosted AI;
-- cloud-only AI.
+- mandatory Kola account.
 
-AI may generate **temporary explanatory or question content**, but this must not silently recreate a persistent flashcard/SRS/mind-map/knowledge-graph subsystem.
+The product should stay centered on **reading, annotation, navigation, personalization, analytics, ownership, and continuity**.
 
 ---
 
-# 5. Product priority order
+# 4. Product priority order
 
-## Phase 1 — S-tier reading core
-
-Prioritize:
+## Phase 1 — core reader
 
 1. adaptive premium visual shell;
 2. local library/persistence;
@@ -382,7 +239,7 @@ Prioritize:
 10. Reading Intelligence foundations;
 11. backup/export.
 
-## Phase 2 — complete the universal reader
+## Phase 2 — complete universal reader
 
 Add/mature:
 
@@ -395,41 +252,43 @@ Add/mature:
 - Parallel Read;
 - OPDS/Calibre/KOReader interoperability where feasible.
 
-## Phase 3 — BYO AI
+## Phase 3 — refinement and depth
 
-After document extraction, source mapping, and search are trustworthy:
+Focus on:
 
-- provider abstraction;
-- on-device/local backends;
-- remote BYO provider support;
-- explain/summarize/translate;
-- source-grounded document Q&A;
-- multi-document compare/synthesis;
-- AI-assisted reading and research actions;
-- OCR/structure cleanup assistance;
-- analytics assistance.
+- annotation ergonomics;
+- large-library performance;
+- long-session reading comfort;
+- stronger Flow reconstruction;
+- better Office/presentation/spreadsheet fidelity;
+- sync resilience;
+- accessibility;
+- platform-specific polish;
+- import/export reliability;
+- analytics quality;
+- advanced reader customization.
 
-AI should reuse Kola's existing document graph, source map, search, annotation, and privacy architecture rather than creating a parallel content system.
+No AI or study-system layer is planned.
 
 ---
 
-# 6. Feature proposal rule
+# 5. Feature proposal rule
 
 Before adding a feature, ask:
 
-1. Does it strengthen the S-tier reader or BYO AI layer?
-2. Does it improve reading, annotation, understanding, continuity, ownership, or useful reading insight?
+1. Does it improve reading, annotation, navigation, ownership, continuity, accessibility, or useful reading insight?
+2. Does it strengthen one of the S-tier capabilities?
 3. Can it remain local-first or explicitly optional-network?
 4. Can it reuse existing Kola domain models?
 5. Is there credible user value or evidence?
 6. Will users notice the benefit enough to justify its complexity?
 7. What higher-priority work would it delay?
 
-If the answer to question 1 is **no**, the default decision is not to add it.
+If the feature mainly turns Kola into an AI, study, social, or generic productivity app, the default decision is **do not add it**.
 
 ---
 
-# 7. Final product identity
+# 6. Final product identity
 
 ```text
 Beautiful universal reader
@@ -440,7 +299,6 @@ Beautiful universal reader
 + Reading Intelligence
 + migration/interoperability
 + Read Aloud / translation / compare
-+ optional BYO AI
 ```
 
 Kola should become deeper, not broader for its own sake.
