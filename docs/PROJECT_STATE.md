@@ -6,14 +6,14 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Specification / architecture complete enough to begin Phase 0 implementation; visual direction prototyping remains the immediate UX task, and a research-backed feature strategy now defines what Kola should prioritize after the reader foundation.**
+**Specification / architecture complete enough to begin Phase 0 implementation; visual direction prototyping remains the immediate UX task. Product scope is now intentionally focused on reading/annotation and excludes AI and dedicated study systems.**
 
-The repository contains product, feature-strategy, architecture, universal-format, adaptive UX, evidence-based UX research/validation, competing visual-direction, reading-intelligence, optional BYOC sync, roadmap, agent-context, decision, and project-graph specifications. The Flutter application scaffold has not yet been initialized.
+The repository contains product, focused feature-strategy, architecture, universal-format, adaptive UX, evidence-based UX research/validation, competing visual-direction, Reading Intelligence, optional BYOC sync, roadmap, agent-context, decision, and project-graph specifications. The Flutter application scaffold has not yet been initialized.
 
 ## Current product state
 
 - Product: local-first universal document reader + annotation workspace.
-- Strategic wedge: beautiful universal reader + source-linked Flow Mode + excellent annotations + local-first/BYOC ownership + Reading Intelligence + migration/interoperability.
+- Strategic wedge: beautiful universal reader + source-linked Flow Mode + best-in-class annotations + local-first/BYOC ownership + universal local search + Reading Intelligence + migration/interoperability.
 - Targets: Linux, Windows, macOS, Android, iOS, tablets, foldables.
 - Primary app stack: Flutter/Dart.
 - Persistence: SQLite + Drift.
@@ -23,10 +23,10 @@ The repository contains product, feature-strategy, architecture, universal-forma
 - PDF candidate: PDFium via adapter (`pdfrx` initially).
 - Sync: optional Bring Your Own Cloud through `SyncBackend` adapters; never required for reading.
 - Reading Intelligence: active reading-time sessions, reading history, Reading List / Want to Read, Next Up queue, per-document insights, completion history, optional goals/streaks, local analytics.
+- Supporting reader features: TTS/read-aloud, dictionary/lookup/translation, Parallel Read/Compare, import/export, Calibre/OPDS/KOReader interoperability where feasible.
 - UX thesis: calm reading surfaces + familiar structure + high craftsmanship + selective expressive interactions + native platform behavior.
 - Visual hypotheses: Luminous Paper, Editorial Scholar, Soft Expressive, and Kola Core hybrid candidate.
 - UX process: evidence/accessibility/platform convention -> hypothesis/prototype -> behavioral + subjective validation.
-- Later product layers: TTS/translation, Parallel Read, OPDS/Calibre/KOReader, study/knowledge tools, browser capture, quote cards/Reading Wraps, optional local/BYO AI, plugin ecosystem.
 - Rust: deferred until measured need.
 
 ## Settled architecture
@@ -63,8 +63,8 @@ See `docs/PROJECT_GRAPH.md` for architecture + analytics + UX-process diagrams a
 - Kola semantics stay consistent; shell/interactions adapt natively.
 - Meaningful UX choices require evidence, accessibility, platform convention, measured results, or explicit experimentation.
 - Visual style is not locked yet; design primitives should remain tokenized enough to compare directions.
-- New features must strengthen the core reading platform instead of creating disconnected silos.
-- AI/social features are later optional layers, not the near-term product definition.
+- New features must deepen the reading platform instead of creating disconnected silos.
+- AI assistants/LLMs and dedicated study systems are explicitly out of scope unless the product decision is revisited.
 - App theme and reader theme/background are separate.
 - User data is durable; caches and precomputed analytics aggregates are disposable/rebuildable.
 
@@ -74,9 +74,9 @@ See `docs/PROJECT_GRAPH.md` for architecture + analytics + UX-process diagrams a
 - `README.md` — product overview and discovery entrypoint.
 - `docs/PROJECT_STATE.md` — this live state; update every patch.
 - `docs/PROJECT_GRAPH.md` — architecture, reading-intelligence, workflow, sync, and UX evidence-loop diagrams.
-- `docs/DECISIONS.md` — settled decisions.
+- `docs/DECISIONS.md` — settled decisions, including the explicit no-AI/no-study scope decision.
 - `docs/APP.md` — full product requirements.
-- `docs/FEATURE_STRATEGY.md` — research-backed market map, feature prioritization, acquisition/retention strategy, and release sequence.
+- `docs/FEATURE_STRATEGY.md` — focused S-tier reading feature strategy and explicit out-of-scope list.
 - `docs/ARCHITECTURE.md` — detailed document/local architecture.
 - `docs/DESIGN_SYSTEM.md` — adaptive-native design system.
 - `docs/UX_SPEC.md` — interaction/UI specification.
@@ -91,34 +91,31 @@ See `docs/PROJECT_GRAPH.md` for architecture + analytics + UX-process diagrams a
 
 ## Most recent context change
 
-Added a research-backed **Feature Strategy & Market Differentiation** layer:
+Product scope was simplified after explicit product direction change:
 
-- benchmarked Readest, Zotero, MarginNote, Goodnotes, Readwise Reader, KOReader, BookFusion, Apple Books, Fable, StoryGraph, Bookly, Moon+ Reader, and community feature requests;
-- created `docs/FEATURE_STRATEGY.md` with market signals, feature tiers, a ranking model, growth loops, and recommended release sequence;
-- set the primary product wedge to universal reading + Flow Mode + annotations + ownership + Reading Intelligence + interoperability;
-- elevated migration/import/export, OPDS/Calibre/KOReader, TTS, Parallel Read, quote cards/Reading Wraps, and widgets as high-value later features;
-- defined study/knowledge tools as an annotation-derived layer rather than a parallel silo;
-- positioned local/BYO AI and social features as optional later layers;
-- added durable decision D-017;
-- updated `AGENTS.md` and README so future agents use the feature strategy instead of expanding scope ad hoc.
+- deleted `docs/AI.md`;
+- removed BYO AI, local LLM, document-chat, AI-summary, and semantic-AI-search plans from the committed feature strategy;
+- removed flashcards, SRS/spaced repetition, knowledge cards, backlinks/knowledge graph, mind maps, Recall Mode, study sheets, and quiz systems from the committed roadmap;
+- rewrote `docs/FEATURE_STRATEGY.md` around S-tier reading features only;
+- updated `AGENTS.md` so agents must not reintroduce AI or study systems without an explicit product-decision change;
+- updated durable decisions with D-018 marking AI and dedicated study systems out of scope.
 
 Agent-continuity rules remain mandatory: every patch updates this file, architecture changes update `PROJECT_GRAPH.md`, and durable decisions update `DECISIONS.md`.
 
 ## Risks / open engineering questions
 
-- Feature breadth is now intentionally large; release discipline is critical to avoid a broad but weak v1.
 - Universal Flow Mode remains the highest-risk differentiator because quality varies heavily by format/layout.
 - Annotation anchoring and text-selection correctness remain core engineering risks.
-- Migration/import formats and third-party interoperability APIs may change and need adapter boundaries.
+- Broad format support requires careful adapter/library validation and license review.
+- Migration/import formats and third-party interoperability APIs may change and need stable adapter boundaries.
 - E-reader/KOReader integrations require careful identity, conflict, and statistics semantics.
 - Active reading-time heuristics need real-user validation; static-page reading must not be mistaken for idle too quickly.
 - Kola still needs actual prototypes/user data before one visual direction becomes the default.
 - First-glance attractiveness may conflict with long-session reading comfort; both must be measured.
-- Optional AI should never introduce mandatory cloud cost or compromise privacy expectations.
 
 ## Next recommended action
 
-Start Phase 0 with a **prototype-first visual system and a deliberately narrow implementation scope**:
+Start Phase 0 with a **prototype-first visual system and deliberately focused reader scope**:
 
 1. Initialize the Flutter project and core design-token infrastructure.
 2. Build tokenized Library and Reader shells without format-specific complexity.
@@ -128,10 +125,10 @@ Start Phase 0 with a **prototype-first visual system and a deliberately narrow i
 6. Run the first comparative UX evaluation using `UX_VALIDATION.md`.
 7. Lock only the winning/shared primitives; keep reader themes customizable.
 8. Add local database schema with stable UUID/revision fields for documents, annotations, reading sessions, planned reading items, goals, progress/coverage, and future sync.
-9. Begin reader MVP with PDF/EPUB and annotation correctness before adding later feature tiers.
+9. Begin reader MVP with PDF/EPUB and annotation correctness before broadening format coverage.
 10. Add CI for formatting, analysis, tests, and later golden visual tests.
 
-Do not implement cloud providers, AI, social features, plugin APIs, or broad study tooling in Phase 0. Do not hard-code a final visual style before comparative prototypes exist.
+Do not implement cloud providers yet. Do not add AI or dedicated study systems. Do not hard-code a final visual style before comparative prototypes exist.
 
 ## Required update after every patch
 
