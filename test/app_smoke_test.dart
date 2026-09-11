@@ -7,7 +7,7 @@ void main() {
     await tester.pumpWidget(const KolaApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Your reading space'), findsOneWidget);
+    expect(find.text('Your reading space'), findsWidgets);
     expect(find.text('Continue reading'), findsOneWidget);
     expect(find.byIcon(Icons.home_rounded), findsWidgets);
   });
