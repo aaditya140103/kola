@@ -20,6 +20,25 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 - User-owned data, sync targets, and exportable annotations
 - Reader correctness and performance before decorative complexity
 
+## Product wedge
+
+Kola should not compete by having the longest settings menu. The near-term product story is:
+
+> **Read almost anything beautifully. Annotate it deeply. Keep your data. Understand your reading life. Move between devices and ecosystems without lock-in.**
+
+The strategic combination is:
+
+```text
+Beautiful universal reader
++ source-linked Flow Mode
++ excellent annotations
++ local-first / BYOC ownership
++ Reading Intelligence
++ migration and interoperability
+```
+
+Study tools, capture/read-later workflows, optional local/BYO AI, plugins, and lightweight sharing are planned as layers on top of that foundation rather than replacements for it.
+
 ## Architecture direction
 
 - Flutter + Dart application/UI layer
@@ -37,6 +56,7 @@ The goal is to create a fast, private reader that works across Linux, Windows, m
 ## Specifications
 
 - [Product specification](docs/APP.md)
+- [Feature strategy and market differentiation](docs/FEATURE_STRATEGY.md)
 - [Technical architecture](docs/ARCHITECTURE.md)
 - [Adaptive Native Design System](docs/DESIGN_SYSTEM.md)
 - [UI/UX specification](docs/UX_SPEC.md)
@@ -137,10 +157,12 @@ The full comparison, token roles, prototype requirements, and evaluation criteri
 
 Start with [`AGENTS.md`](AGENTS.md), then read `docs/PROJECT_STATE.md` and `docs/PROJECT_GRAPH.md`. Load only the detailed specification relevant to the task.
 
+For feature-scope questions, use `docs/FEATURE_STRATEGY.md` instead of independently expanding the roadmap.
+
 Every patch must update `docs/PROJECT_STATE.md`; architecture/data-flow changes must update `docs/PROJECT_GRAPH.md`; durable decisions must update `docs/DECISIONS.md`.
 
 ## Status
 
-**Architecture, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, Reading Intelligence, and BYOC sync specification phase.**
+**Architecture, feature strategy, format strategy, adaptive UX, evidence-based UX methodology, competing visual directions, Reading Intelligence, and BYOC sync specification phase.**
 
 The next engineering milestone is to initialize the Flutter application and prototype the design-system primitives plus Library/Reader shells in the competing visual directions before locking the final default appearance.
