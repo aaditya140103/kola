@@ -33,30 +33,33 @@ void main() {
         StreamIterator<List<KolaDocument>>(
           documents.watchAll().timeout(const Duration(seconds: 5)),
         );
-    addTearDown(iterator.cancel);
 
-    expect(await iterator.moveNext(), isTrue);
-    expect(iterator.current, isEmpty);
+    try {
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current, isEmpty);
 
-    await documents.upsert(
-      KolaDocument(
-        id: 'doc-1',
-        source: DocumentSource(
-          kind: DocumentSourceKind.linkedFile,
-          uri: Uri.file('/tmp/example.epub'),
+      await documents.upsert(
+        KolaDocument(
+          id: 'doc-1',
+          source: DocumentSource(
+            kind: DocumentSourceKind.linkedFile,
+            uri: Uri.file('/tmp/example.epub'),
+          ),
+          format: DocumentFormat.epub,
+          metadata: const DocumentMetadata(
+            title: 'Example Book',
+            authors: <String>['A. Reader'],
+          ),
+          importedAt: now,
+          updatedAt: now,
         ),
-        format: DocumentFormat.epub,
-        metadata: const DocumentMetadata(
-          title: 'Example Book',
-          authors: <String>['A. Reader'],
-        ),
-        importedAt: now,
-        updatedAt: now,
-      ),
-    );
+      );
 
-    expect(await iterator.moveNext(), isTrue);
-    expect(iterator.current.single.id, 'doc-1');
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current.single.id, 'doc-1');
+    } finally {
+      await iterator.cancel();
+    }
 
     final KolaDocument? stored = await documents.getById('doc-1');
     expect(stored?.metadata.title, 'Example Book');
