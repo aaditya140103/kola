@@ -59,7 +59,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         .rendererFor(document.format);
 
     final Widget surface = _flowMode
-        ? _FlowUnavailable(document: document)
+        ? const _FlowUnavailable()
         : fidelityRenderer?.build(context, document) ??
               _FidelityUnavailable(document: document);
 
@@ -218,9 +218,7 @@ class _FidelityUnavailable extends StatelessWidget {
 }
 
 class _FlowUnavailable extends StatelessWidget {
-  const _FlowUnavailable({required this.document});
-
-  final KolaDocument document;
+  const _FlowUnavailable();
 
   @override
   Widget build(BuildContext context) {
