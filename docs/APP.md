@@ -1,169 +1,280 @@
 # Kola — Product Specification
 
-> A private, local-first, cross-platform reading and annotation application for serious readers, students, researchers, and anyone who works deeply with documents.
+> A private, local-first, cross-platform universal reader and annotation workspace for books, documents, presentations, spreadsheets, papers, comics, and other readable files.
 
 ## 1. Product vision
 
-Kola should make reading digital documents feel calmer, faster, and more tactile than existing PDF/ebook readers while remaining completely usable without an account, subscription, server, or internet connection.
+Kola should make digital reading calmer, faster, more flexible, and more private than conventional document viewers while remaining completely usable without an account, subscription, cloud service, or internet connection.
 
-The product is not merely a PDF viewer. It is a **unified reading workspace** in which every supported document can be read, searched, highlighted, annotated, linked, reviewed, and exported through one consistent model.
+Kola is not merely a PDF or ebook reader. It is a **universal local reading workspace** in which supported files can be opened, searched, highlighted, annotated, reviewed, tracked, and exported through one consistent interaction model.
 
 ### Product promise
 
-- One app for PDF, EPUB, CBZ/CBR, Markdown, text, HTML and later DOCX/DjVu.
-- One codebase for Linux, Windows, macOS, Android and iOS.
+- One application for major ebook, document, presentation, spreadsheet, comic, text, and fixed-layout formats.
+- One Flutter application codebase for Linux, Windows, macOS, Android, and iOS.
 - Local-only by default and fully functional offline.
 - No mandatory account.
-- No telemetry by default.
-- Fast startup and smooth reading even with large books.
-- First-class keyboard, mouse, touch and stylus workflows.
-- Annotations remain portable and exportable.
-- Reading UI disappears when it is not needed.
+- No mandatory telemetry.
+- No document uploads for core features.
+- Unified annotations across formats.
+- Universal Flow Mode for every readable document where semantic extraction is possible.
+- Reading progress, completion, and actual coverage tracking.
+- Deep control over app themes, reader themes, backgrounds, typography, spacing, and page surfaces.
+- First-class keyboard, mouse, touch, and stylus workflows.
+- User-owned annotations, backups, and exports.
 
 ## 2. Product principles
 
 ### 2.1 Reading first
 
-The document is always the visual focus. Chrome, panels and toolbars should collapse or fade away whenever they are not actively useful.
+The file being read is always the visual focus. Panels and controls should disappear when not useful.
 
-### 2.2 Local-first, not offline-capable
+### 2.2 Local-first, not merely offline-capable
 
-Kola stores its library, metadata, reading progress, annotations, bookmarks and search index locally. Networking is not part of the core architecture.
+Kola stores its library, metadata, reading progress, coverage history, annotations, bookmarks, custom themes, thumbnails, caches, and indexes locally.
 
-### 2.3 The user's files remain the source of truth
+### 2.3 One document model, multiple views
 
-Kola must never trap a user's work. Annotations are stored safely in Kola's database for speed and consistency, while users can export annotated PDFs, Markdown notes, JSON backups, or sidecar annotation bundles.
+A document may expose a fidelity/source view and one or more reading views, but they all point to the same document identity.
 
-### 2.4 One document model, multiple views
+Examples:
 
-A PDF may be viewed as original pages, continuous pages, two-page spread, focus crop, or reflowed Reading Mode. These are views of the same source document—not separate copies.
+- PDF: page view + Flow Mode
+- EPUB: book layout + Flow Mode
+- DOCX: document layout + Flow Mode
+- PPTX: slide view + Flow Mode
+- XLSX: sheet view + Flow Mode
+- comic: page view + optional OCR/reading flow
 
-Annotations created in one compatible view must resolve to the same source location in the others.
+Annotations must remain tied to the original source location whenever that mapping is technically possible.
 
-### 2.5 Progressive power
+### 2.4 Universal Flow Mode
 
-A first-time user should be able to open a book and read immediately. Advanced capabilities should reveal themselves through selection actions, contextual menus, keyboard shortcuts, command palette and optional panels.
+Flow Mode is a product-wide capability, not a PDF feature.
 
-## 3. Primary user journeys
+Every adapter produces or attempts to produce a source-mapped semantic representation of the document. Flow Mode renders that representation using the user's preferred typography and reading theme.
 
-### Reader
+### 2.5 Honest degradation
 
-1. Open or import a book.
-2. Resume exactly where reading stopped.
-3. Choose page or reflow mode.
-4. Adjust typography, theme and margins.
-5. Highlight interesting passages.
-6. Add a note without leaving the page.
-7. Search within the book.
-8. Return later with all state preserved.
+Kola should support broad formats without pretending all files are equally structured.
 
-### Student
+If a document cannot be perfectly reconstructed, Kola should:
 
-1. Import course PDFs and EPUB textbooks.
-2. Organize them into collections.
-3. Highlight using semantic colors such as Important, Definition, Question and Example.
-4. Write margin notes or ink with a stylus.
-5. See all annotations in a side panel.
-6. Filter highlights by color/tag/chapter.
-7. Export a study sheet as Markdown.
+1. keep the original/fidelity view available;
+2. expose the best safe Flow Mode it can produce;
+3. preserve source visual blocks where semantic conversion would lose meaning;
+4. show that the Flow representation is approximate when appropriate.
 
-### Researcher
+### 2.6 User ownership
 
-1. Open several papers in tabs.
-2. Search all locally indexed documents.
-3. Copy a quotation with page/source metadata.
-4. Add tags and comments to highlights.
-5. Jump from annotation back to exact source context.
-6. Export an annotated PDF or structured notes.
+The source file remains untouched unless the user explicitly exports a modified copy. Kola's local database and sidecars hold app state and annotations.
 
-## 4. Supported formats
+## 3. Format strategy
 
-### Tier 1 — v1
+Kola's long-term target is **market-complete support for unencrypted readable formats**.
 
-- PDF
+The detailed capability strategy lives in [`UNIVERSAL_FORMATS.md`](UNIVERSAL_FORMATS.md).
+
+### Major ebook targets
+
 - EPUB 2/3
-- TXT
-- Markdown
-- HTML saved locally
-- CBZ
-
-### Tier 2
-
-- CBR
-- DOCX read-only/reflowed
+- KEPUB
+- MOBI
+- AZW / AZW3 / compatible unencrypted Kindle containers
+- FB2 / FBZ
+- PRC
+- PDB
+- PML / PMLZ
+- LIT
+- LRF
+- RB
+- SNB
+- TCR
+- CHM
+- HTML / HTMLZ
+- OEB/OPF packages
+- TXT / TXTZ
+- RTF
+- PDF
 - DjVu
+- DAISY/DTBook as an accessibility expansion
+
+### Office and productivity documents
+
+- DOCX / DOC
+- ODT
+- RTF
+- PPTX / PPT
+- ODP
+- XLSX / XLSM / XLSB / XLS
+- ODS / FODS
+- CSV / TSV
+- Pages / Keynote / Numbers when maintainable local parsing is available
+
+### Comics and visual publications
+
+- CBZ
+- CBR
+- CB7
+- CBC
 - image folders
 
-### Tier 3 / exploratory
+### Additional fixed-layout/text targets
 
-- MOBI/AZW where legally and technically practical
-- PowerPoint/ODP reading
-- scanned document packages
+- XPS / OXPS
+- Markdown
+- HTML/XHTML
+- XML where meaningful structure can be inferred
+- reStructuredText
+- AsciiDoc
 
-Encrypted/DRM-protected ebook formats are explicitly outside the initial scope.
+### DRM policy
 
-## 5. Core reader modes
+Kola does not bypass DRM. A supported container is readable only when Kola can legally and technically decode the file locally.
 
-### 5.1 Page Mode
+## 4. Core reader modes
 
-Faithful source rendering.
+### 4.1 Fidelity View
 
-Layouts:
+The closest practical representation of the source file.
 
-- Continuous vertical
-- Single page
-- Two-page spread
-- Right-to-left spread for manga/books
-- Horizontal paging
-- Fit width
-- Fit page
-- Actual size
-- Custom zoom
+Examples:
 
-### 5.2 Flow Mode
+- PDF pages
+- slide canvas
+- spreadsheet grid
+- comic pages
+- word-processing layout
 
-Kola's reflow experience for PDFs and inherently reflowable formats.
+### 4.2 Flow Mode
 
-Flow Mode should:
+A universal source-mapped semantic reading view.
 
-- reconstruct reading order from text blocks;
-- remove repetitive headers/footers when confidently detected;
-- collapse multi-column layouts into a readable sequence;
-- preserve headings, paragraphs, lists and quotations;
-- keep figures/tables near their source context;
-- offer font family, text size, line height, paragraph spacing, column width and margins;
-- support light, dark, sepia and custom reading themes;
-- maintain the same reading position when toggling back to source pages;
-- allow highlights, underlines and notes directly in Flow Mode;
-- map those annotations back to the original source page and geometry.
+Flow Mode should support:
 
-**Non-negotiable rule:** Flow Mode is never a disconnected text copy.
+- headings;
+- paragraphs;
+- lists;
+- quotes;
+- links;
+- footnotes/endnotes;
+- tables;
+- figures/images;
+- captions;
+- code blocks;
+- slide titles and speaker notes;
+- spreadsheet tables/regions/cells;
+- OCR-derived blocks;
+- source-preserving blocks for content that should not be flattened.
 
-### 5.3 Focus Mode
+User controls:
 
-A distraction-free mode that hides almost all application chrome.
+- font family;
+- text size;
+- line height;
+- paragraph spacing;
+- content width;
+- margins;
+- alignment where appropriate;
+- column count where appropriate;
+- hyphenation toggle;
+- reader theme;
+- text color;
+- background color;
+- page/surface color;
+- ambient background;
 
-Optional enhancements:
+**Non-negotiable rule:** Flow Mode is never an unrelated converted copy. Every block retains a source locator when one can be established.
 
-- dim surrounding paragraphs/pages;
-- keep only current paragraph/chapter at full contrast;
-- auto-hide pointer and controls;
-- configurable reading ruler;
-- fullscreen timer/progress indicator.
+### 4.3 Focus Mode
 
-### 5.4 Comic Mode
+A distraction-free mode that removes almost all application chrome while preserving progress and annotation controls on demand.
 
-- page-by-page navigation;
-- right-to-left support;
-- smart fit;
-- optional panel zoom later;
-- minimal controls.
+### 4.4 Comic/Visual Mode
+
+- single page;
+- double page;
+- right-to-left;
+- fit width/height;
+- smart panel zoom later;
+- optional OCR Flow Mode for text-heavy scanned pages.
+
+### 4.5 Presentation Mode
+
+- slide navigator;
+- fullscreen slide reading;
+- notes toggle;
+- slide annotation layer;
+- Flow Mode for linearized presentation content.
+
+### 4.6 Sheet Mode
+
+- tabs for sheets;
+- frozen header support where parsed;
+- zoomable grid;
+- cell/range comments;
+- search;
+- range highlighting/annotations;
+- Flow Mode for accessible table traversal.
+
+## 5. Reading progress and completion
+
+Kola should distinguish **where the user is** from **how much the user has actually read**.
+
+### Position progress
+
+Shows the current canonical position in the document:
+
+- `63%`
+- `Page 188 of 300`
+- `Chapter 14 of 22`
+- `Slide 31 of 64`
+- `Sheet 3 of 8`
+
+### Reading coverage
+
+A second metric records content that has genuinely entered the reading viewport for a meaningful interval.
+
+Example:
+
+```text
+Current position: 63%
+Read coverage:    48%
+```
+
+This avoids marking a book as nearly complete merely because the user jumped to its last page.
+
+### Completion state
+
+Documents can be:
+
+- Unread
+- Started
+- In progress
+- Nearly finished
+- Completed
+- Manually marked complete
+
+Default automatic completion can use a configurable threshold such as 95% coverage.
+
+### Reading statistics
+
+Local-only statistics may include:
+
+- total reading time;
+- session duration;
+- pages/chapters/slides covered;
+- daily/weekly reading history;
+- progress over time;
+- last read date.
+
+Statistics must remain optional and stored locally.
 
 ## 6. Annotation system
 
-Annotation is a first-class domain, not a viewer overlay.
+Annotations are a first-class domain shared across all formats.
 
-### Annotation types
+### Types
 
 - Highlight
 - Underline
@@ -175,95 +286,88 @@ Annotation is a first-class domain, not a viewer overlay.
 - Arrow
 - Bookmark
 - Image/area selection
+- Cell/range annotation
+- Slide-region annotation
 - Text box
 - Link between annotations
 
-### Highlight workflow
+### Semantic highlight presets
 
-Text selection should open a compact floating action capsule with:
+- Important
+- Definition
+- Evidence / Example
+- Question
+- Idea / Connection
+- Review
 
-- last-used color;
-- alternate colors;
-- highlight;
-- underline;
-- add note;
-- copy;
-- tag;
-- more actions.
+The semantic label is stored independently of its visible color.
 
-A power-user **Auto Highlight** option turns every valid text selection into a highlight using the current style.
+### Source anchors
 
-### Semantic highlight palettes
+Annotations should store a hybrid anchor containing structural location, exact text/context, geometry/range information, and fallback selectors.
 
-Users may use arbitrary colors, but Kola should ship optional semantic presets:
+This allows the same annotation to survive changes in zoom, screen size, theme, Flow Mode, and typography.
 
-- Yellow — Important
-- Blue — Definition
-- Green — Evidence / Example
-- Pink — Question
-- Purple — Idea / Connection
-- Orange — Review
+## 7. Themes, backgrounds, and visual personalization
 
-The label, not the physical color, is the semantic value. Themes may remap colors for accessibility.
+Application chrome and document appearance are separate systems.
 
-### Annotation panel
+### Application themes
 
-A right-side panel shows a chronological/document-order stream containing:
+Built-ins:
 
-- selected quotation or screenshot;
-- user note;
-- page/chapter;
-- tags;
-- color/type;
-- jump-to-source action.
+- System
+- Light
+- Dark
+- OLED Black
+- Soft Gray
+- Warm Neutral
 
-Filters:
+Users can create custom themes with:
 
-- type;
-- tag;
-- color;
-- chapter;
-- favorites;
-- with notes only.
+- accent color;
+- navigation/background color;
+- panel surfaces;
+- border strength;
+- contrast level;
+- corner/radius scale;
+- optional reduced-transparency mode.
 
-## 7. Knowledge features without cloud dependence
+### Reader themes
 
-### 7.1 Collections
+Built-ins:
 
-Documents can belong to multiple collections without being duplicated on disk.
+- Paper
+- Warm Paper
+- Sepia
+- Soft Gray
+- Sage
+- Night
+- Low-Contrast Night
+- OLED Black
 
-### 7.2 Tags
+Custom reader themes can control:
 
-Tags apply to documents and annotations.
+- text color;
+- link color;
+- selection color;
+- highlight remapping;
+- document background;
+- page background;
+- margins;
+- optional subtle texture.
 
-### 7.3 Backlinks between annotations
+### Ambient backgrounds
 
-Users can link two highlights/notes even when they belong to different documents.
+The area around the document/page can use:
 
-### 7.4 Study Sheet
+- solid color;
+- gradient;
+- subtle texture;
+- user-selected local image/wallpaper;
+- blurred local image background;
 
-Generate a local, deterministic study sheet from selected annotations:
-
-- grouped by chapter;
-- grouped by tag;
-- grouped by highlight category;
-- optionally include surrounding context;
-- export to Markdown/HTML/PDF later.
-
-No generative AI is required.
-
-### 7.5 Global local search
-
-Search should cover:
-
-- title;
-- author;
-- document body text;
-- annotations;
-- notes;
-- tags.
-
-Results jump directly to the source location.
+Kola must maintain minimum text contrast and provide a one-click reset if customization becomes unreadable.
 
 ## 8. Library experience
 
@@ -276,161 +380,111 @@ Library views:
 - Collections
 - Tags
 - Annotated
-- Unread / In Progress / Finished
+- Unread
+- In Progress
+- Completed
 
-Display options:
+Cards/list rows may show:
 
-- responsive cover grid;
-- dense list;
-- compact table on desktop.
+- cover/thumbnail;
+- title;
+- author;
+- format;
+- position progress;
+- reading coverage;
+- last opened;
+- completion state.
 
-Import methods:
+## 9. Search and knowledge workflows
 
-- Open File
-- Open Folder
-- drag and drop
-- OS share/open-with integration
-- mobile share sheet
+All local search should cover:
 
-Kola should support **linked files** (read in place) and **managed copies** (copied into Kola's library), with a clear user choice.
+- title;
+- author;
+- metadata;
+- body text;
+- annotations;
+- notes;
+- tags;
+- slide text;
+- spreadsheet cells;
+- speaker notes;
+- OCR content.
 
-## 9. Reading quality features
+Search results must jump to a resolvable source location.
 
-- remember position per document;
-- reading progress by percentage/page/chapter;
-- estimated time remaining;
-- bookmarks;
-- history/back-forward navigation;
-- smart table of contents;
-- thumbnails;
-- page labels;
-- in-document search;
-- case-sensitive and whole-word search;
-- keyboard-only navigation;
-- touch gestures;
-- stylus-aware ink mode;
-- optional keep-screen-awake;
-- brightness overlay on mobile;
-- custom page/text background;
-- margin crop for PDFs;
-- persistent crop presets;
-- rotation;
-- presentation/fullscreen mode;
-- text-to-speech via platform-local voices in a later release.
+## 10. Signature interactions
 
-## 10. Signature interaction: Peek
+### Peek
 
-Kola should provide a lightweight **Peek** interaction for references and navigation targets.
+Preview footnotes, citations, internal links, slide references, figures, tables, and annotation links without losing reading position.
 
-Examples:
+### Reading Lens
 
-- hover/tap an internal PDF link to preview its destination;
-- preview a footnote without leaving the current location;
-- preview a figure/table/reference;
-- press-and-hold a TOC item to preview the target page.
+A movable line/paragraph focus tool for dense content and accessibility.
 
-Opening the target pushes the current location onto navigation history, so Back returns exactly to the previous reading position.
+### Annotation Rail
 
-## 11. Signature interaction: Reading Lens
+Nonintrusive edge markers show where notes/highlights exist without opening a side panel.
 
-A movable horizontal or rectangular lens that:
+### Command Palette
 
-- isolates 1–5 lines;
-- can dim or blur surrounding text;
-- follows keyboard, mouse, touch or stylus;
-- optionally advances line-by-line.
+`Ctrl/Cmd + K` on desktop/tablet for search, navigation, view switching, theme changes, annotation tools, and export.
 
-This is useful for dense academic reading and accessibility without altering the document.
+## 11. Security and privacy
 
-## 12. Signature interaction: Annotation Rail
+Core local reading should perform **zero network requests**.
 
-When the annotation panel is hidden, tiny nonintrusive markers on the document edge show where annotations exist. Hover/tap opens a compact preview. This gives spatial awareness without permanently consuming horizontal space.
+Rules:
 
-## 13. Signature interaction: Command Palette
-
-Desktop/tablet shortcut: `Ctrl/Cmd + K`.
-
-Commands include:
-
-- Open document
-- Search library
-- Go to page
-- Go to chapter
-- Toggle Flow Mode
-- Toggle Focus Mode
-- Add bookmark
-- Change theme
-- Change highlight tool
-- Export annotations
-- Open settings
-
-Commands should be searchable and keyboard navigable.
-
-## 14. Privacy and security
-
-Core Kola must make **zero network requests while reading local documents**.
-
-Requirements:
-
-- no account;
+- no mandatory account;
 - no cloud database;
-- no remote analytics SDK;
-- no advertising SDK;
+- no ads;
 - no remote fonts required;
 - no document upload;
-- no third-party AI calls;
-- all indexes and thumbnails local;
-- optional crash reports only if explicitly introduced and opt-in later;
-- app lock/biometric lock can be added later using OS facilities;
-- private collections may be encrypted later.
+- no external AI API requirement;
+- no Office macro execution;
+- no embedded JavaScript execution by default;
+- external resources from documents blocked by default;
+- all search indexes/thumbnails remain local.
 
-A future sync feature, if ever built, must be an optional separate capability and cannot become required for normal use.
+## 12. Accessibility
 
-## 15. Accessibility
+Kola should support:
 
-Kola must be designed for accessibility from the first release:
-
-- complete keyboard traversal;
-- visible focus states;
-- screen-reader semantics for interactive UI;
-- sufficient contrast;
-- reduced-motion option;
-- large-text support;
+- complete keyboard navigation;
+- screen-reader semantics;
+- visible focus;
+- reduced motion;
+- large text;
+- high-contrast themes;
 - non-color annotation labels;
-- configurable line spacing and width;
-- dyslexia-friendly font option without making it the default;
-- RTL document/UI awareness;
-- keyboard shortcuts discoverable in UI.
+- RTL documents;
+- dyslexia-friendly typography options;
+- Flow Mode as an accessibility representation for fixed-layout files;
+- local text-to-speech in a later phase.
 
-## 16. Performance targets
+## 13. Performance expectations
 
-Targets are budgets, not guarantees:
+- opening a file must not wait for full indexing;
+- parsing and indexing happen off the UI isolate;
+- large files use bounded caches;
+- reader interaction targets 60 fps or device refresh rate where practical;
+- huge libraries remain metadata-responsive;
+- already parsed documents reuse versioned caches;
+- spreadsheet/grid rendering virtualizes rows/columns;
+- presentation thumbnails render lazily;
+- Flow Mode can build progressively instead of blocking the whole document.
 
-- app shell visible in < 1.5 s on a typical modern laptop after warm install;
-- reader interaction at 60 fps where display permits;
-- 120 Hz capable rendering where platform/device permits;
-- page scrolling must never wait on database writes;
-- thumbnails generated lazily;
-- text indexing off the UI isolate;
-- large PDF pages rendered on demand with bounded cache;
-- library should remain responsive with 10,000 metadata records;
-- opening a previously indexed document should avoid reparsing it unnecessarily.
+## 14. Non-goals
 
-## 17. Non-goals for v1
-
-To keep the first product excellent rather than broad but weak:
-
-- no accounts;
-- no server backend;
-- no collaboration;
-- no cloud sync;
-- no document editor comparable to Word;
-- no generative AI assistant;
+- no cloud dependency;
+- no mandatory sync;
 - no DRM bypass;
-- no browser-first/web app requirement.
+- no Word/Excel/PowerPoint-class source editing suite;
+- no active macro/script execution;
+- no requirement that every file format have pixel-perfect layout fidelity before it can be read.
 
-## 18. Definition of a successful v1
+## 15. Definition of success
 
-Kola v1 is successful when a user can install it on the major desktop/mobile platforms, import a PDF or EPUB, read it comfortably for hours, highlight and annotate it naturally, close the app, reopen it with perfect state restoration, search their local library, and export their work without creating an account or sending the document anywhere.
-
-The product should feel intentionally designed for reading rather than like a file viewer with annotation buttons attached.
+Kola succeeds when a user can install one application on desktop or mobile, open almost any common unencrypted reading/document file, switch between its original representation and a comfortable Flow Mode, annotate it consistently, track genuine reading progress, search it locally, customize the reading environment deeply, close the app, and later resume with all state intact—without sending the document anywhere.
