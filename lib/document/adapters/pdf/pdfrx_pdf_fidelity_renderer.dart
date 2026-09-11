@@ -39,6 +39,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   final PdfViewerController _controller = PdfViewerController();
   late Future<String> _pathFuture;
   int? _pageNumber;
+  int? _pageCount;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
         oldWidget.document.source.managedPath != widget.document.source.managedPath) {
       _pathFuture = widget.sourceResolver.resolveReadablePath(widget.document.source);
       _pageNumber = null;
+      _pageCount = null;
     }
   }
 
@@ -86,6 +88,13 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
                   margin: KolaSpacing.md,
                   enableKeyboardNavigation: true,
                   textSelectionParams: const PdfTextSelectionParams(enabled: false),
+                  onViewerReady: (PdfDocument document, PdfViewerController controller) {
+                    if (!mounted) return;
+                    setState(() {
+                      _pageCount = controller.pageCount;
+                      _pageNumber = controller.pageNumber ?? 1;
+                    });
+                  },
                   onPageChanged: (int? pageNumber) {
                     if (!mounted || pageNumber == _pageNumber) return;
                     setState(() => _pageNumber = pageNumber);
@@ -99,7 +108,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
               bottom: KolaSpacing.md,
               child: _PdfNavigationBar(
                 pageNumber: _pageNumber,
-                pageCount: _controller.isReady ? _controller.pageCount : null,
+                pageCount: _pageCount,
                 onPrevious: _goPrevious,
                 onNext: _goNext,
                 onZoomOut: _zoomOut,
@@ -186,8 +195,6 @@ class _PdfNavigationBar extends StatelessWidget {
                 tooltip: 'Next page',
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
-              const SizedBox(width: KolaSpacing.xs),
-              const VerticalDivider(width: 1),
               const SizedBox(width: KolaSpacing.xs),
               IconButton(
                 onPressed: onZoomOut,
