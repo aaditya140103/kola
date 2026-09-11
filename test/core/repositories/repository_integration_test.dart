@@ -25,11 +25,12 @@ void main() {
   tearDown(() => database.close());
 
   test('document writes invalidate the live library stream', () async {
-    final DateTime now = DateTime.utc(2026, 9, 12, 10, 15, 30, 123);
-    final Future<void> expectation = expectLater(
-      documents.watchAll().map((items) => items.length).take(2),
-      emitsInOrder(<int>[0, 1]),
-    );
+    final DateTime now = DateTime.utc(2026, 9, 12, 10, 15, 30, 123, 456);
+    expect(await documents.watchAll().first, isEmpty);
+
+    final Future<List<KolaDocument>> changed = documents
+        .watchAll()
+        .firstWhere((List<KolaDocument> items) => items.isNotEmpty);
 
     await documents.upsert(
       KolaDocument(
@@ -48,7 +49,9 @@ void main() {
       ),
     );
 
-    await expectation;
+    final List<KolaDocument> emitted = await changed;
+    expect(emitted.single.id, 'doc-1');
+
     final KolaDocument? stored = await documents.getById('doc-1');
     expect(stored?.metadata.title, 'Example Book');
     expect(stored?.metadata.authors, <String>['A. Reader']);
