@@ -17,7 +17,7 @@ Do not load every document unless necessary.
 
 Kola is a **local-first, cross-platform universal document reader and annotation workspace** built with one Flutter/Dart codebase for Linux, Windows, macOS, Android, iOS, tablets, and foldables.
 
-It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, themes/backgrounds, local export, and optional **Bring Your Own Cloud (BYOC)** synchronization. Core reading must work without accounts, cloud services, telemetry, or internet access.
+It should read mainstream ebooks, PDFs, office documents, presentations, spreadsheets, comics, text/markup, and image-based documents through format adapters. It provides Fidelity View + universal source-linked Flow Mode, highlights, notes, ink, search, bookmarks, progress/coverage tracking, reading analytics/planning, themes/backgrounds, local export, and optional **Bring Your Own Cloud (BYOC)** synchronization. Core reading must work without accounts, cloud services, telemetry, or internet access.
 
 ## Non-negotiable invariants
 
@@ -29,7 +29,7 @@ It should read mainstream ebooks, PDFs, office documents, presentations, spreads
 6. **Source-linked annotations:** never anchor only to screen coordinates.
 7. **Adaptive-native UX:** same semantics; platform-native presentation/interaction.
 8. **Evidence-based UX:** meaningful visual/interaction choices need evidence, accessibility, platform convention, or an explicit experiment.
-9. **User-owned data:** metadata, progress, annotations, indexes, exports, and sync targets remain user-controlled.
+9. **User-owned data:** metadata, progress, annotations, indexes, exports, analytics/history, and sync targets remain user-controlled.
 10. **Graceful degradation:** reflow/index/parser/sync failures must not block readable local source content.
 11. **Performance first:** reading/selection/annotation correctness beats decoration.
 12. **No DRM bypass.**
@@ -56,6 +56,7 @@ Adaptive platform shell
   -> format engines/parsers
   -> NormalizedDocument + SourceMap
   -> Fidelity View | Flow Mode | Search | Annotation
+  -> Progress/Coverage -> Reading Intelligence
   -> SQLite/Drift + local files + disposable caches
   -> optional Sync Projection -> user-selected SyncBackend
 ```
@@ -109,6 +110,21 @@ Keep these separate:
 
 Both persist locally and are format-independent at the domain level.
 
+## Reading Intelligence rule
+
+Reading analytics are useful, private, and non-punitive.
+
+- Track **active reading time**, not merely how long a document remains open.
+- Reading sessions are durable records and may be user-corrected/deleted.
+- Keep Reading List / Want to Read separate from Favorites.
+- Support statuses such as Want to Read, Next Up, Reading, Paused, Completed, and optional Abandoned.
+- Goals/streaks are optional and visually secondary; avoid guilt-oriented gamification.
+- Analytics remain local unless the user explicitly syncs them through BYOC.
+- Prefer syncing durable sessions/list/goals and deriving chart aggregates locally.
+- Reading-time estimates must require sufficient evidence and show approximate values rather than false precision.
+
+Detailed design: `docs/READING_ANALYTICS.md`.
+
 ## Theme rule
 
 Application chrome theme and document reading theme are separate. A dark shell may show a warm/paper reader surface. Support system/light/dark app chrome and reader themes/background customization.
@@ -132,7 +148,7 @@ Detailed design: `docs/SYNC.md`.
 
 **Consistent semantics, native presentation.**
 
-Keep Library, Search, Collections, Continue Reading, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, and Sync conceptually stable.
+Keep Library, Search, Collections, Continue Reading, Reading List, Insights, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, and Sync conceptually stable.
 
 Adapt navigation, title/window chrome, dialogs, sheets, context menus, back behavior, scroll physics, scrollbars, selection UI, haptics, hover/right-click, keyboard accelerators, safe areas, density, and touch targets by platform/window/input.
 
@@ -185,7 +201,7 @@ Until validated, shared UI primitives should be tokenized enough that these dire
 
 Prefer app-owned models/interfaces such as:
 
-`Document`, `DocumentSource`, `DocumentMetadata`, `DocumentAdapter`, `DocumentHandle`, `NormalizedDocument`, `DocumentSection`, `DocumentBlock`, `SourceMap`, `DocumentLocation`, `Annotation`, `AnnotationAnchor`, `ReadingState`, `ReadingSession`, `ReadingCoverage`, `ReaderTheme`, `Collection`, `SearchResult`, `ExportRequest`, `SyncVault`, `SyncBackend`, `SyncRecord`.
+`Document`, `DocumentSource`, `DocumentMetadata`, `DocumentAdapter`, `DocumentHandle`, `NormalizedDocument`, `DocumentSection`, `DocumentBlock`, `SourceMap`, `DocumentLocation`, `Annotation`, `AnnotationAnchor`, `ReadingState`, `ReadingSession`, `ReadingCoverage`, `ReadingGoal`, `PlannedReadingItem`, `ReadingInsights`, `ReaderTheme`, `Collection`, `SearchResult`, `ExportRequest`, `SyncVault`, `SyncBackend`, `SyncRecord`.
 
 Do not leak third-party package/provider types through feature/domain layers.
 
@@ -198,6 +214,7 @@ Do not leak third-party package/provider types through feature/domain layers.
 - UX evidence/research: `docs/UX_RESEARCH.md`
 - UX scientific validation: `docs/UX_VALIDATION.md`
 - Competing visual directions: `docs/VISUAL_DIRECTIONS.md`
+- Reading analytics/list/goals: `docs/READING_ANALYTICS.md`
 - Formats: `docs/UNIVERSAL_FORMATS.md`
 - Optional BYOC sync: `docs/SYNC.md`
 - Build order: `docs/ROADMAP.md`
