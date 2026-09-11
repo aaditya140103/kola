@@ -23,6 +23,9 @@ flowchart TD
     DB[(SQLite / Drift)]
     Files[(Local Files)]
     Cache[(Disposable Caches)]
+    SyncProjection[Optional Sync Projection]
+    SyncBackend[User-selected SyncBackend]
+    Cloud[(User's Cloud / Sync Folder)]
 
     OS --> Shell --> UI --> App --> Domain --> Registry --> Engines
     Engines --> ND
@@ -38,7 +41,10 @@ flowchart TD
     Registry --> Files
     Fidelity --> Cache
     Flow --> Cache
+    DB -. optional .-> SyncProjection -.-> SyncBackend -.-> Cloud
 ```
+
+Local reading never depends on the sync path.
 
 ## 2. Universal document pipeline
 
@@ -169,7 +175,7 @@ flowchart TD
     Policy --> Presentation
 ```
 
-Stable semantics: Library, Search, Collections, Reader, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes.
+Stable semantics: Library, Search, Collections, Reader, Fidelity View, Flow Mode, Focus Mode, annotations, progress, themes, optional Sync.
 
 Adaptive presentation: navigation, window chrome, sheets/dialogs, menus, back behavior, scrollbars, selection UI, density, haptics, hover/right-click, shortcuts.
 
@@ -213,7 +219,57 @@ flowchart LR
 
 Clearing cache must never delete user-generated data.
 
-## 9. Agent change protocol
+## 9. Bring Your Own Cloud sync
+
+```mermaid
+flowchart LR
+    Mutation[Local Mutation]
+    DB[(Local SQLite)]
+    Journal[Sync Journal]
+    Projection[Versioned Portable Records]
+    Encrypt{Client-side encryption?}
+    Cipher[Encrypted Records / Blobs]
+    Plain[Plain Records / Blobs]
+    Backend[SyncBackend]
+    Remote[(User-controlled Cloud)]
+
+    Mutation --> DB --> Journal --> Projection --> Encrypt
+    Encrypt -- yes --> Cipher --> Backend
+    Encrypt -- no --> Plain --> Backend
+    Backend --> Remote
+```
+
+Pull/merge path:
+
+```mermaid
+flowchart LR
+    Remote[(User Cloud)]
+    Backend[SyncBackend]
+    Download[Changed Records]
+    Verify[Decrypt / Verify / Validate]
+    Merge[Conflict-aware Merge]
+    Tx[Local DB Transaction]
+    DB[(SQLite)]
+
+    Remote --> Backend --> Download --> Verify --> Merge --> Tx --> DB
+```
+
+### Sync backend families
+
+```mermaid
+flowchart TB
+    S[SyncBackend]
+    S --> Folder[Local Sync Folder]
+    S --> WebDAV[WebDAV]
+    S --> Drive[Google Drive]
+    S --> OneDrive[OneDrive]
+    S --> Dropbox[Dropbox]
+    S --> S3[S3-compatible]
+```
+
+**Rules:** never sync the live SQLite file; sync is optional; local reading continues through all sync failures.
+
+## 10. Agent change protocol
 
 ```mermaid
 flowchart TD
