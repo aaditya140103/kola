@@ -170,7 +170,25 @@ flowchart TD
 
 Never silently guess. `AnchorResolution` reports strategy/confidence/reason.
 
-## 9. Recovered highlight geometry
+## 9. Recovery profiling + measured optimization
+
+```mermaid
+flowchart LR
+    Resolve[PdfAnchorResolver] --> Profile[PdfAnchorRecoveryProfile]
+    Profile --> Requests[Page requests / unique pages]
+    Profile --> Scan[Quote pages scanned]
+    Profile --> Candidates[Candidate count]
+    Profile --> Strategy[Resolution strategy]
+    Profile --> Time[Elapsed duration]
+    Cache[PdfPageTextCache] --> Counters[Hits / misses / failures / cached pages]
+    Profile --> Baseline[Synthetic baseline tests]
+    Counters --> Baseline
+    Baseline --> Decision[Evidence-driven optimization]
+```
+
+Profiles/counters are local and ephemeral only. Current synthetic baseline intentionally distinguishes extraction work from repeated quote-scan work; CI validates operation counts, not machine-specific timing thresholds.
+
+## 10. Recovered highlight geometry
 
 ```mermaid
 flowchart LR
@@ -188,7 +206,7 @@ flowchart LR
 
 Recovered geometry is transient. It never silently rewrites the persisted anchor. All resolutions within one recovery pass share the open PDF handle and its page-text cache.
 
-## 10. Reading-position persistence
+## 11. Reading-position persistence
 
 ```mermaid
 flowchart LR
@@ -198,7 +216,7 @@ flowchart LR
 
 Position is distinct from coverage and active reading time.
 
-## 11. PDF capability state
+## 12. PDF capability state
 
 ```mermaid
 flowchart TD
@@ -224,7 +242,7 @@ flowchart TD
 
 Capability flags describe integrated Kola behavior, not engine primitives.
 
-## 12. Universal adapter + fidelity boundary
+## 13. Universal adapter + fidelity boundary
 
 ```mermaid
 flowchart LR
@@ -241,7 +259,7 @@ flowchart LR
 
 Engine-specific objects are mapped to Kola-owned models before leaving adapters.
 
-## 13. Persistence boundary
+## 14. Persistence boundary
 
 ```mermaid
 flowchart LR
@@ -251,7 +269,7 @@ flowchart LR
 
 Drift row types never escape the data layer; datetime raw writes use UTC ISO-8601.
 
-## 14. Adaptive-native policy
+## 15. Adaptive-native policy
 
 ```mermaid
 flowchart LR
@@ -262,7 +280,7 @@ flowchart LR
     Policy --> UI[Native-feeling Presentation]
 ```
 
-## 15. Optional BYOC
+## 16. Optional BYOC
 
 ```mermaid
 flowchart LR
@@ -271,7 +289,7 @@ flowchart LR
 
 Never sync the live SQLite file. Sync failures never block local reading.
 
-## 16. Agent patch protocol
+## 17. Agent patch protocol
 
 ```mermaid
 flowchart LR
