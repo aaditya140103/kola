@@ -16,6 +16,7 @@ abstract interface class SearchRepository {
   Future<List<SearchHit>> search(
     String query, {
     String? documentId,
+    SearchHitKind? kind,
     int limit = 50,
   });
 }
