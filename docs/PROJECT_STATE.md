@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, recovery profiling, and now branch-level exact-quote candidate reuse for repeated fallback recovery. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, recovery profiling, and CI-verified exact-quote candidate reuse for repeated fallback recovery. Flow remains disabled.
 
 ## Current implementation
 
@@ -23,9 +23,9 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
 - Conservative `AnchorResolution` recovery + resolved navigation + transient recovered geometry are merged (D-026..D-028).
 - `PdfrxPdfHandle` owns disposable page-text caching (D-029) and local recovery profiling is available (D-030).
-- Branch `perf/anchor-quote-index` adds a handle-scoped `PdfExactQuoteIndex` (D-031): first lookup for one exact quote scans page text once; later identical-quote recoveries reuse source candidate positions and still run normal context/ambiguity verification.
+- `PdfrxPdfHandle` also owns a handle-scoped `PdfExactQuoteIndex` (D-031): first lookup for one exact quote scans page text once; later identical-quote recoveries reuse source candidate positions and still run normal context/ambiguity verification.
 - Quote candidate scans are disposable, in-memory, failure-evicting, and cleared with the document handle.
-- The 50 stale annotations × 200 pages repeated-quote baseline is expected to drop from 10,000 quote-scan page visits to 200 while keeping actual page extraction bounded to 200 unique pages.
+- Verified synthetic baseline: 50 stale annotations × 200 pages dropped from 10,000 quote-scan page visits to 200 while page extraction remained bounded to 200 unique pages.
 - Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -51,6 +51,7 @@ lib/document/adapters/pdf/pdf_anchor_resolver.dart
 lib/document/adapters/pdf/pdf_page_text_cache.dart
 lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
 test/document/adapters/pdf/pdf_exact_quote_index_test.dart
+test/document/adapters/pdf/pdf_exact_quote_index_resolver_integration_test.dart
 test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart
 ```
 
@@ -72,7 +73,7 @@ test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart
 
 ## Verification
 
-PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78bf3fa8`; CI runs 136 and 137 passed the profiling baseline and full suite. Current `perf/anchor-quote-index` implements exact-quote candidate reuse and updates the same 50×200 baseline from 10,000 repeated quote-scan page visits to an expected 200. Full CI is required before merge.
+PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78bf3fa8`; CI runs 136 and 137 passed the profiling baseline and full suite. PR #13 implementation-head CI run 141 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, exact-quote index reuse/concurrency/retry tests, resolver ambiguity/context tests, the 50×200 regression proving 10,000 -> 200 quote-scan page visits, annotation recovery tests, search/database tests, and the existing app smoke suite. This state synchronization is the only change after run 141 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -85,7 +86,7 @@ PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78b
 
 ## Next recommended action
 
-1. Pass CI and merge exact-quote candidate reuse only if the 50×200 scan count falls from 10,000 to 200 without recovery regressions.
+1. Merge exact-quote candidate reuse after exact-head CI.
 2. Add a synthetic many-unique-quotes profile before deciding whether batched fallback or n-gram/token indexing is justified.
 3. Physically validate recovered highlight alignment and recovery timing on Linux + Android.
 4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
