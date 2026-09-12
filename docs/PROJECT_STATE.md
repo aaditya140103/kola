@@ -6,9 +6,9 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 2: PDF Fidelity + search + source-linked annotation management.**
+**Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, and merged annotation management for list/jump/recolor/note/delete. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and now has a branch implementation for conservative annotation-anchor recovery after source revisions. Flow remains disabled.
 
 ## Current implementation
 
@@ -20,39 +20,33 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - PDF source extraction: structured text + native PDF-point geometry.
 - Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
 - PDF selection -> `DocumentTextSelection` -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
-- `AnnotationManagementService` recolors highlights, edits/clears notes, and soft-deletes annotations while preserving source anchors (D-025).
-- Each annotation mutation uses one UTC timestamp for `updatedAt`/delete tombstone ordering.
-- `AnnotationPanel` watches live document annotations and provides quote/location preview, Go to, six highlight colors, note edit, and delete confirmation.
-- Annotation Go to emits the existing `DocumentLocation`; Reader uses the same `FidelityNavigationRequest` path as search.
-- Delete writes `deletedAt`; live document annotation queries hide tombstones, immediately removing deleted highlights from the reader while retaining sync history.
-- Reader search UI is extracted into `reader_search_sheet.dart` to keep Reader orchestration smaller.
+- Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
+- `DocumentAdapter.resolveAnchor()` now returns explicit `AnchorResolution` rather than a guessed nullable location (D-026).
+- `PdfAnchorResolver` resolution order: verify multi-page stored fallback ranges -> verify stored page/range -> verify logical range -> search exact quote and disambiguate with prefix/suffix context -> unresolved.
+- Ambiguous duplicate quotes and missing quotes remain unresolved; Kola never silently attaches an annotation to uncertain text.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
-## Annotation paths
+## Anchor recovery path
 
 ```text
-CREATE
-PDF selection -> DocumentTextSelection -> AnnotationCreationService
--> AnnotationAnchor -> AnnotationRepository -> SQLite -> live repaint
-
-MANAGE
-AnnotationPanel -> AnnotationManagementService -> AnnotationRepository
--> SQLite -> annotationsProvider -> panel + PDF repaint
-
-NAVIGATE
-Annotation sourceLocator -> FidelityNavigationRequest -> PDF source page
+AnnotationAnchor
+  -> verify stored fallback/source ranges against exact quote
+  -> verify logical range
+  -> exact quote search across PDF pages
+  -> prefix/suffix context disambiguation
+  -> AnchorResolution(resolved + strategy + confidence)
+     OR AnchorResolution(unresolved + reason)
 ```
 
 ## Important files
 
 ```text
-lib/features/annotations/application/annotation_creation_service.dart
-lib/features/annotations/application/annotation_management_service.dart
+lib/document/anchors/anchor_resolution.dart
+lib/document/adapters/pdf/pdf_anchor_resolver.dart
+lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
+lib/document/registry/document_adapter.dart
+test/document/adapters/pdf/pdf_anchor_resolver_test.dart
 lib/features/annotations/presentation/annotation_panel.dart
-lib/features/annotations/data/drift_annotation_repository.dart
-lib/features/reader/presentation/reader_screen.dart
-lib/features/reader/presentation/reader_search_sheet.dart
-lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 ```
 
 ## Invariants
@@ -63,28 +57,30 @@ lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 - Source anchors/geometry are not rewritten by recolor/note operations.
 - Delete uses a tombstone (`deletedAt`) for future sync compatibility.
 - Persist source coordinates/ranges, never viewer/screen coordinates.
+- Ambiguous anchor recovery must return unresolved rather than guess.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #7 is merged on `main` as squash commit `beff44b5af6df235fd6b30ddb50d036eb5917a0c`. Corrected run 114 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, generation, formatting, analyzer, command-layer tests, SQLite note/color/tombstone persistence, search/database tests, and the existing app smoke suite. Exact synchronized head run 115 also passed every CI stage before merge. The native PDFium extraction test remains intentionally skipped unless `PDFIUM_PATH` is supplied.
+PR #7 annotation management is merged and exact-head CI run 115 passed. Current `feat/pdf-anchor-recovery` branch adds explicit resolution results and pure resolver tests for unchanged anchors, shifted text, cross-page movement, ambiguous duplicate quotes, missing quotes, and stored multi-page fallback ranges. Full CI is required before merge.
 
 ## Current risks / blockers
 
+- Anchor recovery currently resolves a reliable source location; recovered PDF geometry is not yet regenerated for changed documents.
 - Annotation management UI still needs physical UX validation.
 - Physical PDF drag-selection/highlight alignment needs Linux + Android validation first.
 - Rotated/cropped/atypical PDF highlight geometry needs hands-on validation.
-- `resolveAnchor()` still returns the stored locator directly; quote/context recovery across changed source revisions is not implemented.
-- Scanned/image-only PDFs need local OCR for selection/search.
+- Scanned/image-only PDFs need local OCR for selection/search/recovery.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Physically validate Reader annotation UX on Linux + Android.
-2. Strengthen PDF `resolveAnchor()` with quote/context fallback for changed document revisions.
-3. Add annotation filters/export only after management UX is stable.
-4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Pass CI and merge PDF anchor recovery.
+2. Integrate resolved/unresolved state into annotation navigation/render diagnostics where needed.
+3. Physically validate Reader annotation UX on Linux + Android.
+4. Add annotation filters/export only after management UX is stable.
+5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
