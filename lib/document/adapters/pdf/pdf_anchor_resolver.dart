@@ -1,4 +1,5 @@
 import 'package:kola/document/adapters/pdf/pdf_anchor_recovery_profile.dart';
+import 'package:kola/document/adapters/pdf/pdf_exact_quote_index.dart';
 import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
@@ -9,18 +10,23 @@ typedef PdfRangeGeometryLoader = Future<List<Map<String, Object?>>> Function(
   int start,
   int end,
 );
+typedef PdfQuoteCandidateLookup = Future<PdfQuoteLookupResult> Function(
+  String quote,
+);
 
 final class PdfAnchorResolver {
   const PdfAnchorResolver({
     required this.pageCount,
     required this.loadPageText,
     this.loadRangeGeometry,
+    this.lookupQuoteCandidates,
     this.onProfile,
   });
 
   final int pageCount;
   final PdfPageTextLoader loadPageText;
   final PdfRangeGeometryLoader? loadRangeGeometry;
+  final PdfQuoteCandidateLookup? lookupQuoteCandidates;
   final PdfAnchorRecoveryProfileObserver? onProfile;
 
   Future<AnchorResolution> resolve(AnnotationAnchor anchor) async {
@@ -89,35 +95,11 @@ final class PdfAnchorResolver {
       }
     }
 
-    final List<_QuoteCandidate> candidates = <_QuoteCandidate>[];
-    for (int page = 1; page <= pageCount; page += 1) {
-      profiler.recordQuoteSearchPage();
-      final String? text = await _safeLoad(page, profiler);
-      if (text == null || text.isEmpty) continue;
-
-      int from = 0;
-      while (from <= text.length - quote.length) {
-        final int index = text.indexOf(quote, from);
-        if (index < 0) break;
-        final int end = index + quote.length;
-        profiler.recordQuoteCandidate();
-        candidates.add(
-          _QuoteCandidate(
-            page: page,
-            start: index,
-            end: end,
-            contextScore: _contextScore(
-              text,
-              index,
-              end,
-              anchor.prefixContext,
-              anchor.suffixContext,
-            ),
-          ),
-        );
-        from = index + 1;
-      }
-    }
+    final List<_QuoteCandidate> candidates = await _quoteCandidates(
+      quote,
+      anchor,
+      profiler,
+    );
 
     if (candidates.isEmpty) {
       return const AnchorResolution.unresolved(
@@ -156,6 +138,71 @@ final class PdfAnchorResolver {
       strategy: AnchorResolutionStrategy.quoteContext,
       confidence: confidence,
     );
+  }
+
+  Future<List<_QuoteCandidate>> _quoteCandidates(
+    String quote,
+    AnnotationAnchor anchor,
+    PdfAnchorRecoveryProfiler profiler,
+  ) async {
+    final PdfQuoteCandidateLookup? indexedLookup = lookupQuoteCandidates;
+    if (indexedLookup != null) {
+      final PdfQuoteLookupResult lookup = await indexedLookup(quote);
+      profiler.recordQuoteSearchPages(lookup.pagesScanned);
+      profiler.recordQuoteCandidates(lookup.candidates.length);
+
+      final List<_QuoteCandidate> candidates = <_QuoteCandidate>[];
+      for (final PdfQuoteCandidate candidate in lookup.candidates) {
+        final String? text = await _safeLoad(candidate.page, profiler);
+        if (text == null || candidate.end > text.length) continue;
+        candidates.add(
+          _QuoteCandidate(
+            page: candidate.page,
+            start: candidate.start,
+            end: candidate.end,
+            contextScore: _contextScore(
+              text,
+              candidate.start,
+              candidate.end,
+              anchor.prefixContext,
+              anchor.suffixContext,
+            ),
+          ),
+        );
+      }
+      return candidates;
+    }
+
+    final List<_QuoteCandidate> candidates = <_QuoteCandidate>[];
+    for (int page = 1; page <= pageCount; page += 1) {
+      profiler.recordQuoteSearchPage();
+      final String? text = await _safeLoad(page, profiler);
+      if (text == null || text.isEmpty || text.length < quote.length) continue;
+
+      int from = 0;
+      while (from <= text.length - quote.length) {
+        final int index = text.indexOf(quote, from);
+        if (index < 0) break;
+        final int end = index + quote.length;
+        profiler.recordQuoteCandidate();
+        candidates.add(
+          _QuoteCandidate(
+            page: page,
+            start: index,
+            end: end,
+            contextScore: _contextScore(
+              text,
+              index,
+              end,
+              anchor.prefixContext,
+              anchor.suffixContext,
+            ),
+          ),
+        );
+        from = index + 1;
+      }
+    }
+    return candidates;
   }
 
   Future<AnchorResolution?> _verifyFallbackRanges(
