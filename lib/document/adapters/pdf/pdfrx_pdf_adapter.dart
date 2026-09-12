@@ -1,3 +1,4 @@
+import 'package:kola/document/adapters/pdf/pdf_anchor_recovery_profile.dart';
 import 'package:kola/document/adapters/pdf/pdf_anchor_resolver.dart';
 import 'package:kola/document/adapters/pdf/pdf_page_text_cache.dart';
 import 'package:kola/document/adapters/pdf/pdf_text_geometry_mapper.dart';
@@ -11,11 +12,15 @@ import 'package:kola/document/text/document_text_range_geometry.dart';
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
 final class PdfrxPdfAdapter implements DocumentAdapter {
-  const PdfrxPdfAdapter(this._sourceResolver);
+  const PdfrxPdfAdapter(
+    this._sourceResolver, {
+    PdfAnchorRecoveryProfileObserver? onAnchorRecoveryProfile,
+  }) : _onAnchorRecoveryProfile = onAnchorRecoveryProfile;
 
   static const String _graphVersion = 'pdf-text-v1';
 
   final DocumentSourceResolver _sourceResolver;
+  final PdfAnchorRecoveryProfileObserver? _onAnchorRecoveryProfile;
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;
@@ -148,6 +153,7 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
           end: end,
         );
       },
+      onProfile: _onAnchorRecoveryProfile,
     );
     return resolver.resolve(anchor);
   }
