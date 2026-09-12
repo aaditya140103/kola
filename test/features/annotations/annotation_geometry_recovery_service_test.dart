@@ -55,6 +55,53 @@ void main() {
     expect(recovered, isEmpty);
     expect(adapter.handle.closed, isTrue);
   });
+
+  test('one broken anchor does not suppress other recovered highlights', () async {
+    const recoveredGeometry = <Map<String, Object?>>[
+      <String, Object?>{'scheme': 'pdf', 'page': 3, 'left': 30.0},
+    ];
+    final adapter = _FakeAdapter(
+      resolution: const AnchorResolution.unresolved(reason: 'unused'),
+      resolutionFor: (AnnotationAnchor anchor) {
+        if (anchor.exactQuote == 'broken') {
+          throw StateError('malformed stale anchor');
+        }
+        return AnchorResolution.resolved(
+          location: DocumentLocation(
+            scheme: 'pdf',
+            data: const <String, Object?>{'page': 3, 'start': 2, 'end': 7},
+          ),
+          strategy: AnchorResolutionStrategy.quoteContext,
+          confidence: 0.96,
+          sourceGeometry: recoveredGeometry,
+        );
+      },
+    );
+    final service = AnnotationGeometryRecoveryService(
+      FormatRegistry(<DocumentAdapter>[adapter]),
+    );
+
+    final recovered = await service.recover(
+      _document(),
+      <Annotation>[
+        _annotation(
+          const <Map<String, Object?>>[{'page': 1}],
+          id: 'broken-id',
+          quote: 'broken',
+        ),
+        _annotation(
+          const <Map<String, Object?>>[{'page': 1}],
+          id: 'healthy-id',
+          quote: 'healthy',
+        ),
+      ],
+    );
+
+    expect(recovered, <String, List<Map<String, Object?>>>{
+      'healthy-id': recoveredGeometry,
+    });
+    expect(adapter.handle.closed, isTrue);
+  });
 }
 
 KolaDocument _document() {
@@ -72,10 +119,14 @@ KolaDocument _document() {
   );
 }
 
-Annotation _annotation(List<Map<String, Object?>> geometry) {
+Annotation _annotation(
+  List<Map<String, Object?>> geometry, {
+  String id = 'a1',
+  String quote = 'hello',
+}) {
   final now = DateTime.utc(2026, 9, 12);
   return Annotation(
-    id: 'a1',
+    id: id,
     documentId: 'doc',
     type: AnnotationType.highlight,
     anchor: AnnotationAnchor(
@@ -84,7 +135,7 @@ Annotation _annotation(List<Map<String, Object?>> geometry) {
         scheme: 'pdf',
         data: const <String, Object?>{'page': 1, 'start': 0, 'end': 5},
       ),
-      exactQuote: 'hello',
+      exactQuote: quote,
       sourceGeometry: geometry,
     ),
     createdAt: now,
@@ -93,9 +144,10 @@ Annotation _annotation(List<Map<String, Object?>> geometry) {
 }
 
 final class _FakeAdapter implements DocumentAdapter {
-  _FakeAdapter({required this.resolution});
+  _FakeAdapter({required this.resolution, this.resolutionFor});
 
   final AnchorResolution resolution;
+  final AnchorResolution Function(AnnotationAnchor anchor)? resolutionFor;
   final _FakeHandle handle = _FakeHandle();
 
   @override
@@ -134,7 +186,7 @@ final class _FakeAdapter implements DocumentAdapter {
   Future<AnchorResolution> resolveAnchor(
     DocumentHandle handle,
     AnnotationAnchor anchor,
-  ) async => resolution;
+  ) async => resolutionFor?.call(anchor) ?? resolution;
 
   @override
   Future<ExportResult> export(ExportRequest request) =>

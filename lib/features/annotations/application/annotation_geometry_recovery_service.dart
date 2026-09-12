@@ -1,7 +1,7 @@
+import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/document/registry/format_registry.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
-import 'package:kola/document/model/document_models.dart';
 
 final class AnnotationGeometryRecoveryService {
   const AnnotationGeometryRecoveryService(this._formats);
@@ -26,15 +26,25 @@ final class AnnotationGeometryRecoveryService {
             annotation.type != AnnotationType.highlight) {
           continue;
         }
-        final resolution = await adapter.resolveAnchor(handle, annotation.anchor);
-        if (!resolution.resolved) continue;
 
-        final List<Map<String, Object?>> geometry =
-            resolution.sourceGeometry.isNotEmpty
-            ? resolution.sourceGeometry
-            : annotation.anchor.sourceGeometry;
-        if (geometry.isNotEmpty) {
-          result[annotation.id] = geometry;
+        // Recovery is best-effort per annotation. One malformed/stale anchor
+        // must not suppress every other valid highlight in the document.
+        try {
+          final resolution = await adapter.resolveAnchor(
+            handle,
+            annotation.anchor,
+          );
+          if (!resolution.resolved) continue;
+
+          final List<Map<String, Object?>> geometry =
+              resolution.sourceGeometry.isNotEmpty
+              ? resolution.sourceGeometry
+              : annotation.anchor.sourceGeometry;
+          if (geometry.isNotEmpty) {
+            result[annotation.id] = geometry;
+          }
+        } catch (_) {
+          continue;
         }
       }
       return Map<String, List<Map<String, Object?>>>.unmodifiable(result);
