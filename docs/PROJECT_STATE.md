@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity View + durable resume + source text/geometry extraction.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, and now has a Kola-owned PDF text/geometry extraction pipeline. Search UI, text selection, annotations, and Flow remain intentionally disabled until their source-linked integrations are complete.
+Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, and now has a merged Kola-owned PDF text/geometry extraction pipeline. Search UI, text selection, annotations, and Flow remain intentionally disabled until their source-linked integrations are complete.
 
 ## Current implementation
 
@@ -64,7 +64,7 @@ test/document/adapters/pdf/pdf_text_extraction_test.dart
 
 ## Verification
 
-PR #4 passed normal Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, mapper/geometry tests, and the full existing test suite are green. The generated real-PDF/PDFium integration test remains in the suite but runs only when `PDFIUM_PATH` points to a native libpdfium because standard `flutter test` runners do not bundle pdfrx native assets. Native/device extraction still requires that separate integration gate.
+PR #4 is merged on `main` as `515224bf8953b9050e1b9e49d5abf7328e747ad9`. Its exact head passed Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, mapper/geometry tests, and the full existing test suite are green. The generated real-PDF/PDFium integration test remains in the suite but runs only when `PDFIUM_PATH` points to a native libpdfium because standard `flutter test` runners do not bundle pdfrx native assets. Native/device extraction still requires that separate integration gate.
 
 ## Current risks / blockers
 
@@ -79,12 +79,11 @@ PR #4 passed normal Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: 
 
 ## Next recommended action
 
-1. Merge verified PR #4.
-2. Add local persistent text index/search service consuming `IndexChunk`s.
-3. Wire Reader search UI to page-level results and navigation; only then enable PDF `textSearch` capability.
-4. Build source-linked text selection from page character indices + PDF rectangles.
-5. Persist highlight/note anchors with quote/context + ranges + source geometry; then enable annotation capabilities.
-6. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
+1. Add a local persistent text index/search service consuming `IndexChunk`s.
+2. Wire Reader search UI to page-level results and navigation; only then enable PDF `textSearch` capability.
+3. Build source-linked text selection from page character indices + PDF rectangles.
+4. Persist highlight/note anchors with quote/context + ranges + source geometry; then enable annotation capabilities.
+5. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
