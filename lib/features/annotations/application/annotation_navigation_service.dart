@@ -15,14 +15,14 @@ final class AnnotationNavigationService {
   ) async {
     if (annotation.documentId != document.id) {
       return const AnchorResolution.unresolved(
-        reason: AnchorUnresolvedReason.documentMismatch,
+        reason: 'Annotation belongs to a different document.',
       );
     }
 
     final DocumentAdapter? adapter = _formats.adapterFor(document.format);
     if (adapter == null) {
       return const AnchorResolution.unresolved(
-        reason: AnchorUnresolvedReason.unsupportedFormat,
+        reason: 'No document adapter is registered for this format.',
       );
     }
 
