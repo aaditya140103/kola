@@ -150,8 +150,8 @@ flowchart TD
     Stored[Verify stored page/range]
     Multi[Verify multi-page fallback ranges]
     Logical[Verify logical range]
-    Quote[Search exact quote]
-    Context[Score prefix/suffix context]
+    Quote[Exact quote candidate lookup]
+    Context[Reload candidate page + score prefix/suffix]
     Resolved[AnchorResolution: resolved]
     Unresolved[AnchorResolution: unresolved]
 
@@ -163,30 +163,31 @@ flowchart TD
     Logical -- exact quote matches --> Resolved
     Logical -- no --> Quote
     Quote -- none --> Unresolved
-    Quote -- matches --> Context
+    Quote -- candidates --> Context
     Context -- unique best --> Resolved
     Context -- ambiguous --> Unresolved
 ```
 
-Never silently guess. `AnchorResolution` reports strategy/confidence/reason.
+Never silently guess. Candidate indexing changes lookup cost only; context/ambiguity verification remains authoritative.
 
-## 9. Recovery profiling + measured optimization
+## 9. Recovery profiling + exact-quote candidate reuse
 
 ```mermaid
 flowchart LR
-    Resolve[PdfAnchorResolver] --> Profile[PdfAnchorRecoveryProfile]
-    Profile --> Requests[Page requests / unique pages]
-    Profile --> Scan[Quote pages scanned]
-    Profile --> Candidates[Candidate count]
-    Profile --> Strategy[Resolution strategy]
-    Profile --> Time[Elapsed duration]
-    Cache[PdfPageTextCache] --> Counters[Hits / misses / failures / cached pages]
-    Profile --> Baseline[Synthetic baseline tests]
-    Counters --> Baseline
-    Baseline --> Decision[Evidence-driven optimization]
+    Handle[PdfrxPdfHandle] --> TextCache[PdfPageTextCache]
+    Handle --> QuoteIndex[PdfExactQuoteIndex]
+    Resolver[PdfAnchorResolver] --> QuoteIndex
+    QuoteIndex -- first quote lookup --> TextCache
+    TextCache --> Scan[Scan each page once for exact quote]
+    Scan --> CandidateCache[Cached source ranges for that quote]
+    QuoteIndex -- repeated same quote --> CandidateCache
+    CandidateCache --> Verify[Reload candidate pages + context/ambiguity verification]
+    Verify --> Resolver
+    Resolver --> Profile[PdfAnchorRecoveryProfile]
+    Profile --> Baseline[Synthetic operation-count tests]
 ```
 
-Profiles/counters are local and ephemeral only. Current synthetic baseline intentionally distinguishes extraction work from repeated quote-scan work; CI validates operation counts, not machine-specific timing thresholds.
+Both caches are local, disposable, and handle-scoped. The measured repeated-quote baseline is expected to fall from 10,000 quote-scan page visits (50 annotations × 200 pages) to 200, while recovery semantics remain unchanged. Unique quotes can still trigger independent scans and require separate measurement before further optimization.
 
 ## 10. Recovered highlight geometry
 
@@ -204,7 +205,7 @@ flowchart LR
     Resolve -- unresolved --> Suppress[Do not paint stale geometry]
 ```
 
-Recovered geometry is transient. It never silently rewrites the persisted anchor. All resolutions within one recovery pass share the open PDF handle and its page-text cache.
+Recovered geometry is transient. It never silently rewrites the persisted anchor. All resolutions within one recovery pass share the open PDF handle and its disposable caches.
 
 ## 11. Reading-position persistence
 
