@@ -125,6 +125,7 @@ void main() {
           1 => 'alpha beta alpha',
           2 => null,
           3 => 'gamma beta',
+          _ => null,
         };
       },
     );

@@ -207,15 +207,17 @@ void main() {
 }
 
 KolaDocument _document() {
+  final now = DateTime.utc(2026, 9, 12);
   return KolaDocument(
     id: 'doc',
-    title: 'Doc',
-    format: DocumentFormat.pdf,
     source: DocumentSource(
-      scheme: 'file',
-      location: 'doc.pdf',
-      label: 'doc.pdf',
+      kind: DocumentSourceKind.linkedFile,
+      uri: Uri.file('/tmp/doc.pdf'),
     ),
+    format: DocumentFormat.pdf,
+    metadata: const DocumentMetadata(title: 'Doc'),
+    importedAt: now,
+    updatedAt: now,
   );
 }
 

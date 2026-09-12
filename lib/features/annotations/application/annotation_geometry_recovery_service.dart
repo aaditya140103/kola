@@ -34,16 +34,10 @@ final class AnnotationGeometryRecoveryService {
         for (final Annotation annotation in eligible) annotation.anchor,
       ];
       final List<AnchorResolution> resolutions;
-      if (adapter is BatchAnchorResolver) {
+      if (adapter case final BatchAnchorResolver batchAdapter) {
         // Adapters with handle-scoped caches share one scanning pass across
         // the whole batch; behavior stays identical to per-anchor resolution.
-        try {
-          resolutions = await adapter.resolveAnchors(handle, anchors);
-        } catch (_) {
-          // Batch recovery stays best-effort: an adapter-level failure must
-          // not break the app, matching the per-anchor isolation below.
-          resolutions = const <AnchorResolution>[];
-        }
+        resolutions = await _resolveBatch(batchAdapter, handle, anchors);
       } else {
         resolutions = <AnchorResolution>[
           for (final AnnotationAnchor anchor in anchors)
@@ -69,6 +63,20 @@ final class AnnotationGeometryRecoveryService {
       return Map<String, List<Map<String, Object?>>>.unmodifiable(result);
     } finally {
       await handle.close();
+    }
+  }
+
+  static Future<List<AnchorResolution>> _resolveBatch(
+    BatchAnchorResolver adapter,
+    DocumentHandle handle,
+    List<AnnotationAnchor> anchors,
+  ) async {
+    // Batch recovery stays best-effort: an adapter-level failure must not
+    // break the app, matching the per-anchor isolation of the fallback path.
+    try {
+      return await adapter.resolveAnchors(handle, anchors);
+    } catch (_) {
+      return const <AnchorResolution>[];
     }
   }
 
