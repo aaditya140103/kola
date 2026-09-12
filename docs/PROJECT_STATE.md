@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity View + durable resume state.**
 
-Kola imports local documents into a content-addressed library and renders real PDFs via `pdfrx`/PDFium. The current branch adds persistent PDF page/zoom/view-mode state using the existing `reading_states` table. PDF Flow/search/selection/annotations remain intentionally disabled.
+Kola imports local documents into a content-addressed library and renders real PDFs via `pdfrx`/PDFium. PDF page/zoom/view-mode state now persists through the existing `reading_states` table. PDF Flow/search/selection/annotations remain intentionally disabled.
 
 ## Current implementation
 
@@ -25,6 +25,7 @@ Kola imports local documents into a content-addressed library and renders real P
 - Reader debounces page/zoom saves for 400 ms and flushes pending state on explicit exit/dispose.
 - PDF source locator: `scheme=pdf`, `data.page=<1-based page>`.
 - Restored state initializes PDF page, zoom, and saved view mode before presenting the reader.
+- A stale-state overwrite race during immediate mode changes was removed by building the mode write from the exact state returned by the pending-position flush.
 - PDF capability flags remain fidelity-only; search/Flow/text selection/annotation/export remain unintegrated.
 
 ## Resume data path
@@ -74,20 +75,20 @@ test/core/repositories/repository_integration_test.dart
 
 ## Verification
 
-Import/persistence and the first PDF fidelity reader are merged on `main` and passed full Flutter CI on Flutter 3.47.4 / Dart 3.13.3. This branch adds pure PDF-position codec tests plus a SQLite round-trip test for page locator/progress/view-mode/zoom. CI verification for this branch is still required before merge.
+Import/persistence and the first PDF fidelity reader are merged on `main`. PR #3 passed full Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, and all tests are green. New coverage verifies PDF position encoding/restoration and a real SQLite round-trip for page locator, progress, view mode, and zoom.
 
 ## Current risks / blockers
 
-- Physical PDF rendering still needs hands-on Linux/Android/iOS/Windows/macOS testing.
+- Physical PDF rendering/resume still needs hands-on Linux/Android/iOS/Windows/macOS testing; CI validates code/tests, not device UX.
 - Password-protected/corrupt PDF UX is not yet Kola-specific.
-- PDF page resume is page-level; intra-page scroll/viewport offset is not persisted yet.
+- PDF resume is page-level; intra-page viewport offset is not persisted yet.
 - PDF text extraction, geometry, search, selection, annotations, and Flow remain unimplemented.
 - Native platform folders still need stable generation/commit with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
 - Schema v1 has no release migration path because no public schema release exists yet.
 
 ## Next recommended action
 
-1. Pass CI and merge PDF reading-state persistence.
+1. Merge verified PR #3.
 2. Extract PDF page text + character/word geometry into Kola-owned source structures.
 3. Produce local `IndexChunk`s and enable PDF search only after extraction tests pass.
 4. Add source-linked PDF text selection and durable highlight/note anchors.
