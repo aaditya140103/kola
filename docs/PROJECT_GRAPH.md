@@ -65,6 +65,8 @@ flowchart LR
 
 Generic Reader code does not import `pdfrx`.
 
+Reader layout is `SafeArea -> Column -> toolbar + Expanded(fidelity surface)` so source content receives the remaining viewport rather than the toolbar height. Home/Library/Search push reader routes; toolbar Back pops to the origin, with Library as fallback for direct routes. Loading/error states also expose Back. Resume-read failures degrade to a readable source with a notice. Position-save failures are reported without blocking exit; the repository is captured before disposal for system-back flushes.
+
 ## 4. PDF source-text extraction + handle cache
 
 ```mermaid

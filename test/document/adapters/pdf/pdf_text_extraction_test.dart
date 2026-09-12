@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,14 +7,13 @@ import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
 import 'package:kola/document/text/document_text_geometry.dart';
-import 'package:pdfrx/pdfrx.dart';
+
+import '../../../support/simple_pdf.dart';
+import '../../../support/native_pdfium.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  pdfrxFlutterInitialize();
-
-  final String? pdfiumPath = Platform.environment['PDFIUM_PATH'];
-  final bool hasNativePdfium = pdfiumPath != null && pdfiumPath.isNotEmpty;
+  setUpAll(initializeTestPdfium);
 
   test(
     'extracts source-linked text geometry and index chunks from a PDF',
@@ -24,7 +22,7 @@ void main() {
         'kola-pdf-text-',
       );
       final File pdfFile = File('${tempDirectory.path}/sample.pdf');
-      await pdfFile.writeAsBytes(_buildSimplePdf('Hello Kola'));
+      await pdfFile.writeAsBytes(buildSimplePdf('Hello Kola'));
 
       const PdfrxPdfAdapter adapter = PdfrxPdfAdapter(DocumentSourceResolver());
       final DateTime now = DateTime.utc(2026, 9, 12, 9);
@@ -83,52 +81,5 @@ void main() {
         await tempDirectory.delete(recursive: true);
       }
     },
-    skip: hasNativePdfium
-        ? false
-        : 'Set PDFIUM_PATH to a native libpdfium to run the real engine integration test.',
   );
-}
-
-List<int> _buildSimplePdf(String text) {
-  final String escaped = text
-      .replaceAll('\\', r'\\')
-      .replaceAll('(', r'\(')
-      .replaceAll(')', r'\)');
-  final String content = 'BT\n/F1 18 Tf\n72 720 Td\n($escaped) Tj\nET\n';
-
-  final List<String> objects = <String>[
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
-        '/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    '<< /Length ${ascii.encode(content).length} >>\nstream\n${content}endstream',
-  ];
-
-  final StringBuffer buffer = StringBuffer('%PDF-1.4\n');
-  final List<int> offsets = <int>[];
-  for (int index = 0; index < objects.length; index += 1) {
-    offsets.add(buffer.length);
-    buffer
-      ..writeln('${index + 1} 0 obj')
-      ..writeln(objects[index])
-      ..writeln('endobj');
-  }
-
-  final int xrefOffset = buffer.length;
-  buffer
-    ..writeln('xref')
-    ..writeln('0 ${objects.length + 1}')
-    ..writeln('0000000000 65535 f ');
-  for (final int offset in offsets) {
-    buffer.writeln('${offset.toString().padLeft(10, '0')} 00000 n ');
-  }
-  buffer
-    ..writeln('trailer')
-    ..writeln('<< /Size ${objects.length + 1} /Root 1 0 R >>')
-    ..writeln('startxref')
-    ..writeln(xrefOffset)
-    ..writeln('%%EOF');
-
-  return ascii.encode(buffer.toString());
 }

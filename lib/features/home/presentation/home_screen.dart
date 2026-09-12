@@ -152,7 +152,7 @@ class _ContinueReadingCard extends StatelessWidget {
                   ),
                   const SizedBox(height: KolaSpacing.md),
                   FilledButton.icon(
-                    onPressed: () => context.go('/reader/${document.id}'),
+                    onPressed: () => context.push('/reader/${Uri.encodeComponent(document.id)}'),
                     icon: const Icon(Icons.menu_book_rounded),
                     label: const Text('Open'),
                   ),

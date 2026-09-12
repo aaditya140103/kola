@@ -39,19 +39,26 @@ class ReaderScreen extends ConsumerStatefulWidget {
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   static const Duration _stateSaveDebounce = Duration(milliseconds: 400);
 
-  bool _controlsVisible = true;
   bool? _flowModeOverride;
   Timer? _readingStateTimer;
   FidelityViewState? _pendingFidelityState;
   ReadingState? _pendingBaseState;
   FidelityNavigationRequest? _navigationRequest;
   int _navigationSequence = 0;
+  late final ReadingRepository _readingRepository;
+  bool _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _readingRepository = ref.read(readingRepositoryProvider);
+  }
 
   @override
   void dispose() {
     _readingStateTimer?.cancel();
     if (_pendingFidelityState != null) {
-      final ReadingRepository repository = ref.read(readingRepositoryProvider);
+      final ReadingRepository repository = _readingRepository;
       unawaited(_flushPendingReadingState(repository));
     }
     super.dispose();
@@ -72,28 +79,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           return _ReaderMessage(
             title: 'Document not found',
             message: 'This library item no longer exists.',
-            onBack: () => context.pop(),
+            onBack: _leaveReader,
           );
         }
         return readingState.when(
           data: (ReadingState? state) => _buildReader(context, value, state),
-          loading: () => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          ),
-          error: (Object error, StackTrace stackTrace) => _ReaderMessage(
-            title: 'Could not restore reading position',
-            message: error.toString(),
-            onBack: () => context.pop(),
-          ),
+          loading: () => _loadingReader(),
+          error: (Object error, StackTrace stackTrace) =>
+              _buildReader(context, value, null, resumeFailed: true),
         );
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () => _loadingReader(),
       error: (Object error, StackTrace stackTrace) => _ReaderMessage(
         title: 'Could not load document',
         message: error.toString(),
-        onBack: () => context.pop(),
+        onBack: _leaveReader,
       ),
     );
   }
@@ -101,8 +101,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Widget _buildReader(
     BuildContext context,
     KolaDocument document,
-    ReadingState? readingState,
-  ) {
+    ReadingState? readingState, {
+    bool resumeFailed = false,
+  }) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final FormatCapabilities capabilities =
         ref.watch(formatRegistryProvider).capabilitiesFor(document.format) ??
@@ -128,7 +129,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
               const <String, List<Map<String, Object?>>>{},
         );
     final Map<String, Annotation> annotationsById = <String, Annotation>{
-      for (final Annotation annotation in annotations) annotation.id: annotation,
+      for (final Annotation annotation in annotations)
+        annotation.id: annotation,
     };
     final List<FidelityTextHighlight> highlights = recoveredGeometry.entries
         .where((entry) => annotationsById.containsKey(entry.key))
@@ -166,42 +168,35 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLow,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: <Widget>[
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () => setState(
-                  () => _controlsVisible = !_controlsVisible,
-                ),
-                child: surface,
-              ),
+            _ReaderTopBar(
+              document: document,
+              flowMode: flowMode,
+              flowAvailable: capabilities.flowMode,
+              searchAvailable: capabilities.textSearch,
+              annotationsAvailable: capabilities.textAnnotations,
+              annotationCount: annotations.length,
+              onBack: () => unawaited(_closeReader()),
+              onSearch: () => unawaited(_openSearch(document)),
+              onAnnotations: () => unawaited(_openAnnotations(document)),
+              onModeChanged: (bool value) {
+                if (value && !capabilities.flowMode) return;
+                setState(() => _flowModeOverride = value);
+                unawaited(_saveViewMode(value, readingState));
+              },
             ),
-            AnimatedSlide(
-              duration: KolaMotion.standard,
-              offset: _controlsVisible ? Offset.zero : const Offset(0, -1.2),
-              curve: Curves.easeOutCubic,
-              child: AnimatedOpacity(
-                duration: KolaMotion.quick,
-                opacity: _controlsVisible ? 1 : 0,
-                child: _ReaderTopBar(
-                  document: document,
-                  flowMode: flowMode,
-                  flowAvailable: capabilities.flowMode,
-                  searchAvailable: capabilities.textSearch,
-                  annotationsAvailable: capabilities.textAnnotations,
-                  annotationCount: annotations.length,
-                  onBack: () => unawaited(_closeReader()),
-                  onSearch: () => unawaited(_openSearch(document)),
-                  onAnnotations: () => unawaited(_openAnnotations(document)),
-                  onModeChanged: (bool value) {
-                    if (value && !capabilities.flowMode) return;
-                    setState(() => _flowModeOverride = value);
-                    unawaited(_saveViewMode(value, readingState));
-                  },
+            if (resumeFailed)
+              Material(
+                color: scheme.errorContainer,
+                child: const Padding(
+                  padding: EdgeInsets.all(KolaSpacing.sm),
+                  child: Text(
+                    'Could not restore reading position. Opening from the beginning.',
+                  ),
                 ),
               ),
-            ),
+            Expanded(child: surface),
           ],
         ),
       ),
@@ -209,7 +204,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   FidelityViewState? _toFidelityViewState(ReadingState? state) {
-    final DocumentLocation? location = widget.initialLocation ?? state?.location;
+    final DocumentLocation? location =
+        widget.initialLocation ?? state?.location;
     if (state == null && location == null) return null;
     return FidelityViewState(
       location: location,
@@ -259,7 +255,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (BuildContext context) => AnnotationPanel(documentId: document.id),
+      builder: (BuildContext context) =>
+          AnnotationPanel(documentId: document.id),
     );
     if (!mounted || annotation == null) return;
 
@@ -285,7 +282,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
           ..hideCurrentSnackBar()
           ..showSnackBar(
             const SnackBar(
-              content: Text('Annotation recovered at its current source location.'),
+              content: Text(
+                'Annotation recovered at its current source location.',
+              ),
             ),
           );
       }
@@ -319,7 +318,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void _navigateTo(DocumentLocation location) {
     setState(() {
       _flowModeOverride = false;
-      _controlsVisible = true;
       _navigationSequence += 1;
       _navigationRequest = FidelityNavigationRequest(
         location: location,
@@ -335,13 +333,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _pendingFidelityState = state;
     _pendingBaseState = baseState;
     _readingStateTimer?.cancel();
-    _readingStateTimer = Timer(
-      _stateSaveDebounce,
-      () {
-        final ReadingRepository repository = ref.read(readingRepositoryProvider);
-        unawaited(_flushPendingReadingState(repository));
-      },
-    );
+    _readingStateTimer = Timer(_stateSaveDebounce, () {
+      final ReadingRepository repository = _readingRepository;
+      unawaited(_flushPendingReadingState(repository));
+    });
   }
 
   Future<ReadingState?> _flushPendingReadingState(
@@ -366,12 +361,22 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       activeThemeId: baseState?.activeThemeId,
       updatedAt: DateTime.now().toUtc(),
     );
-    await repository.saveState(state);
-    return state;
+    try {
+      await repository.saveState(state);
+      return state;
+    } catch (error) {
+      // A metadata write failure must never trap the user in the reader.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save reading position.')),
+        );
+      }
+      return null;
+    }
   }
 
   Future<void> _saveViewMode(bool flowMode, ReadingState? current) async {
-    final ReadingRepository repository = ref.read(readingRepositoryProvider);
+    final ReadingRepository repository = _readingRepository;
     final ReadingState? flushed = _pendingFidelityState == null
         ? null
         : await _flushPendingReadingState(repository);
@@ -390,12 +395,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  Widget _loadingReader() => Scaffold(
+    appBar: AppBar(leading: BackButton(onPressed: _leaveReader)),
+    body: const Center(child: CircularProgressIndicator()),
+  );
+
+  void _leaveReader() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/library');
+    }
+  }
+
   Future<void> _closeReader() async {
+    if (_closing) return;
+    _closing = true;
     if (_pendingFidelityState != null) {
-      final ReadingRepository repository = ref.read(readingRepositoryProvider);
+      final ReadingRepository repository = _readingRepository;
       await _flushPendingReadingState(repository);
     }
-    if (mounted) context.pop();
+    if (mounted) _leaveReader();
   }
 }
 
@@ -443,76 +463,92 @@ class _ReaderTopBar extends StatelessWidget {
             horizontal: KolaSpacing.xs,
             vertical: KolaSpacing.xxs,
           ),
-          child: Row(
-            children: <Widget>[
-              IconButton(
-                onPressed: onBack,
-                tooltip: 'Back',
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-              const SizedBox(width: KolaSpacing.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      document.metadata.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final title = <Widget>[
+                IconButton(
+                  onPressed: onBack,
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back_rounded),
+                ),
+                const SizedBox(width: KolaSpacing.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        document.metadata.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+              final actions = <Widget>[
+                SegmentedButton<bool>(
+                  segments: <ButtonSegment<bool>>[
+                    const ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.description_rounded),
+                      tooltip: 'Fidelity',
                     ),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                    ButtonSegment<bool>(
+                      value: true,
+                      enabled: flowAvailable,
+                      icon: const Icon(Icons.auto_stories_rounded),
+                      tooltip: flowAvailable
+                          ? 'Flow'
+                          : 'Flow not available yet',
                     ),
                   ],
+                  selected: <bool>{flowMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (Set<bool> selection) =>
+                      onModeChanged(selection.first),
                 ),
-              ),
-              SegmentedButton<bool>(
-                segments: <ButtonSegment<bool>>[
-                  const ButtonSegment<bool>(
-                    value: false,
-                    icon: Icon(Icons.description_rounded),
-                    tooltip: 'Fidelity',
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    enabled: flowAvailable,
-                    icon: const Icon(Icons.auto_stories_rounded),
-                    tooltip: flowAvailable ? 'Flow' : 'Flow not available yet',
-                  ),
-                ],
-                selected: <bool>{flowMode},
-                showSelectedIcon: false,
-                onSelectionChanged: (Set<bool> selection) =>
-                    onModeChanged(selection.first),
-              ),
-              IconButton(
-                onPressed: searchAvailable ? onSearch : null,
-                tooltip: searchAvailable
-                    ? 'Search this document'
-                    : 'Search is not available for this format yet',
-                icon: const Icon(Icons.search_rounded),
-              ),
-              IconButton(
-                onPressed: annotationsAvailable ? onAnnotations : null,
-                tooltip: annotationsAvailable
-                    ? 'Annotations'
-                    : 'Annotations are not available for this format yet',
-                icon: Badge.count(
-                  count: annotationCount,
-                  isLabelVisible: annotationCount > 0,
-                  child: const Icon(Icons.format_quote_rounded),
+                IconButton(
+                  onPressed: searchAvailable ? onSearch : null,
+                  tooltip: searchAvailable
+                      ? 'Search this document'
+                      : 'Search is not available for this format yet',
+                  icon: const Icon(Icons.search_rounded),
                 ),
-              ),
-              IconButton(
-                onPressed: () {},
-                tooltip: 'More',
-                icon: const Icon(Icons.more_horiz_rounded),
-              ),
-            ],
+                IconButton(
+                  onPressed: annotationsAvailable ? onAnnotations : null,
+                  tooltip: annotationsAvailable
+                      ? 'Annotations'
+                      : 'Annotations are not available for this format yet',
+                  icon: Badge.count(
+                    count: annotationCount,
+                    isLabelVisible: annotationCount > 0,
+                    child: const Icon(Icons.format_quote_rounded),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  tooltip: 'More',
+                  icon: const Icon(Icons.more_horiz_rounded),
+                ),
+              ];
+              if (constraints.maxWidth < 440) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Row(children: title),
+                    Wrap(alignment: WrapAlignment.center, children: actions),
+                  ],
+                );
+              }
+              return Row(children: <Widget>[...title, ...actions]);
+            },
           ),
         ),
       ),
@@ -544,8 +580,7 @@ class _FlowUnavailable extends StatelessWidget {
     return const _CenteredReaderNotice(
       icon: Icons.auto_stories_outlined,
       title: 'Flow Mode is not available yet',
-      message:
-          'Kola will enable Flow only after source-mapped semantic extraction is implemented for this format.',
+      message: 'Kola will enable Flow only after source-mapped semantic extraction is implemented for this format.',
     );
   }
 }
@@ -605,6 +640,7 @@ class _ReaderMessage extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           onPressed: onBack,
+          tooltip: 'Back',
           icon: const Icon(Icons.arrow_back_rounded),
         ),
       ),

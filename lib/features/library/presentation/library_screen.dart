@@ -93,7 +93,7 @@ class _BookTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: KolaRadius.md,
-      onTap: () => context.go('/reader/${document.id}'),
+      onTap: () => context.push('/reader/${Uri.encodeComponent(document.id)}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

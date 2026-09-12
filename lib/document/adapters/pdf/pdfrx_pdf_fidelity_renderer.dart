@@ -428,8 +428,9 @@ class _PdfNavigationBar extends StatelessWidget {
             horizontal: KolaSpacing.xs,
             vertical: KolaSpacing.xxs,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
               IconButton(
                 onPressed: onPrevious,

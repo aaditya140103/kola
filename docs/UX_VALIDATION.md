@@ -533,3 +533,12 @@ When an agent makes a meaningful visual/interaction change, it must:
 **Taste proposes. Evidence filters. Testing decides.**
 
 Kola should have a strong visual point of view, but no visual preference is above reader performance, accessibility, or measured user behavior.
+
+
+## Reader repair validation — 2026-09-12
+
+Rationale: platform convention (push/pop continuity), accessibility (reachable Back and non-overflowing controls), and measured widget failures (PDF viewport collapsed to toolbar height). No visual hypothesis is being selected or locked.
+
+Automated regressions cover Home/Library return paths, system Back, direct route fallback, loading/missing/resume-error states, failed saves, full-height source layout, persistent Back after a content tap, and 320-pixel-wide controls. Native PDF tests exercise managed-source opening, rendered pixels, text geometry and viewer rebuilds.
+
+Physical follow-up remains: Linux and Android import -> open -> scroll/zoom/select -> return -> reopen, predictive Back, 200% text scaling, keyboard focus traversal, and rotated/cropped/scanned/password-protected PDFs. Widget/native-engine tests are not a physical-device usability study.

@@ -170,7 +170,9 @@ The wording is format-aware but the concept is identical: **source/fidelity repr
 
 ## 10. Phone reader
 
-Default state is immersive.
+Target default state is immersive.
+
+Current Phase 2 behavior keeps reader controls visible above a fully expanded document surface. Narrow toolbars wrap instead of overflowing; tapping/selecting source content does not hide Back. Immersive auto-hide will return with an explicit, tested Focus Mode control and reliable touch/keyboard escape (see the reader audit). This is an interim usability repair, not a change to the long-term immersive-reader goal.
 
 ```text
 ┌───────────────────────┐
