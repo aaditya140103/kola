@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and now has a CI-verified implementation for conservative annotation-anchor recovery after source revisions. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and merged conservative annotation-anchor recovery after source revisions. Flow remains disabled.
 
 ## Current implementation
 
@@ -21,7 +21,7 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
 - PDF selection -> `DocumentTextSelection` -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
-- `DocumentAdapter.resolveAnchor()` now returns explicit `AnchorResolution` rather than a guessed nullable location (D-026).
+- `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` rather than a guessed nullable location (D-026).
 - `PdfAnchorResolver` resolution order: verify multi-page stored fallback ranges -> verify stored page/range -> verify logical range -> search exact quote and disambiguate with prefix/suffix context -> unresolved.
 - Ambiguous duplicate quotes and missing quotes remain unresolved; Kola never silently attaches an annotation to uncertain text.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
@@ -63,11 +63,12 @@ lib/features/annotations/presentation/annotation_panel.dart
 
 ## Verification
 
-PR #7 annotation management is merged and exact-head CI run 115 passed. PR #8 run 118 surfaced one stale search-test fake using the old nullable resolver contract; production code was unaffected. After updating that fake, corrected run 119 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new anchor recovery tests, search/database tests, and the existing app smoke suite. This state-file synchronization is the only change after run 119 and requires one final exact-head CI pass before merge.
+PR #8 is merged on `main` as squash commit `81fea2f8c97110b46589958d695f0c498e58554c`. Run 118 surfaced one stale search-test fake using the old nullable resolver contract; production code was unaffected. After updating that fake, corrected run 119 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new anchor recovery tests, search/database tests, and the existing app smoke suite. Final exact synchronized head run 120 also passed every CI stage before merge. The native PDFium extraction test remains intentionally skipped unless `PDFIUM_PATH` is supplied.
 
 ## Current risks / blockers
 
 - Anchor recovery currently resolves a reliable source location; recovered PDF geometry is not yet regenerated for changed documents.
+- Reader annotation navigation still uses the stored locator directly instead of consuming `AnchorResolution` and surfacing unresolved state.
 - Annotation management UI still needs physical UX validation.
 - Physical PDF drag-selection/highlight alignment needs Linux + Android validation first.
 - Rotated/cropped/atypical PDF highlight geometry needs hands-on validation.
@@ -76,8 +77,8 @@ PR #7 annotation management is merged and exact-head CI run 115 passed. PR #8 ru
 
 ## Next recommended action
 
-1. Merge PR #8 after exact-head CI.
-2. Integrate resolved/unresolved state into annotation navigation/render diagnostics where needed.
+1. Wire `AnchorResolution` into annotation navigation so Go to uses recovery and unresolved annotations are surfaced safely.
+2. Regenerate source geometry for confidently recovered PDF anchors after source changes.
 3. Physically validate Reader annotation UX on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.
 5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
