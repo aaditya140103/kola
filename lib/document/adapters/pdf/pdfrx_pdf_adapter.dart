@@ -6,6 +6,7 @@ import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
 import 'package:kola/document/text/document_text_geometry.dart';
+import 'package:kola/document/text/document_text_range_geometry.dart';
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
 final class PdfrxPdfAdapter implements DocumentAdapter {
@@ -39,11 +40,7 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
       path,
       useProgressiveLoading: true,
     );
-    return PdfrxPdfHandle(
-      documentId: document.id,
-      path: path,
-      pdf: pdf,
-    );
+    return PdfrxPdfHandle(documentId: document.id, path: path, pdf: pdf);
   }
 
   @override
@@ -55,18 +52,9 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
   @override
   Stream<DocumentTextChunk> extractTextGeometry(DocumentHandle handle) async* {
     final PdfrxPdfHandle pdfHandle = _requireHandle(handle);
-
     for (final pdfrx.PdfPage page in pdfHandle.pdf.pages) {
       try {
-        final pdfrx.PdfPageText pageText = await page.loadStructuredText();
-        yield PdfTextGeometryMapper.fromPdfrx(
-          documentId: pdfHandle.documentId,
-          pageNumber: page.pageNumber,
-          pageWidth: page.width,
-          pageHeight: page.height,
-          rotation: page.rotation,
-          pageText: pageText,
-        );
+        yield await _loadPageChunk(pdfHandle, page.pageNumber);
       } catch (error, stackTrace) {
         Error.throwWithStackTrace(
           PdfTextExtractionException(
@@ -87,7 +75,6 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
   ) async* {
     final PdfrxPdfHandle pdfHandle = _requireHandle(handle);
     int pageIndex = 0;
-
     await for (final DocumentTextChunk chunk in extractTextGeometry(pdfHandle)) {
       pageIndex += 1;
       yield GraphChunk(
@@ -119,7 +106,6 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
   @override
   Stream<IndexChunk> extractIndexableContent(DocumentHandle handle) async* {
     final PdfrxPdfHandle pdfHandle = _requireHandle(handle);
-
     await for (final DocumentTextChunk chunk in extractTextGeometry(pdfHandle)) {
       if (chunk.text.trim().isEmpty) continue;
       final Object? page = chunk.location.data['page'];
@@ -144,15 +130,40 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
       );
     }
 
+    final Map<int, DocumentTextChunk> cache = <int, DocumentTextChunk>{};
+    Future<DocumentTextChunk> chunkFor(int pageNumber) async {
+      return cache[pageNumber] ??=
+          await _loadPageChunk(pdfHandle, pageNumber);
+    }
+
     final PdfAnchorResolver resolver = PdfAnchorResolver(
       pageCount: pdfHandle.pageCount,
-      loadPageText: (int pageNumber) async {
-        final pdfrx.PdfPage page = pdfHandle.pdf.pages[pageNumber - 1];
-        final pdfrx.PdfPageText text = await page.loadStructuredText();
-        return text.fullText;
+      loadPageText: (int pageNumber) async => (await chunkFor(pageNumber)).text,
+      loadRangeGeometry: (int pageNumber, int start, int end) async {
+        return sourceGeometryForRange(
+          await chunkFor(pageNumber),
+          start: start,
+          end: end,
+        );
       },
     );
     return resolver.resolve(anchor);
+  }
+
+  Future<DocumentTextChunk> _loadPageChunk(
+    PdfrxPdfHandle handle,
+    int pageNumber,
+  ) async {
+    final pdfrx.PdfPage page = handle.pdf.pages[pageNumber - 1];
+    final pdfrx.PdfPageText pageText = await page.loadStructuredText();
+    return PdfTextGeometryMapper.fromPdfrx(
+      documentId: handle.documentId,
+      pageNumber: page.pageNumber,
+      pageWidth: page.width,
+      pageHeight: page.height,
+      rotation: page.rotation,
+      pageText: pageText,
+    );
   }
 
   @override
