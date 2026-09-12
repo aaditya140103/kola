@@ -24,7 +24,7 @@ void main() {
     final AnchorResolution result = await resolver.resolve(
       AnnotationAnchor(
         documentId: 'doc-1',
-        sourceLocator: const DocumentLocation(
+        sourceLocator: DocumentLocation(
           scheme: 'pdf',
           data: <String, Object?>{'page': 1, 'start': 0, 'end': 6},
           label: 'Page 1',
@@ -57,7 +57,7 @@ void main() {
     final AnchorResolution result = await resolver.resolve(
       AnnotationAnchor(
         documentId: 'doc-1',
-        sourceLocator: const DocumentLocation(
+        sourceLocator: DocumentLocation(
           scheme: 'pdf',
           data: <String, Object?>{'page': 1, 'start': 0, 'end': 6},
           label: 'Page 1',
