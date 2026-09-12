@@ -13,6 +13,16 @@ final class FidelityViewState {
   final double zoom;
 }
 
+final class FidelityNavigationRequest {
+  const FidelityNavigationRequest({
+    required this.location,
+    required this.sequence,
+  });
+
+  final DocumentLocation location;
+  final int sequence;
+}
+
 abstract interface class DocumentFidelityRenderer {
   DocumentFormat get format;
 
@@ -20,6 +30,7 @@ abstract interface class DocumentFidelityRenderer {
     BuildContext context,
     KolaDocument document, {
     FidelityViewState? initialState,
+    FidelityNavigationRequest? navigationRequest,
     ValueChanged<FidelityViewState>? onStateChanged,
   });
 }
