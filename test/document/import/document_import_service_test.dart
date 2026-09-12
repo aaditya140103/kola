@@ -124,6 +124,42 @@ void main() {
     expect(storage.prepareCalls, 2);
   });
 
+  test('re-importing restores a truncated managed copy', () async {
+    final File file = File('${tempDirectory.path}/truncated.pdf');
+    await file.writeAsString('%PDF-1.7\ncomplete managed bytes');
+    final _ManagedTestStorage storage = _ManagedTestStorage(
+      Directory('${tempDirectory.path}/managed-truncated'),
+    );
+    final DocumentImportService managedImporter = DocumentImportService(
+      documents: documents,
+      picker: const _NeverDocumentPicker(),
+      fingerprints: const DocumentFingerprintService(),
+      formatDetector: const DocumentFormatDetector(),
+      sourceStorage: storage,
+      formatRegistry: FormatRegistry(),
+      now: () => DateTime.utc(2026, 9, 12, 4, 30),
+    );
+
+    final DocumentImportResult first = await managedImporter.importPath(
+      file.path,
+      mode: DocumentImportMode.managedCopy,
+    );
+    final File managed = File(first.document.source.managedPath!);
+    await managed.writeAsString('%PDF');
+    expect(await managed.length(), isNot(await file.length()));
+
+    final DocumentImportResult repaired = await managedImporter.importPath(
+      file.path,
+      mode: DocumentImportMode.managedCopy,
+    );
+
+    expect(repaired.status, DocumentImportStatus.sourceRepaired);
+    expect(repaired.document.id, first.document.id);
+    expect(await managed.length(), await file.length());
+    expect(await managed.readAsBytes(), await file.readAsBytes());
+    expect(storage.prepareCalls, 2);
+  });
+
   test('the same content at a new path relinks one document identity', () async {
     final File firstPath = File('${tempDirectory.path}/original.pdf');
     final File movedPath = File('${tempDirectory.path}/moved.pdf');

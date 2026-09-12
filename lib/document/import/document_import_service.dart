@@ -106,7 +106,7 @@ final class DocumentImportService {
         existing.source.uri == originalUri) {
       repairingManagedCopy =
           mode == DocumentImportMode.managedCopy &&
-          !await _managedCopyExists(existing.source);
+          !await _managedCopyIsHealthy(existing.source, fingerprint.fileSize);
       if (!repairingManagedCopy) {
         return DocumentImportResult(
           status: DocumentImportStatus.alreadyPresent,
@@ -172,10 +172,18 @@ final class DocumentImportService {
     return DocumentMetadata(title: _titleFromFileName(fallbackName));
   }
 
-  static Future<bool> _managedCopyExists(DocumentSource source) async {
+  static Future<bool> _managedCopyIsHealthy(
+    DocumentSource source,
+    int expectedFileSize,
+  ) async {
     final String? managedPath = source.managedPath;
     if (managedPath == null || managedPath.isEmpty) return false;
-    return File(managedPath).exists();
+    final File file = File(managedPath);
+    try {
+      return await file.exists() && await file.length() == expectedFileSize;
+    } on FileSystemException {
+      return false;
+    }
   }
 
   static DocumentSourceKind _sourceKindFor(DocumentImportMode mode) {
