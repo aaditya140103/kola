@@ -51,7 +51,7 @@ final class DriftSearchRepository implements SearchRepository {
       );
       final String metadataText = <String>[
         document.metadata.title,
-        if (document.metadata.subtitle case final String subtitle) subtitle,
+        if (document.metadata.subtitle != null) document.metadata.subtitle!,
         ...document.metadata.authors,
       ].join(' ');
       await _insertRow(
@@ -134,6 +134,7 @@ final class DriftSearchRepository implements SearchRepository {
   Future<List<SearchHit>> search(
     String query, {
     String? documentId,
+    SearchHitKind? kind,
     int limit = 50,
   }) async {
     final String match = _compileFtsQuery(query);
@@ -142,9 +143,11 @@ final class DriftSearchRepository implements SearchRepository {
     final String documentClause = documentId == null
         ? ''
         : 'AND document_search.document_id = ?';
+    final String kindClause = kind == null ? '' : 'AND document_search.kind = ?';
     final List<Variable<Object>> variables = <Variable<Object>>[
       Variable<String>(match),
       if (documentId != null) Variable<String>(documentId),
+      if (kind != null) Variable<String>(kind.name),
       Variable<int>(limit),
     ];
 
@@ -162,6 +165,7 @@ final class DriftSearchRepository implements SearchRepository {
       JOIN documents ON documents.id = document_search.document_id
       WHERE document_search MATCH ?
         $documentClause
+        $kindClause
       ORDER BY rank ASC
       LIMIT ?
       ''',
