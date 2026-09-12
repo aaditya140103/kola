@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and CI-verified local quote-fallback recovery profiling. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and merged local quote-fallback recovery profiling. Flow remains disabled.
 
 ## Current implementation
 
@@ -69,7 +69,7 @@ test/document/adapters/pdf/pdf_page_text_cache_test.dart
 
 ## Verification
 
-PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`; implementation-head CI run 131 and exact-head run 132 passed. PR #12 profiling implementation passed CI run 136 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, cache-counter tests, profiling tests including the 50×200 synthetic baseline, annotation recovery tests, search/database tests, and the existing app smoke suite all passed. This state synchronization is the only change after run 136 and requires one final exact-head CI pass before merge.
+PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78bf3fa8`. CI run 136 passed the substantive profiling implementation and exact-head run 137 passed every stage on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, cache-counter tests, profiling tests including the 50×200 synthetic baseline, annotation recovery tests, search/database tests, and the existing app smoke suite.
 
 ## Current risks / blockers
 
@@ -82,8 +82,8 @@ PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b
 
 ## Next recommended action
 
-1. Merge local recovery profiling after exact-head CI.
-2. Use the measured scan baseline to design a per-handle exact-quote candidate index or batched fallback resolver, then compare scan counts before/after.
+1. Design a per-handle exact-quote candidate index or batched fallback resolver, using the 10,000-scan baseline as the before-measurement.
+2. Compare scan counts and cache behavior against the same synthetic workload before keeping the optimization.
 3. Physically validate recovered highlight alignment and recovery timing on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.
 5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
