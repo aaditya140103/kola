@@ -1,0 +1,6 @@
+# Generated preview assets (rebuild with fetch_vendor.py + build_preview.py)
+site/vendor/
+site/data/
+
+# Local virtualenv for the sample book generator
+.venv/

@@ -10,6 +10,8 @@ Last updated: 2026-09-13
 
 PDF reader continuity and adaptive page controls are merged. This patch adds the previously missing many-unique-quotes recovery baseline so the next indexing change is driven by measured algorithmic cost rather than assumption.
 
+This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a static web mirror of the current Flutter UI (tokens, shell, Home/Library/Search/Insights, reader with real PDF rendering, selection highlights, annotation panel, in-document search, fit/spread/zoom, debounced position resume) served at `http://0.0.0.0:8080`. It exists because the development sandbox cannot run Flutter (network policy blocks `pub.dev` and Flutter's Google storage), and shares no code with the product.
+
 ## Current implementation
 
 - Flutter/Dart + Riverpod + go_router; Dart floor 3.13.
@@ -28,6 +30,7 @@ PDF reader continuity and adaptive page controls are merged. This patch adds the
 - Reader entry records `lastOpenedAt` once per reader instance without mutating structural revision/`updatedAt`.
 - Missing managed copies can be repaired by reimporting matching bytes without creating a duplicate document identity.
 - PDF remains the only registered adapter/renderer. Import recognition does not imply reading support.
+- `tool/web_preview/` is a static web preview harness (pdf.js + generated sample books) mirroring the Flutter UI for browser review; dev tooling only, never part of the product or its verification.
 
 ## Important files
 
@@ -36,6 +39,7 @@ PDF reader continuity and adaptive page controls are merged. This patch adds the
 - `lib/document/adapters/pdf/pdf_exact_quote_index.dart`
 - `lib/document/adapters/pdf/pdf_page_text_cache.dart`
 - `test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart`
+- `tool/web_preview/` (dev-only preview harness; see its README)
 - `docs/PROJECT_GRAPH.md`
 
 ## Invariants
@@ -54,8 +58,12 @@ PDF reader continuity and adaptive page controls are merged. This patch adds the
 
 Continuity commit `c4aa1eb` passed Flutter CI #153: code generation, formatting, analyzer, and the full Flutter test suite. This patch adds a deterministic 50-unique-quotes × 200-pages recovery regression that separates exact-quote string-scan work from cached PDF page extraction. Repository CI is the authoritative gate for the new commit.
 
+The preview harness change touches no Dart code; it was verified headlessly in Chromium (43/43 DOM/pixel assertions across shell, screens, reader, selection→highlight, annotation management, search, and resume flows) plus `node --check`. Flutter CI remains the only gate for product code.
+
 ## Risks / blockers
 
+- The development sandbox cannot install Flutter (network policy blocks `pub.dev` and Flutter SDK storage), so Dart changes here cannot be executed locally; use the branch's CI for product-code verification.
+- The web preview harness is a hand-built mirror and will drift from the Flutter UI; it must never replace real platform verification, and product UI changes land in Flutter code first.
 - Physical Linux/Android UX, predictive Back, large text, keyboard focus, thumbnail performance on very large PDFs, outline depth/size and atypical PDFs still need validation.
 - Managed-copy repair currently requires explicit reimport of matching content; a dedicated missing-source recovery UI is not yet implemented.
 - Facing-page behavior is currently left-to-right with page 1 as cover; right-to-left/manga ordering and a no-cover pairing option are not implemented.
