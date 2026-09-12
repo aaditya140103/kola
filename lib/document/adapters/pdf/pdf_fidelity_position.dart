@@ -24,8 +24,10 @@ abstract final class PdfFidelityPosition {
     required double zoom,
   }) {
     final int safePageCount = pageCount < 1 ? 1 : pageCount;
-    final int safePage = pageNumber.clamp(1, safePageCount);
-    final double progress = (safePage / safePageCount).clamp(0.0, 1.0);
+    final int safePage = pageNumber.clamp(1, safePageCount).toInt();
+    final double progress = (safePage / safePageCount)
+        .clamp(0.0, 1.0)
+        .toDouble();
     final double safeZoom = zoom.isFinite && zoom > 0 ? zoom : 1.0;
 
     return FidelityViewState(
