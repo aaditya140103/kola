@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and now has a branch implementation for conservative annotation-anchor recovery after source revisions. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and now has a CI-verified implementation for conservative annotation-anchor recovery after source revisions. Flow remains disabled.
 
 ## Current implementation
 
@@ -63,7 +63,7 @@ lib/features/annotations/presentation/annotation_panel.dart
 
 ## Verification
 
-PR #7 annotation management is merged and exact-head CI run 115 passed. Current `feat/pdf-anchor-recovery` branch adds explicit resolution results and pure resolver tests for unchanged anchors, shifted text, cross-page movement, ambiguous duplicate quotes, missing quotes, and stored multi-page fallback ranges. Full CI is required before merge.
+PR #7 annotation management is merged and exact-head CI run 115 passed. PR #8 run 118 surfaced one stale search-test fake using the old nullable resolver contract; production code was unaffected. After updating that fake, corrected run 119 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new anchor recovery tests, search/database tests, and the existing app smoke suite. This state-file synchronization is the only change after run 119 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -76,7 +76,7 @@ PR #7 annotation management is merged and exact-head CI run 115 passed. Current 
 
 ## Next recommended action
 
-1. Pass CI and merge PDF anchor recovery.
+1. Merge PR #8 after exact-head CI.
 2. Integrate resolved/unresolved state into annotation navigation/render diagnostics where needed.
 3. Physically validate Reader annotation UX on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.
