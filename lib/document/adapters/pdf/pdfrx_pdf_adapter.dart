@@ -32,6 +32,7 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
     textSelection: true,
     textSearch: true,
     textAnnotations: true,
+    outline: true,
   );
 
   @override

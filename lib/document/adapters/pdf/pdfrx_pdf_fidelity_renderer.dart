@@ -69,6 +69,11 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
 
   final PdfViewerController _controller = PdfViewerController();
   late Future<String> _pathFuture;
+  PdfDocument? _pdfDocument;
+  List<PdfOutlineNode> _outline = const <PdfOutlineNode>[];
+  Object? _outlineError;
+  bool _outlineLoading = false;
+  bool _outlineLoaded = false;
   int? _pageNumber;
   int? _pageCount;
   int? _lastNavigationSequence;
@@ -86,6 +91,11 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
         oldWidget.document.source.uri != widget.document.source.uri ||
         oldWidget.document.source.managedPath != widget.document.source.managedPath) {
       _pathFuture = widget.sourceResolver.resolveReadablePath(widget.document.source);
+      _pdfDocument = null;
+      _outline = const <PdfOutlineNode>[];
+      _outlineError = null;
+      _outlineLoading = false;
+      _outlineLoaded = false;
       _pageNumber = null;
       _pageCount = null;
       _lastNavigationSequence = null;
@@ -126,6 +136,17 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
           widget.initialState,
         );
         final bool selectionEnabled = widget.onTextSelection != null;
+        final bool outlineAvailable =
+            _pdfDocument != null &&
+            !_outlineLoading &&
+            !(_outlineLoaded && _outline.isEmpty);
+        final String outlineTooltip = _pdfDocument == null || _outlineLoading
+            ? 'Loading contents…'
+            : _outlineLoaded && _outline.isEmpty
+            ? 'This PDF has no contents outline'
+            : _outlineError != null
+            ? 'Retry loading contents'
+            : 'Contents';
 
         return Stack(
           children: <Widget>[
@@ -164,9 +185,11 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
                   ) {
                     if (!mounted) return;
                     setState(() {
+                      _pdfDocument = document;
                       _pageCount = controller.pageCount;
                       _pageNumber = controller.pageNumber ?? initialPage;
                     });
+                    unawaited(_loadOutline(document));
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       _applyNavigationRequest(widget.navigationRequest);
                     });
@@ -189,6 +212,10 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
               child: _PdfNavigationBar(
                 pageNumber: _pageNumber,
                 pageCount: _pageCount,
+                onOutline: outlineAvailable
+                    ? () => unawaited(_openOutline())
+                    : null,
+                outlineTooltip: outlineTooltip,
                 onPrevious: _goPrevious,
                 onNext: _goNext,
                 onZoomOut: _zoomOut,
@@ -199,6 +226,71 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
         );
       },
     );
+  }
+
+  Future<void> _loadOutline(PdfDocument document) async {
+    if (_outlineLoading) return;
+    if (mounted) {
+      setState(() {
+        _outlineLoading = true;
+        _outlineError = null;
+      });
+    }
+
+    try {
+      final List<PdfOutlineNode> outline = await document.loadOutline();
+      if (!mounted || !identical(_pdfDocument, document)) return;
+      setState(() {
+        _outline = outline;
+        _outlineLoading = false;
+        _outlineLoaded = true;
+      });
+    } catch (error) {
+      if (!mounted || !identical(_pdfDocument, document)) return;
+      setState(() {
+        _outline = const <PdfOutlineNode>[];
+        _outlineError = error;
+        _outlineLoading = false;
+        _outlineLoaded = false;
+      });
+    }
+  }
+
+  Future<void> _openOutline() async {
+    final PdfDocument? document = _pdfDocument;
+    if (document == null || _outlineLoading) return;
+
+    if (!_outlineLoaded || _outlineError != null) {
+      await _loadOutline(document);
+    }
+    if (!mounted) return;
+
+    if (_outlineError != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not load PDF contents.')),
+        );
+      return;
+    }
+    if (_outline.isEmpty) return;
+
+    final PdfDest? destination = await showModalBottomSheet<PdfDest>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (BuildContext context) => _PdfOutlineSheet(outline: _outline),
+    );
+    if (!mounted || destination == null || !_controller.isReady) return;
+
+    final bool moved = await _controller.goToDest(destination);
+    if (!mounted || !moved) return;
+    final int page = destination.pageNumber
+        .clamp(1, _controller.pageCount)
+        .toInt();
+    if (_pageNumber != page) setState(() => _pageNumber = page);
+    _emitPosition();
   }
 
   void _customizeContextMenuItems(
@@ -398,6 +490,8 @@ class _PdfNavigationBar extends StatelessWidget {
   const _PdfNavigationBar({
     required this.pageNumber,
     required this.pageCount,
+    required this.onOutline,
+    required this.outlineTooltip,
     required this.onPrevious,
     required this.onNext,
     required this.onZoomOut,
@@ -406,6 +500,8 @@ class _PdfNavigationBar extends StatelessWidget {
 
   final int? pageNumber;
   final int? pageCount;
+  final VoidCallback? onOutline;
+  final String outlineTooltip;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onZoomOut;
@@ -432,6 +528,11 @@ class _PdfNavigationBar extends StatelessWidget {
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
+              IconButton(
+                onPressed: onOutline,
+                tooltip: outlineTooltip,
+                icon: const Icon(Icons.menu_book_rounded),
+              ),
               IconButton(
                 onPressed: onPrevious,
                 tooltip: 'Previous page',
@@ -460,6 +561,97 @@ class _PdfNavigationBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PdfOutlineSheet extends StatelessWidget {
+  const _PdfOutlineSheet({required this.outline});
+
+  final List<PdfOutlineNode> outline;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: 0.78,
+      child: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KolaSpacing.lg,
+              KolaSpacing.sm,
+              KolaSpacing.lg,
+              KolaSpacing.md,
+            ),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.menu_book_rounded),
+                const SizedBox(width: KolaSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Contents',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              children: outline
+                  .map((PdfOutlineNode node) => _buildNode(context, node, 0))
+                  .toList(growable: false),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNode(BuildContext context, PdfOutlineNode node, int depth) {
+    final String title = node.title.trim().isEmpty
+        ? 'Untitled section'
+        : node.title.trim();
+    final PdfDest? destination = node.dest;
+    final String? subtitle = destination == null
+        ? null
+        : 'Page ${destination.pageNumber}';
+    final double indent = math.min(depth * KolaSpacing.sm, KolaSpacing.xl);
+
+    if (node.children.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.only(left: indent),
+        child: ListTile(
+          title: Text(title),
+          subtitle: subtitle == null ? null : Text(subtitle),
+          enabled: destination != null,
+          onTap: destination == null
+              ? null
+              : () => Navigator.of(context).pop(destination),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(left: indent),
+      child: ExpansionTile(
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(title),
+        subtitle: subtitle == null ? null : Text(subtitle),
+        trailing: destination == null
+            ? null
+            : IconButton(
+                onPressed: () => Navigator.of(context).pop(destination),
+                tooltip: 'Go to page ${destination.pageNumber}',
+                icon: const Icon(Icons.arrow_forward_rounded),
+              ),
+        children: node.children
+            .map(
+              (PdfOutlineNode child) => _buildNode(context, child, depth + 1),
+            )
+            .toList(growable: false),
       ),
     );
   }

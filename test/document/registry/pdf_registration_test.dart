@@ -17,6 +17,7 @@ void main() {
     expect(capabilities.textSearch, isTrue);
     expect(capabilities.textSelection, isTrue);
     expect(capabilities.textAnnotations, isTrue);
+    expect(capabilities.outline, isTrue);
     expect(capabilities.flowMode, isFalse);
     expect(capabilities.areaAnnotations, isFalse);
     expect(capabilities.inkAnnotations, isFalse);

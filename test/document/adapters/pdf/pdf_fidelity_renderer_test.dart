@@ -15,7 +15,7 @@ void main() {
   setUpAll(initializeTestPdfium);
 
   testWidgets(
-    'managed PDF renders actual pages and survives provider rebuilds',
+    'managed PDF renders actual pages, exposes outline, and survives provider rebuilds',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
@@ -23,7 +23,9 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       final directory = Directory.systemTemp.createTempSync('kola-viewer-');
       final file = File('${directory.path}/sample.pdf');
-      file.writeAsBytesSync(buildSimplePdf('Hello Kola'));
+      file.writeAsBytesSync(
+        buildSimplePdf('Hello Kola', outlineTitle: 'Introduction'),
+      );
       final document = KolaDocument(
         id: 'sha256:viewer-test',
         source: DocumentSource(
@@ -68,6 +70,30 @@ void main() {
       expect(image, isNotNull);
       expect(image!.pixels, isNotEmpty);
       image.dispose();
+
+      for (
+        var attempt = 0;
+        attempt < 100 && find.byTooltip('Contents').evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byTooltip('Contents'), findsOneWidget);
+      await tester.tap(find.byTooltip('Contents'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Introduction'), findsOneWidget);
+      await tester.tap(find.text('Introduction'));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('Introduction'), findsNothing);
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
