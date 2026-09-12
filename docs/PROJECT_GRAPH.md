@@ -83,34 +83,21 @@ flowchart LR
     Kola --> Graph
 ```
 
-`DocumentTextChunk` preserves full page text, per-character rectangles, fragment ranges/bounds/direction, page extent, rotation, and source location. PDF geometry stays in PDF page points (bottom-left origin), never viewer pixels.
+PDF geometry stays in PDF page points (bottom-left origin), never viewer pixels.
 
 ## 5. Persistent local search
 
 ```mermaid
 flowchart LR
-    Doc[KolaDocument]
-    Fresh{revision + extractor version current?}
-    Adapter[DocumentAdapter]
-    Chunks[IndexChunk stream]
-    Service[DocumentSearchService]
-    FTS[(SQLite FTS5)]
-    Global[Global Search]
-    Reader[Reader Search]
-    Hit[SearchHit + DocumentLocation]
-    Nav[FidelityNavigationRequest]
-    PDF[PDF page jump]
-
-    Doc --> Fresh
-    Fresh -- no --> Adapter --> Chunks --> Service --> FTS
+    Doc[KolaDocument] --> Fresh{index current?}
+    Fresh -- no --> Adapter[DocumentAdapter] --> Chunks[IndexChunk] --> Service[DocumentSearchService] --> FTS[(SQLite FTS5)]
     Fresh -- yes --> FTS
-    FTS --> Global --> Hit
-    FTS --> Reader --> Hit --> Nav --> PDF
+    FTS --> Search[Global / Reader Search] --> Hit[SearchHit + DocumentLocation] --> Nav[FidelityNavigationRequest] --> PDF[PDF page jump]
 ```
 
-Index rows store document ID, stable source locator, section label, hit kind, and text. Global search includes metadata + content. Reader search returns content hits only. A document revision or extractor-version change invalidates the cached index.
+Search is format-neutral and source-locator based.
 
-## 6. PDF text selection + highlight persistence
+## 6. PDF highlight creation
 
 ```mermaid
 flowchart LR
@@ -129,76 +116,78 @@ flowchart LR
     DB --> Live --> Highlight --> Paint
 ```
 
-Persisted highlight anchors contain stable source locator, exact quote, prefix/suffix context, logical character offsets for single-page selections, per-page fallback ranges, and source-native PDF rectangles. Rendering reads only Kola-owned geometry; screen/viewer coordinates are never persisted.
+Anchors preserve source locator, exact quote/context, logical range when available, per-page fallback ranges, and PDF-point geometry.
 
-## 7. Reading-position persistence loop
+## 7. Annotation management
 
 ```mermaid
 flowchart LR
-    PDF[PDF Viewer]
-    State[FidelityViewState]
-    Debounce[400 ms Debounce]
-    Reading[ReadingState]
-    Repo[ReadingRepository]
+    Panel[Annotations Panel]
+    Live[annotationsProvider]
+    Command[AnnotationManagementService]
+    Repo[AnnotationRepository]
     DB[(SQLite)]
-    Restore[Restore page + zoom + view mode]
+    Nav[DocumentLocation]
+    Reader[FidelityNavigationRequest]
+    Paint[Highlight repaint]
 
-    PDF -- page/zoom --> State --> Debounce --> Reading --> Repo --> DB
-    DB --> Repo --> Reading --> Restore --> PDF
+    DB --> Live --> Panel
+    Panel -- recolor / note / delete --> Command --> Repo --> DB
+    Panel -- go to --> Nav --> Reader
+    DB --> Live --> Paint
 ```
 
-For PDF, `ReadingState.location` uses `scheme=pdf` + 1-based page. Position is distinct from coverage and active reading time.
+Recolor/note edits preserve the source anchor and increment revision. Delete writes `deletedAt`; live queries hide tombstones.
 
-## 8. PDF capability state
+## 8. Reading-position persistence
+
+```mermaid
+flowchart LR
+    PDF[PDF Viewer] --> State[FidelityViewState] --> Debounce[400 ms] --> Reading[ReadingState] --> Repo[ReadingRepository] --> DB[(SQLite)]
+    DB --> Repo --> Restore[Restore page + zoom + mode] --> PDF
+```
+
+Position is distinct from coverage and active reading time.
+
+## 9. PDF capability state
 
 ```mermaid
 flowchart TD
     PDF[PDF Adapter]
     Fidelity[Fidelity ✅]
     Nav[Page / Zoom ✅]
-    Resume[Resume Position ✅]
+    Resume[Resume ✅]
     Extract[Text + Geometry ✅]
-    Index[Persistent FTS Index ✅]
-    Search[Global + Reader Search ✅]
-    Jump[Source-page Navigation ✅]
+    Search[Search + source jump ✅]
     Select[Text Selection ✅]
     Highlight[Persistent Highlight ✅]
+    Manage[List / jump / recolor / note / delete ✅]
     Flow[Flow ❌]
-    Notes[Note UI ❌]
+    Ink[Ink / area annotations ❌]
 
     PDF --> Fidelity --> Nav --> Resume
-    PDF --> Extract --> Index --> Search --> Jump
-    PDF --> Select --> Highlight
+    PDF --> Extract --> Search
+    PDF --> Select --> Highlight --> Manage
     PDF -. future .-> Flow
-    PDF -. future .-> Notes
+    PDF -. future .-> Ink
 ```
 
-Capability flags describe integrated user-facing Kola behavior. PDF advertises fidelity, text search, text selection, and source-linked text annotations after the highlight path passes CI/device validation. Flow and note-editing UI remain separate work.
+Capability flags describe integrated Kola behavior, not engine primitives.
 
-## 9. Universal adapter + fidelity boundary
+## 10. Universal adapter + fidelity boundary
 
 ```mermaid
 flowchart LR
     Doc[KolaDocument] --> Adapter[DocumentAdapter] --> Handle[DocumentHandle]
     Handle --> Fidelity[Fidelity]
-    Handle --> Text[DocumentTextChunk Stream]
-    Text --> Index[Index Chunks]
+    Handle --> Text[DocumentTextChunk]
+    Text --> Index[IndexChunk]
     Text --> KDG[KDG + Source Map]
     Handle --> Resolve[Annotation Resolution]
     Location[DocumentLocation] --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-`DocumentAdapter.open()` receives `KolaDocument`, preserving stable identity across file moves. Engine-specific text objects are mapped to Kola-owned source geometry before leaving the adapter. Search navigation uses Kola source locations rather than package controllers.
-
-## 10. Flow + annotation invariant
-
-```mermaid
-flowchart LR
-    Source[Source] --> Block[KDG Block] --> Flow[Flow Block] --> Selection[Selection] --> Anchor[Hybrid Anchor]
-    Source --> Map[Source Map] --> Anchor --> Back[Resolve Back] --> Source
-```
-
-Never enable annotatable Flow/selection unless it resolves back to source reliably.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters.
 
 ## 11. Persistence boundary
 
@@ -208,7 +197,7 @@ flowchart LR
     Repos --> Models[Kola Domain Models] --> Providers[Riverpod] --> UI[Home / Library / Search / Insights / Reader]
 ```
 
-Drift row types never escape the data layer. Raw datetime writes use UTC ISO-8601 strings. Search is local-only and FTS rows are removed when a document is deleted.
+Drift row types never escape the data layer; datetime raw writes use UTC ISO-8601.
 
 ## 12. Adaptive-native policy
 
@@ -220,8 +209,6 @@ flowchart LR
     A11y[Accessibility] --> Policy
     Policy --> UI[Native-feeling Presentation]
 ```
-
-Semantics stay consistent; navigation/chrome/menus/sheets/back/scrollbars/density adapt.
 
 ## 13. Optional BYOC
 

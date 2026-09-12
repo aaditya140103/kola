@@ -6,57 +6,53 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 2: PDF Fidelity + search + source-linked text highlighting.**
+**Phase 2: PDF Fidelity + search + source-linked annotation management.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, provides persistent local full-text search, and now has a merged source-linked PDF text-selection + persistent-highlight path. Flow and note-editing UI remain disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, and has merged source-linked PDF highlighting. `feat/annotation-management` adds list/jump/recolor/note/delete management for those durable annotations. Flow remains disabled.
 
 ## Current implementation
 
 - Flutter/Dart + Riverpod + go_router; Dart floor 3.13.
-- SQLite/Drift schema v2 with app-owned FTS5 search tables/state.
-- Import: native picker -> format probe + streamed SHA-256 -> managed copy or linked source.
-- Stable identity: `sha256:<hex>` (D-020); timestamps use UTC ISO-8601 text (D-019).
-- Successful imports warm the local search index without blocking import.
-- PDF engine: `pdfrx ^2.6.1` / PDFium behind `PdfrxPdfAdapter` (D-021).
-- PDF fidelity: progressive rendering, page navigation, zoom, keyboard navigation, durable resume.
-- PDF extraction: structured page text -> Kola `DocumentTextChunk`; geometry remains native PDF points (D-022).
-- Search: persistent SQLite FTS5, lazy freshness checks, global + reader search, source-page navigation (D-023).
-- PDF selection: pdfrx `PdfPageTextRange`/fragment rectangles -> Kola `DocumentTextSelection`.
-- `AnnotationCreationService` converts a selection into the existing hybrid `AnnotationAnchor` with quote/context, single-page logical offsets, per-page fallback ranges, and PDF-point source geometry (D-024).
-- Highlight IDs use UUID v4 through an explicit `uuid ^4.6.0` direct dependency.
-- Reader watches durable annotations and maps highlights to format-neutral `FidelityTextHighlight` records.
-- PDF renderer repaints persisted highlight rectangles through page paint callbacks; no viewer/screen coordinates are stored.
-- PDF context menu adds `Highlight` only when selected text/ranges are accessible.
-- PDF capability advertises fidelity, search, text selection, and text annotations; area/ink annotations and Flow remain false.
+- SQLite/Drift schema v2 + app-owned FTS5 search.
+- Import: format probe + streamed SHA-256 -> managed copy or explicit linked source.
+- PDF engine: `pdfrx ^2.6.1` / PDFium behind Kola adapter/renderer boundaries.
+- PDF fidelity: progressive render, page/zoom/navigation, durable resume.
+- PDF source extraction: structured text + native PDF-point geometry.
+- Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
+- PDF selection -> `DocumentTextSelection` -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
+- `AnnotationManagementService` recolors highlights, edits/clears notes, and soft-deletes annotations while preserving source anchors (D-025).
+- Each annotation mutation uses one UTC timestamp for `updatedAt`/delete tombstone ordering.
+- `AnnotationPanel` watches live document annotations and provides quote/location preview, Go to, six highlight colors, note edit, and delete confirmation.
+- Annotation Go to emits the existing `DocumentLocation`; Reader uses the same `FidelityNavigationRequest` path as search.
+- Delete writes `deletedAt`; live document annotation queries hide tombstones, immediately removing deleted highlights from the reader while retaining sync history.
+- Reader search UI is extracted into `reader_search_sheet.dart` to keep Reader orchestration smaller.
+- PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
-## Highlight path
+## Annotation paths
 
 ```text
-pdfrx text selection
-  -> PdfPageTextRange + fragment bounds
-  -> DocumentTextSelection
-  -> AnnotationCreationService
-  -> AnnotationAnchor
-  -> AnnotationRepository
-  -> SQLite
-  -> annotationsProvider
-  -> FidelityTextHighlight
-  -> PDF page paint callback
+CREATE
+PDF selection -> DocumentTextSelection -> AnnotationCreationService
+-> AnnotationAnchor -> AnnotationRepository -> SQLite -> live repaint
+
+MANAGE
+AnnotationPanel -> AnnotationManagementService -> AnnotationRepository
+-> SQLite -> annotationsProvider -> panel + PDF repaint
+
+NAVIGATE
+Annotation sourceLocator -> FidelityNavigationRequest -> PDF source page
 ```
 
 ## Important files
 
 ```text
-lib/document/text/document_text_selection.dart
-lib/document/fidelity/document_fidelity_renderer.dart
-lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 lib/features/annotations/application/annotation_creation_service.dart
+lib/features/annotations/application/annotation_management_service.dart
+lib/features/annotations/presentation/annotation_panel.dart
 lib/features/annotations/data/drift_annotation_repository.dart
-lib/core/providers/annotation_providers.dart
 lib/features/reader/presentation/reader_screen.dart
-test/features/annotations/annotation_creation_service_test.dart
-test/features/annotations/annotation_geometry_persistence_test.dart
-test/document/registry/pdf_registration_test.dart
+lib/features/reader/presentation/reader_search_sheet.dart
+lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 ```
 
 ## Invariants
@@ -64,32 +60,32 @@ test/document/registry/pdf_registration_test.dart
 - Core reading/search/annotation requires no account/network.
 - Original files are never modified.
 - Generic Reader/annotation code does not import pdfrx.
-- Persist source locators/text ranges/PDF points, never screen coordinates.
-- Highlight anchors preserve exact quote + context in addition to geometry.
-- Multi-page selection preserves per-page source ranges and rectangles.
-- Capability flags describe integrated Kola behavior, not package primitives.
+- Source anchors/geometry are not rewritten by recolor/note operations.
+- Delete uses a tombstone (`deletedAt`) for future sync compatibility.
+- Persist source coordinates/ranges, never viewer/screen coordinates.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #6 is merged on `main` as squash commit `0dfe9d2071b1dce0df3cf70841b15ef0e2feef5a`. Run 109 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, the single-page highlight-anchor test, multi-page fallback-range test, SQLite geometry round-trip test, updated PDF capability contract, search/database tests, and the existing app smoke suite. Final exact-head run 110 also passed generation, formatting, analyzer, and the full test suite before merge. The native PDFium extraction test remains intentionally skipped in CI unless `PDFIUM_PATH` is supplied.
+PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110. PR #7 annotation management run 113 passed dependency resolution, Drift generation, formatting, and analyzer; its only failure was a test clock exposing that delete used two timestamps. The service now uses one timestamp per mutation. Corrected run 114 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, generation, formatting, analyzer, command-layer tests, SQLite note/color/tombstone persistence, search/database tests, and the existing app smoke suite. Exact-head CI is required after this state-file synchronization before merge.
 
 ## Current risks / blockers
 
-- Physical drag-selection/selection-handle behavior must be tested on touch and desktop pointer platforms.
-- Highlight paint alignment must be verified on rotated/cropped/atypical PDF pages.
-- Scanned/image-only PDFs have no selectable text until local OCR exists.
-- Existing annotations have no edit/delete/color UI in the Reader yet.
-- Text notes/margin notes are not integrated yet.
+- Annotation management UI still needs physical UX validation.
+- Physical PDF drag-selection/highlight alignment needs Linux + Android validation first.
+- Rotated/cropped/atypical PDF highlight geometry needs hands-on validation.
+- `resolveAnchor()` still returns the stored locator directly; quote/context recovery across changed source revisions is not implemented.
+- Scanned/image-only PDFs need local OCR for selection/search.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Physically validate selection and highlight alignment on Linux + Android first, then other targets.
-2. Add annotation management: list, jump, recolor, delete, note attachment.
-3. Strengthen `resolveAnchor()` with quote/context fallback when document revisions change.
-4. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
+1. Merge PR #7 after exact-head CI.
+2. Physically validate Reader annotations on Linux + Android.
+3. Strengthen PDF `resolveAnchor()` with quote/context fallback for changed document revisions.
+4. Add annotation filters/export only after management UX is stable.
+5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
