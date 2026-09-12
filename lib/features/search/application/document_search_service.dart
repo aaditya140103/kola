@@ -26,25 +26,46 @@ final class DocumentSearchService {
   final DocumentRepository _documents;
   final SearchRepository _search;
   final FormatRegistry _formats;
-  final Map<String, Future<void>> _inFlight = <String, Future<void>>{};
+  final Map<String, _IndexWork> _inFlight = <String, _IndexWork>{};
 
   Future<void> ensureIndexed(KolaDocument document) {
-    final Future<void>? active = _inFlight[document.id];
-    if (active != null) return active;
+    final _IndexWork? active = _inFlight[document.id];
+    if (active != null && active.revision >= document.revision) {
+      return active.future;
+    }
 
-    final Future<void> task = _indexIfNeeded(document);
-    _inFlight[document.id] = task;
+    final Future<void> task = _indexAfter(active?.future, document);
+    final _IndexWork work = _IndexWork(
+      revision: document.revision,
+      future: task,
+    );
+    _inFlight[document.id] = work;
     return task.whenComplete(() {
-      if (identical(_inFlight[document.id], task)) {
+      if (identical(_inFlight[document.id], work)) {
         _inFlight.remove(document.id);
       }
     });
   }
 
+  Future<void> _indexAfter(
+    Future<void>? previous,
+    KolaDocument document,
+  ) async {
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {
+        // A newer revision still gets its own indexing attempt even if the
+        // previous revision failed.
+      }
+    }
+    await _indexIfNeeded(document);
+  }
+
   Future<void> _indexIfNeeded(KolaDocument document) async {
     final SearchIndexStatus? status = await _search.getIndexStatus(document.id);
     if (status != null &&
-        status.indexedRevision == document.revision &&
+        status.indexedRevision >= document.revision &&
         status.extractorVersion == extractorVersion) {
       return;
     }
@@ -106,4 +127,11 @@ final class DocumentSearchService {
       limit: limit,
     );
   }
+}
+
+final class _IndexWork {
+  const _IndexWork({required this.revision, required this.future});
+
+  final int revision;
+  final Future<void> future;
 }

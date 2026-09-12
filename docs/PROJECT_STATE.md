@@ -8,7 +8,7 @@ Last updated: 2026-09-13
 
 **Phase 2 stability/debug pass: PDF fidelity + search + source-linked annotation management/recovery.**
 
-Feature work is temporarily paused while runtime paths are hardened. The first stability patch fixes PDF-engine startup ordering, import error ownership, and per-annotation recovery fault isolation.
+Feature work is temporarily paused while runtime paths are hardened. Startup/import/recovery lifecycle failures are contained, and this patch fixes revision races in persistent search indexing.
 
 ## Current implementation
 
@@ -16,9 +16,10 @@ Feature work is temporarily paused while runtime paths are hardened. The first s
 - SQLite/Drift schema v2 + local FTS5.
 - Managed/linked imports, streamed SHA-256 identity, real PDF fidelity and durable page/zoom resume.
 - PDF source text/geometry, local search/source jumps, persistent highlights, notes/recolor/delete, conservative anchor recovery and transient recovered geometry.
-- `main()` now awaits `pdfrxFlutterInitialize()` before mounting the application, so direct PDF adapter work cannot race pdfrx/PDFium startup.
-- Import now detects the source before fingerprinting instead of launching two independent futures. A failing import therefore cannot leave a second file-operation future unobserved.
+- App startup awaits `pdfrxFlutterInitialize()` before mounting Kola, preventing direct PDF adapter work from racing pdfrx/PDFium initialization.
+- Import detects the source before fingerprinting rather than leaving independent file-operation futures potentially unobserved after an early failure.
 - Annotation geometry recovery is isolated per highlight: a thrown/corrupt anchor is skipped while other valid annotations continue to recover and render.
+- Search indexing serializes work per document revision. A newer revision queues behind older work and is guaranteed a fresh indexing attempt; an older/stale revision cannot downgrade a newer persistent index.
 - Handle-scoped page-text and exact-quote caches remain disposable and local to one open PDF handle (D-029..D-031).
 - Recovery profiling remains deterministic and operation-count based. The 50-distinct-quotes × 200-pages baseline is 10,000 cached page-string scans with only 200 underlying page-text extraction misses.
 - Reader uses toolbar + Expanded source surface; Home/Library/Search push reader routes and Back restores origin with Library fallback for direct routes.
@@ -32,6 +33,8 @@ Feature work is temporarily paused while runtime paths are hardened. The first s
 - `lib/document/import/document_import_service.dart`
 - `lib/features/annotations/application/annotation_geometry_recovery_service.dart`
 - `test/features/annotations/annotation_geometry_recovery_service_test.dart`
+- `lib/features/search/application/document_search_service.dart`
+- `test/features/search/document_search_service_test.dart`
 - `lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart`
 - `lib/features/reader/presentation/reader_screen.dart`
 - `docs/READER_AUDIT.md`
@@ -41,6 +44,7 @@ Feature work is temporarily paused while runtime paths are hardened. The first s
 - Local reading/search/annotation requires no account/network; original files remain untouched.
 - Generic reader code does not import pdfrx; PDF-engine behavior stays behind PDF boundaries.
 - Readable source content must not be blocked by metadata, recovery, indexing, or annotation failures.
+- Search index revisions must move forward for one document identity; stale callers cannot replace newer indexed state.
 - Persist source coordinates, not screen coordinates. Ambiguous recovery stays unresolved.
 - A failed annotation recovery must not cause another annotation to attach incorrectly; failures degrade by suppressing only the failed highlight.
 - Recovery paints verified current-source geometry without mutating stored anchors.
@@ -50,7 +54,7 @@ Feature work is temporarily paused while runtime paths are hardened. The first s
 
 ## Verification
 
-Profiling commit `733de6e` passed Flutter CI #154: code generation, formatting, analyzer, and the full Flutter test suite. This stability patch adds a regression proving a throwing annotation anchor does not suppress a healthy recovered highlight. Repository CI is the authoritative gate for the new commit.
+Stability commit `31f1333` passed Flutter CI #155: code generation, formatting, analyzer, and the full Flutter test suite. This search-race patch adds deterministic tests for a newer revision arriving while an older index build is in flight and for a stale revision attempting to downgrade a newer persistent index. Repository CI is the authoritative gate for the new commit.
 
 ## Risks / blockers
 
