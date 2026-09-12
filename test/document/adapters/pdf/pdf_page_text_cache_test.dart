@@ -19,6 +19,8 @@ void main() {
     expect(first, same(second));
     expect(loads, 1);
     expect(cache.cachedPageCount, 1);
+    expect(cache.snapshot.misses, 1);
+    expect(cache.snapshot.hits, 1);
   });
 
   test('shares an in-flight extraction across concurrent reads', () async {
@@ -40,6 +42,8 @@ void main() {
     expect(await first, same(chunk));
     expect(await second, same(chunk));
     expect(loads, 1);
+    expect(cache.snapshot.misses, 1);
+    expect(cache.snapshot.hits, 1);
   });
 
   test('caches pages independently', () async {
@@ -55,6 +59,8 @@ void main() {
 
     expect(loads, 2);
     expect(cache.cachedPageCount, 2);
+    expect(cache.snapshot.misses, 2);
+    expect(cache.snapshot.hits, 1);
   });
 
   test('failed extraction is evicted so a later read can retry', () async {
@@ -67,24 +73,32 @@ void main() {
 
     await expectLater(cache.get(3), throwsStateError);
     expect(cache.cachedPageCount, 0);
+    expect(cache.snapshot.loadFailures, 1);
 
     final DocumentTextChunk? recovered = await cache.get(3);
     expect(recovered?.location.data['page'], 3);
     expect(loads, 2);
     expect(cache.cachedPageCount, 1);
+    expect(cache.snapshot.misses, 2);
   });
 
-  test('clear releases all cached page entries', () async {
+  test('clear releases entries and resets diagnostics', () async {
     final PdfPageTextCache cache = PdfPageTextCache(
       (int pageNumber) async => _chunk(pageNumber),
     );
 
     await cache.get(1);
     await cache.get(2);
+    await cache.get(1);
     expect(cache.cachedPageCount, 2);
+    expect(cache.snapshot.hits, 1);
+    expect(cache.snapshot.misses, 2);
 
     cache.clear();
     expect(cache.cachedPageCount, 0);
+    expect(cache.snapshot.hits, 0);
+    expect(cache.snapshot.misses, 0);
+    expect(cache.snapshot.loadFailures, 0);
   });
 }
 

@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, and a merged handle-scoped PDF text cache for recovery/indexing performance. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and CI-verified local quote-fallback recovery profiling. Flow remains disabled.
 
 ## Current implementation
 
@@ -23,7 +23,10 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
 - Conservative `AnchorResolution` recovery + resolved navigation + transient recovered geometry are merged (D-026..D-028).
 - `PdfrxPdfHandle` owns a disposable `PdfPageTextCache` (D-029): repeated/concurrent reads of one page share one extraction future; failures are evicted; close clears the cache.
-- `AnnotationGeometryRecoveryService` opens one handle for the full highlight batch, so hundreds of annotations can reuse page extraction across the batch instead of reloading the same page per annotation.
+- `PdfAnchorResolver` can emit local ephemeral `PdfAnchorRecoveryProfile` diagnostics (D-030): page-load requests, unique pages, quote-scan pages, candidates, strategy, and elapsed time.
+- `PdfPageTextCache` exposes in-memory hit/miss/failure/cached-page counters for profiling; counters reset when the cache is cleared.
+- `PdfrxPdfAdapter` accepts an optional recovery-profile observer for development/tests; normal app behavior does not persist or transmit diagnostics.
+- Synthetic baseline is verified: 50 stale annotations over 200 pages produce 200 actual cached page loads but 10,000 quote-fallback page scans, identifying repeated string scanning as the next measured bottleneck.
 - Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -32,21 +35,21 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 ```text
 AnnotationGeometryRecoveryService
   -> open one PdfrxPdfHandle
-  -> resolve annotation A -> page N -> PdfPageTextCache
-  -> resolve annotation B -> page N -> same cached/in-flight chunk
-  -> resolve annotation C -> page M -> one new extraction
-  -> close handle -> clear cache
+  -> PdfPageTextCache bounds extraction to unique pages
+  -> PdfAnchorResolver profiles each resolution
+       page requests / unique pages / quote pages / candidates / strategy / elapsed
+  -> synthetic heavy baseline compares extraction reuse vs repeated quote scanning
 ```
 
 ## Important files
 
 ```text
+lib/document/adapters/pdf/pdf_anchor_recovery_profile.dart
+lib/document/adapters/pdf/pdf_anchor_resolver.dart
 lib/document/adapters/pdf/pdf_page_text_cache.dart
 lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
-lib/features/annotations/application/annotation_geometry_recovery_service.dart
-lib/document/text/document_text_range_geometry.dart
+test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart
 test/document/adapters/pdf/pdf_page_text_cache_test.dart
-test/features/annotations/annotation_geometry_recovery_service_test.dart
 ```
 
 ## Invariants
@@ -59,28 +62,31 @@ test/features/annotations/annotation_geometry_recovery_service_test.dart
 - Reader paint uses only successfully resolved current-source geometry.
 - Recovery never silently mutates the persisted annotation anchor.
 - PDF text cache is scoped to one open handle; no unbounded global cache.
-- Failed page extraction is evicted so a later read can retry.
+- Recovery profiling is local/ephemeral only; no telemetry, persistence, or cloud reporting.
+- Performance optimizations require repeatable evidence; do not assert machine-specific duration thresholds in CI.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`. Implementation-head CI run 131 and exact synchronized-head run 132 both passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all PDF page-cache tests, annotation recovery tests, search/database tests, and the existing app smoke suite.
+PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`; implementation-head CI run 131 and exact-head run 132 passed. PR #12 profiling implementation passed CI run 136 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, cache-counter tests, profiling tests including the 50×200 synthetic baseline, annotation recovery tests, search/database tests, and the existing app smoke suite all passed. This state synchronization is the only change after run 136 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
 - Recovered geometry still needs physical validation on rotated/cropped/atypical PDFs and Linux + Android.
-- Handle-scoped caching removes duplicate extraction within one open session, but recovery over very large documents may still spend CPU scanning many cached page strings for quote fallback; profile before adding indexing/global caches.
+- Current quote-context fallback still scans every PDF page for each stale annotation; handle caching removes extraction duplication but not repeated string-scan work.
+- Profiling is synthetic in CI; physical-device timing measurements are still needed before choosing thresholds or user-facing performance claims.
 - Annotation management/navigation UI still needs physical UX validation.
 - Scanned/image-only PDFs need local OCR for selection/search/recovery.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
-2. Profile quote-fallback recovery on documents with hundreds/thousands of highlights before adding further optimization.
-3. Add annotation filters/export only after management UX is stable.
-4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Merge local recovery profiling after exact-head CI.
+2. Use the measured scan baseline to design a per-handle exact-quote candidate index or batched fallback resolver, then compare scan counts before/after.
+3. Physically validate recovered highlight alignment and recovery timing on Linux + Android.
+4. Add annotation filters/export only after management UX is stable.
+5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 

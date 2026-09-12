@@ -1,3 +1,4 @@
+import 'package:kola/document/adapters/pdf/pdf_anchor_recovery_profile.dart';
 import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
@@ -14,13 +15,25 @@ final class PdfAnchorResolver {
     required this.pageCount,
     required this.loadPageText,
     this.loadRangeGeometry,
+    this.onProfile,
   });
 
   final int pageCount;
   final PdfPageTextLoader loadPageText;
   final PdfRangeGeometryLoader? loadRangeGeometry;
+  final PdfAnchorRecoveryProfileObserver? onProfile;
 
   Future<AnchorResolution> resolve(AnnotationAnchor anchor) async {
+    final PdfAnchorRecoveryProfiler profiler = PdfAnchorRecoveryProfiler(onProfile);
+    final AnchorResolution resolution = await _resolve(anchor, profiler);
+    profiler.complete(resolution);
+    return resolution;
+  }
+
+  Future<AnchorResolution> _resolve(
+    AnnotationAnchor anchor,
+    PdfAnchorRecoveryProfiler profiler,
+  ) async {
     final DocumentLocation? locator = anchor.sourceLocator;
     if (locator == null || locator.scheme != 'pdf') {
       return const AnchorResolution.unresolved(
@@ -36,7 +49,7 @@ final class PdfAnchorResolver {
     }
 
     final AnchorResolution? fallbackRangeResolution =
-        await _verifyFallbackRanges(anchor, quote);
+        await _verifyFallbackRanges(anchor, quote, profiler);
     if (fallbackRangeResolution != null) return fallbackRangeResolution;
 
     final int? locatorPage = _asInt(locator.data['page']);
@@ -44,7 +57,7 @@ final class PdfAnchorResolver {
     final int? locatorEnd = _asInt(locator.data['end']);
 
     if (locatorPage != null && locatorStart != null && locatorEnd != null) {
-      final String? pageText = await _safeLoad(locatorPage);
+      final String? pageText = await _safeLoad(locatorPage, profiler);
       if (_rangeMatches(pageText, locatorStart, locatorEnd, quote)) {
         return _resolved(
           page: locatorPage,
@@ -59,7 +72,7 @@ final class PdfAnchorResolver {
     if (locatorPage != null &&
         anchor.logicalStart != null &&
         anchor.logicalEnd != null) {
-      final String? pageText = await _safeLoad(locatorPage);
+      final String? pageText = await _safeLoad(locatorPage, profiler);
       if (_rangeMatches(
         pageText,
         anchor.logicalStart!,
@@ -78,7 +91,8 @@ final class PdfAnchorResolver {
 
     final List<_QuoteCandidate> candidates = <_QuoteCandidate>[];
     for (int page = 1; page <= pageCount; page += 1) {
-      final String? text = await _safeLoad(page);
+      profiler.recordQuoteSearchPage();
+      final String? text = await _safeLoad(page, profiler);
       if (text == null || text.isEmpty) continue;
 
       int from = 0;
@@ -86,6 +100,7 @@ final class PdfAnchorResolver {
         final int index = text.indexOf(quote, from);
         if (index < 0) break;
         final int end = index + quote.length;
+        profiler.recordQuoteCandidate();
         candidates.add(
           _QuoteCandidate(
             page: page,
@@ -146,6 +161,7 @@ final class PdfAnchorResolver {
   Future<AnchorResolution?> _verifyFallbackRanges(
     AnnotationAnchor anchor,
     String quote,
+    PdfAnchorRecoveryProfiler profiler,
   ) async {
     final Object? raw = anchor.formatSpecificFallback['ranges'];
     if (raw is! List || raw.length < 2) return null;
@@ -162,7 +178,7 @@ final class PdfAnchorResolver {
 
     final List<String> pieces = <String>[];
     for (final _StoredRange range in ranges) {
-      final String? text = await _safeLoad(range.page);
+      final String? text = await _safeLoad(range.page, profiler);
       if (text == null ||
           range.start < 0 ||
           range.end < range.start ||
@@ -215,8 +231,12 @@ final class PdfAnchorResolver {
     return loader(page, start, end);
   }
 
-  Future<String?> _safeLoad(int pageNumber) async {
+  Future<String?> _safeLoad(
+    int pageNumber,
+    PdfAnchorRecoveryProfiler profiler,
+  ) async {
     if (pageNumber < 1 || pageNumber > pageCount) return null;
+    profiler.recordPageRequest(pageNumber);
     return loadPageText(pageNumber);
   }
 
