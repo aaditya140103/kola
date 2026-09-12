@@ -63,19 +63,23 @@ flowchart LR
     Contents[Contents Sheet]
     Thumbs[Lazy PdfPageView Thumbnails]
     Fit[Fit Width / Fit Page]
+    Adaptive[Reader surface width]
+    Spread[Facing-page layout]
 
     Route --> Repo --> Doc --> Fidelity --> View --> Resolver --> PDFium --> Pages
     PDFium --> Outline --> View --> Contents
     Contents -- goToDest --> View
     Pages --> Thumbs --> View
     View -- native fit matrices + goTo --> Fit --> View
+    Adaptive --> View
+    View -- >= 840 dp + opt-in --> Spread --> View
 ```
 
 Generic Reader code does not import `pdfrx`.
 
 Reader layout is `SafeArea -> Column -> toolbar + Expanded(fidelity surface)` so source content receives the remaining viewport rather than the toolbar height. Home/Library/Search push reader routes; toolbar Back pops to the origin, with Library as fallback for direct routes. Loading/error states also expose Back. Resume-read failures degrade to a readable source with a notice. Position-save failures are reported without blocking exit; the repository is captured before disposal for system-back flushes.
 
-PDF structure and page-layout navigation stay inside the PDF renderer boundary. The active pdfrx document loads its outline lazily; nested nodes render through progressive disclosure in a Contents sheet; selecting a node uses its engine-native `PdfDest` with `goToDest`. The Pages sheet reuses the active `PdfDocument` and lazily renders `PdfPageView` thumbnails. Fit Width uses `calcMatrixFitWidthForPage`; Fit Page chooses the smaller native width/height fit zoom, centers the active page, and animates through `PdfViewerController.goTo`. Missing/failed outlines never block page reading.
+PDF structure and page-layout navigation stay inside the PDF renderer boundary. The active pdfrx document loads its outline lazily; nested nodes render through progressive disclosure in a Contents sheet; selecting a node uses its engine-native `PdfDest` with `goToDest`. The Pages sheet reuses the active `PdfDocument` and lazily renders `PdfPageView` thumbnails. Fit Width uses `calcMatrixFitWidthForPage`; Fit Page chooses the smaller native width/height fit zoom, centers the active page, and animates through `PdfViewerController.goTo`. Expanded reader surfaces can opt into a facing-page layout that keeps page 1 as the right-side cover and pairs later pages left-to-right. Compact widths force the default vertical single-page layout without discarding the session preference. Layout switches invalidate pdfrx and restore the active page. Missing/failed outlines never block page reading.
 
 ## 4. PDF source-text extraction + handle cache
 
@@ -239,6 +243,7 @@ flowchart TD
     Outline[Outline / Contents ✅]
     Thumbs[Thumbnails ✅]
     Fit[Fit Width / Fit Page ✅]
+    Spread[Adaptive two-page spread ✅]
     Resume[Resume ✅]
     Extract[Text + Geometry ✅]
     Search[Search + source jump ✅]
@@ -246,7 +251,6 @@ flowchart TD
     Highlight[Persistent Highlight ✅]
     Manage[List / resolve / jump / recolor / note / delete ✅]
     Recover[Anchor + highlight geometry recovery ✅]
-    Spread[Two-page spread ❌]
     Flow[Flow ❌]
     Ink[Ink / area annotations ❌]
 
@@ -254,7 +258,7 @@ flowchart TD
     PDF --> Outline
     PDF --> Thumbs
     PDF --> Fit
-    PDF -. future .-> Spread
+    PDF --> Spread
     PDF --> Extract --> Search
     PDF --> Select --> Highlight --> Manage --> Recover
     PDF -. future .-> Flow
@@ -278,7 +282,7 @@ flowchart LR
     Location --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-Engine-specific objects are mapped to Kola-owned models before leaving adapters. PDF outline destinations, thumbnail previews, and fit transforms are renderer-local interactions and do not escape into generic Reader/domain APIs.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters. PDF outline destinations, thumbnail previews, fit transforms, and facing-page layout are renderer-local interactions and do not escape into generic Reader/domain APIs.
 
 ## 14. Persistence boundary
 

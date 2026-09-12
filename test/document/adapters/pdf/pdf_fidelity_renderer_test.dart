@@ -15,7 +15,7 @@ void main() {
   setUpAll(initializeTestPdfium);
 
   testWidgets(
-    'managed PDF renders pages, fits view, navigates structure, and survives rebuilds',
+    'managed PDF fits, adapts page layout, navigates structure, and survives rebuilds',
     (tester) async {
       tester.view.physicalSize = const Size(900, 600);
       tester.view.devicePixelRatio = 1;
@@ -25,7 +25,7 @@ void main() {
       final file = File('${directory.path}/sample.pdf');
       file.writeAsBytesSync(
         buildPdfWithPages(
-          <String>['Hello Kola', 'Second page'],
+          <String>['Hello Kola', 'Second page', 'Third page'],
           outlineTitle: 'Introduction',
         ),
       );
@@ -55,7 +55,7 @@ void main() {
       // Native file IO/rendering is real asynchronous work outside the fake clock.
       for (
         var attempt = 0;
-        attempt < 100 && find.text('Page 1 of 2').evaluate().isEmpty;
+        attempt < 100 && find.text('Page 1 of 3').evaluate().isEmpty;
         attempt++
       ) {
         await tester.runAsync(
@@ -63,11 +63,11 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Page 1 of 3'), findsOneWidget);
       final viewer = tester.widget<PdfViewer>(find.byType(PdfViewer));
       final PdfViewerController controller = viewer.controller!;
       expect(controller.isReady, isTrue);
-      expect(controller.document.pages, hasLength(2));
+      expect(controller.document.pages, hasLength(3));
       final page = controller.document.pages.first;
       final image = await tester.runAsync(
         () => page.render(fullWidth: 306, fullHeight: 396),
@@ -100,18 +100,42 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.currentZoom, closeTo(pageZoom, 0.01));
 
+      final Rect singlePage2 = controller.layout.pageLayouts[1];
+      final Rect singlePage3 = controller.layout.pageLayouts[2];
+      expect(singlePage3.top, greaterThan(singlePage2.bottom));
+      expect(find.byTooltip('Page layout'), findsOneWidget);
+      await tester.tap(find.byTooltip('Page layout'));
+      await tester.pumpAndSettle();
+      expect(find.text('Single page'), findsOneWidget);
+      expect(find.text('Two-page spread'), findsOneWidget);
+      await tester.tap(find.text('Two-page spread'));
+      await tester.pump();
+      for (
+        var attempt = 0;
+        attempt < 50 && !_hasFacingPair(controller);
+        attempt++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(_hasFacingPair(controller), isTrue);
+      final Rect cover = controller.layout.pageLayouts[0];
+      final Rect leftPage = controller.layout.pageLayouts[1];
+      expect(cover.left, greaterThan(leftPage.left));
+      expect(leftPage.top, greaterThanOrEqualTo(cover.bottom));
+
       expect(find.byTooltip('Pages'), findsOneWidget);
       await tester.tap(find.byTooltip('Pages'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byKey(const ValueKey<String>('pdf-thumbnail-1')), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('pdf-thumbnail-2')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('pdf-thumbnail-3')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey<String>('pdf-thumbnail-2')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       for (
         var attempt = 0;
-        attempt < 50 && find.text('Page 2 of 2').evaluate().isEmpty;
+        attempt < 50 && find.text('Page 2 of 3').evaluate().isEmpty;
         attempt++
       ) {
         await tester.runAsync(
@@ -119,7 +143,7 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 20));
       }
-      expect(find.text('Page 2 of 2'), findsOneWidget);
+      expect(find.text('Page 2 of 3'), findsOneWidget);
 
       for (
         var attempt = 0;
@@ -142,7 +166,7 @@ void main() {
       expect(find.text('Introduction'), findsNothing);
       for (
         var attempt = 0;
-        attempt < 50 && find.text('Page 1 of 2').evaluate().isEmpty;
+        attempt < 50 && find.text('Page 1 of 3').evaluate().isEmpty;
         attempt++
       ) {
         await tester.runAsync(
@@ -150,7 +174,31 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 20));
       }
-      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Page 1 of 3'), findsOneWidget);
+
+      tester.view.physicalSize = const Size(600, 600);
+      await tester.pump();
+      for (
+        var attempt = 0;
+        attempt < 50 && !_hasVerticalPages(controller);
+        attempt++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byTooltip('Page layout'), findsNothing);
+      expect(_hasVerticalPages(controller), isTrue);
+
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump();
+      for (
+        var attempt = 0;
+        attempt < 50 && !_hasFacingPair(controller);
+        attempt++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.byTooltip('Page layout'), findsOneWidget);
+      expect(_hasFacingPair(controller), isTrue);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -162,10 +210,28 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Page 1 of 3'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(() => directory.delete(recursive: true));
     },
   );
+}
+
+bool _hasFacingPair(PdfViewerController controller) {
+  if (!controller.isReady || controller.layout.pageLayouts.length < 3) {
+    return false;
+  }
+  final Rect page2 = controller.layout.pageLayouts[1];
+  final Rect page3 = controller.layout.pageLayouts[2];
+  return (page2.top - page3.top).abs() < 0.01 && page2.right < page3.left;
+}
+
+bool _hasVerticalPages(PdfViewerController controller) {
+  if (!controller.isReady || controller.layout.pageLayouts.length < 3) {
+    return false;
+  }
+  final Rect page2 = controller.layout.pageLayouts[1];
+  final Rect page3 = controller.layout.pageLayouts[2];
+  return page3.top > page2.bottom;
 }

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/adapters/pdf/pdf_fidelity_position.dart';
+import 'package:kola/document/adapters/pdf/pdf_page_layout.dart';
 import 'package:kola/document/adapters/pdf/pdf_thumbnail_sheet.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
@@ -44,6 +45,8 @@ final class PdfrxPdfFidelityRenderer implements DocumentFidelityRenderer {
 
 enum _PdfFitAction { width, page }
 
+enum _PdfLayoutAction { single, spread }
+
 class _PdfrxPdfFidelityView extends StatefulWidget {
   const _PdfrxPdfFidelityView({
     required this.document,
@@ -77,6 +80,8 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   Object? _outlineError;
   bool _outlineLoading = false;
   bool _outlineLoaded = false;
+  bool _twoPageSpreadEnabled = false;
+  bool? _lastTwoPageSpreadActive;
   int? _pageNumber;
   int? _pageCount;
   int? _lastNavigationSequence;
@@ -99,6 +104,8 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
       _outlineError = null;
       _outlineLoading = false;
       _outlineLoaded = false;
+      _twoPageSpreadEnabled = false;
+      _lastTwoPageSpreadActive = null;
       _pageNumber = null;
       _pageCount = null;
       _lastNavigationSequence = null;
@@ -153,90 +160,110 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
         final bool pageControlsAvailable =
             _pdfDocument != null && (_pageCount ?? 0) > 0;
 
-        return Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: PdfViewer.file(
-                snapshot.data!,
-                controller: _controller,
-                initialPageNumber: initialPage,
-                useProgressiveLoading: true,
-                params: PdfViewerParams(
-                  margin: KolaSpacing.md,
-                  enableKeyboardNavigation: true,
-                  sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
-                    calculateInitialZoom: initialZoom == null
-                        ? null
-                        : (
-                            PdfDocument document,
-                            PdfViewerController controller,
-                            double fitZoom,
-                            double coverZoom,
-                          ) => initialZoom,
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final bool twoPageSpreadAvailable =
+                constraints.hasBoundedWidth &&
+                constraints.maxWidth >= pdfTwoPageSpreadMinWidth;
+            final bool twoPageSpreadActive =
+                twoPageSpreadAvailable && _twoPageSpreadEnabled;
+            _scheduleLayoutRefresh(twoPageSpreadActive);
+
+            return Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: PdfViewer.file(
+                    snapshot.data!,
+                    controller: _controller,
+                    initialPageNumber: initialPage,
+                    useProgressiveLoading: true,
+                    params: PdfViewerParams(
+                      margin: KolaSpacing.md,
+                      enableKeyboardNavigation: true,
+                      layoutPages: twoPageSpreadActive
+                          ? buildPdfFacingPagesLayout
+                          : null,
+                      sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+                        calculateInitialZoom: initialZoom == null
+                            ? null
+                            : (
+                                PdfDocument document,
+                                PdfViewerController controller,
+                                double fitZoom,
+                                double coverZoom,
+                              ) => initialZoom,
+                      ),
+                      textSelectionParams: PdfTextSelectionParams(
+                        enabled: selectionEnabled,
+                        showContextMenuAutomatically: selectionEnabled,
+                      ),
+                      customizeContextMenuItems: selectionEnabled
+                          ? _customizeContextMenuItems
+                          : null,
+                      pagePaintCallbacks: <PdfViewerPagePaintCallback>[
+                        _paintHighlights,
+                      ],
+                      onViewerReady: (
+                        PdfDocument document,
+                        PdfViewerController controller,
+                      ) {
+                        if (!mounted) return;
+                        setState(() {
+                          _pdfDocument = document;
+                          _pageCount = controller.pageCount;
+                          _pageNumber = controller.pageNumber ?? initialPage;
+                        });
+                        unawaited(_loadOutline(document));
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _applyNavigationRequest(widget.navigationRequest);
+                        });
+                      },
+                      onPageChanged: (int? pageNumber) {
+                        if (!mounted || pageNumber == null) return;
+                        if (pageNumber != _pageNumber) {
+                          setState(() => _pageNumber = pageNumber);
+                        }
+                        _emitPosition();
+                      },
+                      onInteractionEnd: (ScaleEndDetails details) =>
+                          _emitPosition(),
+                    ),
                   ),
-                  textSelectionParams: PdfTextSelectionParams(
-                    enabled: selectionEnabled,
-                    showContextMenuAutomatically: selectionEnabled,
-                  ),
-                  customizeContextMenuItems: selectionEnabled
-                      ? _customizeContextMenuItems
-                      : null,
-                  pagePaintCallbacks: <PdfViewerPagePaintCallback>[
-                    _paintHighlights,
-                  ],
-                  onViewerReady: (
-                    PdfDocument document,
-                    PdfViewerController controller,
-                  ) {
-                    if (!mounted) return;
-                    setState(() {
-                      _pdfDocument = document;
-                      _pageCount = controller.pageCount;
-                      _pageNumber = controller.pageNumber ?? initialPage;
-                    });
-                    unawaited(_loadOutline(document));
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _applyNavigationRequest(widget.navigationRequest);
-                    });
-                  },
-                  onPageChanged: (int? pageNumber) {
-                    if (!mounted || pageNumber == null) return;
-                    if (pageNumber != _pageNumber) {
-                      setState(() => _pageNumber = pageNumber);
-                    }
-                    _emitPosition();
-                  },
-                  onInteractionEnd: (ScaleEndDetails details) => _emitPosition(),
                 ),
-              ),
-            ),
-            Positioned(
-              left: KolaSpacing.md,
-              right: KolaSpacing.md,
-              bottom: KolaSpacing.md,
-              child: _PdfNavigationBar(
-                pageNumber: _pageNumber,
-                pageCount: _pageCount,
-                onOutline: outlineAvailable
-                    ? () => unawaited(_openOutline())
-                    : null,
-                outlineTooltip: outlineTooltip,
-                onThumbnails: pageControlsAvailable
-                    ? () => unawaited(_openThumbnails())
-                    : null,
-                onFitWidth: pageControlsAvailable
-                    ? () => unawaited(_fitWidth())
-                    : null,
-                onFitPage: pageControlsAvailable
-                    ? () => unawaited(_fitPage())
-                    : null,
-                onPrevious: _goPrevious,
-                onNext: _goNext,
-                onZoomOut: _zoomOut,
-                onZoomIn: _zoomIn,
-              ),
-            ),
-          ],
+                Positioned(
+                  left: KolaSpacing.md,
+                  right: KolaSpacing.md,
+                  bottom: KolaSpacing.md,
+                  child: _PdfNavigationBar(
+                    pageNumber: _pageNumber,
+                    pageCount: _pageCount,
+                    onOutline: outlineAvailable
+                        ? () => unawaited(_openOutline())
+                        : null,
+                    outlineTooltip: outlineTooltip,
+                    onThumbnails: pageControlsAvailable
+                        ? () => unawaited(_openThumbnails())
+                        : null,
+                    onFitWidth: pageControlsAvailable
+                        ? () => unawaited(_fitWidth())
+                        : null,
+                    onFitPage: pageControlsAvailable
+                        ? () => unawaited(_fitPage())
+                        : null,
+                    twoPageSpreadAvailable: twoPageSpreadAvailable,
+                    twoPageSpreadActive: twoPageSpreadActive,
+                    onTwoPageSpreadChanged: pageControlsAvailable
+                        ? _setTwoPageSpread
+                        : null,
+                    onPrevious: _goPrevious,
+                    onNext: _goNext,
+                    onZoomOut: _zoomOut,
+                    onZoomIn: _zoomIn,
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -369,6 +396,41 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     return (_controller.pageNumber ?? _pageNumber ?? 1)
         .clamp(1, pageCount)
         .toInt();
+  }
+
+  void _setTwoPageSpread(bool enabled) {
+    if (_twoPageSpreadEnabled == enabled) return;
+    setState(() => _twoPageSpreadEnabled = enabled);
+  }
+
+  void _scheduleLayoutRefresh(bool twoPageSpreadActive) {
+    if (_lastTwoPageSpreadActive == twoPageSpreadActive) return;
+    final bool? previous = _lastTwoPageSpreadActive;
+    _lastTwoPageSpreadActive = twoPageSpreadActive;
+    if (previous == null || !_controller.isReady) return;
+
+    final int page = _currentPageNumber(_controller.pageCount);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.isReady) return;
+      _controller.invalidate();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.isReady) return;
+        unawaited(_restorePageAfterLayout(page));
+      });
+    });
+  }
+
+  Future<void> _restorePageAfterLayout(int page) async {
+    if (!_controller.isReady) return;
+    final int target = page.clamp(1, _controller.pageCount).toInt();
+    await _controller.goToPage(
+      pageNumber: target,
+      anchor: PdfPageAnchor.top,
+      duration: Duration.zero,
+    );
+    if (!mounted) return;
+    if (_pageNumber != target) setState(() => _pageNumber = target);
+    _emitPosition();
   }
 
   void _customizeContextMenuItems(
@@ -573,6 +635,9 @@ class _PdfNavigationBar extends StatelessWidget {
     required this.onThumbnails,
     required this.onFitWidth,
     required this.onFitPage,
+    required this.twoPageSpreadAvailable,
+    required this.twoPageSpreadActive,
+    required this.onTwoPageSpreadChanged,
     required this.onPrevious,
     required this.onNext,
     required this.onZoomOut,
@@ -586,6 +651,9 @@ class _PdfNavigationBar extends StatelessWidget {
   final VoidCallback? onThumbnails;
   final VoidCallback? onFitWidth;
   final VoidCallback? onFitPage;
+  final bool twoPageSpreadAvailable;
+  final bool twoPageSpreadActive;
+  final ValueChanged<bool>? onTwoPageSpreadChanged;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onZoomOut;
@@ -636,29 +704,55 @@ class _PdfNavigationBar extends StatelessWidget {
                       onFitPage?.call();
                   }
                 },
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<_PdfFitAction>>[
-                  const PopupMenuItem<_PdfFitAction>(
-                    value: _PdfFitAction.width,
-                    child: Row(
-                      children: <Widget>[
-                        Icon(Icons.swap_horiz_rounded),
-                        SizedBox(width: KolaSpacing.sm),
-                        Text('Fit width'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<_PdfFitAction>(
-                    value: _PdfFitAction.page,
-                    child: Row(
-                      children: <Widget>[
-                        Icon(Icons.crop_free_rounded),
-                        SizedBox(width: KolaSpacing.sm),
-                        Text('Fit page'),
-                      ],
-                    ),
-                  ),
-                ],
+                itemBuilder: (BuildContext context) =>
+                    <PopupMenuEntry<_PdfFitAction>>[
+                      const PopupMenuItem<_PdfFitAction>(
+                        value: _PdfFitAction.width,
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.swap_horiz_rounded),
+                            SizedBox(width: KolaSpacing.sm),
+                            Text('Fit width'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<_PdfFitAction>(
+                        value: _PdfFitAction.page,
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.crop_free_rounded),
+                            SizedBox(width: KolaSpacing.sm),
+                            Text('Fit page'),
+                          ],
+                        ),
+                      ),
+                    ],
               ),
+              if (twoPageSpreadAvailable)
+                PopupMenuButton<_PdfLayoutAction>(
+                  key: const ValueKey<String>('pdf-layout-menu'),
+                  enabled: onTwoPageSpreadChanged != null,
+                  tooltip: 'Page layout',
+                  icon: const Icon(Icons.view_week_rounded),
+                  onSelected: (_PdfLayoutAction action) {
+                    onTwoPageSpreadChanged?.call(
+                      action == _PdfLayoutAction.spread,
+                    );
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<_PdfLayoutAction>>[
+                        CheckedPopupMenuItem<_PdfLayoutAction>(
+                          value: _PdfLayoutAction.single,
+                          checked: !twoPageSpreadActive,
+                          child: const Text('Single page'),
+                        ),
+                        CheckedPopupMenuItem<_PdfLayoutAction>(
+                          value: _PdfLayoutAction.spread,
+                          checked: twoPageSpreadActive,
+                          child: const Text('Two-page spread'),
+                        ),
+                      ],
+                ),
               IconButton(
                 onPressed: onPrevious,
                 tooltip: 'Previous page',
