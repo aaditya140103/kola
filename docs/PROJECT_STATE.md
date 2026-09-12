@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, and has merged source-linked PDF highlighting. `feat/annotation-management` adds list/jump/recolor/note/delete management for those durable annotations. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, and merged annotation management for list/jump/recolor/note/delete. Flow remains disabled.
 
 ## Current implementation
 
@@ -68,7 +68,7 @@ lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 
 ## Verification
 
-PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110. PR #7 annotation management run 113 passed dependency resolution, Drift generation, formatting, and analyzer; its only failure was a test clock exposing that delete used two timestamps. The service now uses one timestamp per mutation. Corrected run 114 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, generation, formatting, analyzer, command-layer tests, SQLite note/color/tombstone persistence, search/database tests, and the existing app smoke suite. Exact-head CI is required after this state-file synchronization before merge.
+PR #7 is merged on `main` as squash commit `beff44b5af6df235fd6b30ddb50d036eb5917a0c`. Corrected run 114 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, generation, formatting, analyzer, command-layer tests, SQLite note/color/tombstone persistence, search/database tests, and the existing app smoke suite. Exact synchronized head run 115 also passed every CI stage before merge. The native PDFium extraction test remains intentionally skipped unless `PDFIUM_PATH` is supplied.
 
 ## Current risks / blockers
 
@@ -81,11 +81,10 @@ PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110. PR #7
 
 ## Next recommended action
 
-1. Merge PR #7 after exact-head CI.
-2. Physically validate Reader annotations on Linux + Android.
-3. Strengthen PDF `resolveAnchor()` with quote/context fallback for changed document revisions.
-4. Add annotation filters/export only after management UX is stable.
-5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Physically validate Reader annotation UX on Linux + Android.
+2. Strengthen PDF `resolveAnchor()` with quote/context fallback for changed document revisions.
+3. Add annotation filters/export only after management UX is stable.
+4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
