@@ -42,6 +42,8 @@ final class PdfrxPdfFidelityRenderer implements DocumentFidelityRenderer {
   }
 }
 
+enum _PdfFitAction { width, page }
+
 class _PdfrxPdfFidelityView extends StatefulWidget {
   const _PdfrxPdfFidelityView({
     required this.document,
@@ -148,7 +150,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
             : _outlineError != null
             ? 'Retry loading contents'
             : 'Contents';
-        final bool thumbnailsAvailable =
+        final bool pageControlsAvailable =
             _pdfDocument != null && (_pageCount ?? 0) > 0;
 
         return Stack(
@@ -219,8 +221,14 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
                     ? () => unawaited(_openOutline())
                     : null,
                 outlineTooltip: outlineTooltip,
-                onThumbnails: thumbnailsAvailable
+                onThumbnails: pageControlsAvailable
                     ? () => unawaited(_openThumbnails())
+                    : null,
+                onFitWidth: pageControlsAvailable
+                    ? () => unawaited(_fitWidth())
+                    : null,
+                onFitPage: pageControlsAvailable
+                    ? () => unawaited(_fitPage())
                     : null,
                 onPrevious: _goPrevious,
                 onNext: _goNext,
@@ -303,9 +311,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final PdfDocument? document = _pdfDocument;
     if (document == null || !_controller.isReady) return;
 
-    final int currentPage = (_controller.pageNumber ?? _pageNumber ?? 1)
-        .clamp(1, document.pages.length)
-        .toInt();
+    final int currentPage = _currentPageNumber(document.pages.length);
     final int? selectedPage = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -323,6 +329,46 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     if (!mounted) return;
     if (_pageNumber != page) setState(() => _pageNumber = page);
     _emitPosition();
+  }
+
+  Future<void> _fitWidth() async {
+    if (!_controller.isReady) return;
+    final int page = _currentPageNumber(_controller.pageCount);
+    final matrix = _controller.calcMatrixFitWidthForPage(pageNumber: page);
+    if (matrix == null) return;
+
+    await _controller.goTo(matrix, duration: KolaMotion.standard);
+    if (!mounted) return;
+    _emitPosition();
+  }
+
+  Future<void> _fitPage() async {
+    if (!_controller.isReady) return;
+    final int page = _currentPageNumber(_controller.pageCount);
+    final widthMatrix = _controller.calcMatrixFitWidthForPage(
+      pageNumber: page,
+    );
+    final heightMatrix = _controller.calcMatrixFitHeightForPage(
+      pageNumber: page,
+    );
+    if (widthMatrix == null || heightMatrix == null) return;
+
+    final double widthZoom = widthMatrix.getMaxScaleOnAxis();
+    final double heightZoom = heightMatrix.getMaxScaleOnAxis();
+    final double fitZoom = widthZoom <= heightZoom ? widthZoom : heightZoom;
+    final pageLayout = _controller.layout.pageLayouts[page - 1];
+    final matrix = _controller.calcMatrixFor(pageLayout.center, zoom: fitZoom);
+
+    await _controller.goTo(matrix, duration: KolaMotion.standard);
+    if (!mounted) return;
+    _emitPosition();
+  }
+
+  int _currentPageNumber(int pageCount) {
+    if (pageCount < 1) return 1;
+    return (_controller.pageNumber ?? _pageNumber ?? 1)
+        .clamp(1, pageCount)
+        .toInt();
   }
 
   void _customizeContextMenuItems(
@@ -525,6 +571,8 @@ class _PdfNavigationBar extends StatelessWidget {
     required this.onOutline,
     required this.outlineTooltip,
     required this.onThumbnails,
+    required this.onFitWidth,
+    required this.onFitPage,
     required this.onPrevious,
     required this.onNext,
     required this.onZoomOut,
@@ -536,6 +584,8 @@ class _PdfNavigationBar extends StatelessWidget {
   final VoidCallback? onOutline;
   final String outlineTooltip;
   final VoidCallback? onThumbnails;
+  final VoidCallback? onFitWidth;
+  final VoidCallback? onFitPage;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onZoomOut;
@@ -547,6 +597,7 @@ class _PdfNavigationBar extends StatelessWidget {
     final String pageLabel = pageNumber == null || pageCount == null
         ? 'Loading pages…'
         : 'Page $pageNumber of $pageCount';
+    final bool fitEnabled = onFitWidth != null && onFitPage != null;
 
     return Center(
       child: Material(
@@ -571,6 +622,42 @@ class _PdfNavigationBar extends StatelessWidget {
                 onPressed: onThumbnails,
                 tooltip: onThumbnails == null ? 'Loading pages…' : 'Pages',
                 icon: const Icon(Icons.grid_view_rounded),
+              ),
+              PopupMenuButton<_PdfFitAction>(
+                key: const ValueKey<String>('pdf-fit-menu'),
+                enabled: fitEnabled,
+                tooltip: 'Fit view',
+                icon: const Icon(Icons.fit_screen_rounded),
+                onSelected: (_PdfFitAction action) {
+                  switch (action) {
+                    case _PdfFitAction.width:
+                      onFitWidth?.call();
+                    case _PdfFitAction.page:
+                      onFitPage?.call();
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<_PdfFitAction>>[
+                  const PopupMenuItem<_PdfFitAction>(
+                    value: _PdfFitAction.width,
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.swap_horiz_rounded),
+                        SizedBox(width: KolaSpacing.sm),
+                        Text('Fit width'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<_PdfFitAction>(
+                    value: _PdfFitAction.page,
+                    child: Row(
+                      children: <Widget>[
+                        Icon(Icons.crop_free_rounded),
+                        SizedBox(width: KolaSpacing.sm),
+                        Text('Fit page'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               IconButton(
                 onPressed: onPrevious,

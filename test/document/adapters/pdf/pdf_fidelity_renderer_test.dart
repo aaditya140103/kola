@@ -15,9 +15,9 @@ void main() {
   setUpAll(initializeTestPdfium);
 
   testWidgets(
-    'managed PDF renders pages, navigates thumbnails and outline, and survives rebuilds',
+    'managed PDF renders pages, fits view, navigates structure, and survives rebuilds',
     (tester) async {
-      tester.view.physicalSize = const Size(320, 640);
+      tester.view.physicalSize = const Size(900, 600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -65,15 +65,40 @@ void main() {
       }
       expect(find.text('Page 1 of 2'), findsOneWidget);
       final viewer = tester.widget<PdfViewer>(find.byType(PdfViewer));
-      expect(viewer.controller!.isReady, isTrue);
-      expect(viewer.controller!.document.pages, hasLength(2));
-      final page = viewer.controller!.document.pages.first;
+      final PdfViewerController controller = viewer.controller!;
+      expect(controller.isReady, isTrue);
+      expect(controller.document.pages, hasLength(2));
+      final page = controller.document.pages.first;
       final image = await tester.runAsync(
         () => page.render(fullWidth: 306, fullHeight: 396),
       );
       expect(image, isNotNull);
       expect(image!.pixels, isNotEmpty);
       image.dispose();
+
+      final widthMatrix = controller.calcMatrixFitWidthForPage(pageNumber: 1);
+      final heightMatrix = controller.calcMatrixFitHeightForPage(pageNumber: 1);
+      expect(widthMatrix, isNotNull);
+      expect(heightMatrix, isNotNull);
+      final double widthZoom = widthMatrix!.getMaxScaleOnAxis();
+      final double heightZoom = heightMatrix!.getMaxScaleOnAxis();
+      final double pageZoom = widthZoom <= heightZoom ? widthZoom : heightZoom;
+      expect(widthZoom, greaterThan(pageZoom));
+
+      expect(find.byTooltip('Fit view'), findsOneWidget);
+      await tester.tap(find.byTooltip('Fit view'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fit width'), findsOneWidget);
+      expect(find.text('Fit page'), findsOneWidget);
+      await tester.tap(find.text('Fit width'));
+      await tester.pumpAndSettle();
+      expect(controller.currentZoom, closeTo(widthZoom, 0.01));
+
+      await tester.tap(find.byTooltip('Fit view'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fit page'));
+      await tester.pumpAndSettle();
+      expect(controller.currentZoom, closeTo(pageZoom, 0.01));
 
       expect(find.byTooltip('Pages'), findsOneWidget);
       await tester.tap(find.byTooltip('Pages'));

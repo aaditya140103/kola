@@ -6,9 +6,9 @@ Last updated: 2026-09-13
 
 ## Current milestone
 
-**Phase 2: PDF fidelity + search + source-linked annotation management/recovery; reader continuity and structure navigation.**
+**Phase 2: PDF fidelity + search + source-linked annotation management/recovery; reader continuity and page-layout controls.**
 
-The PDF-open/back-navigation repair and native outline/Contents navigation are merged. The current patch completes the next Phase 2 structure-navigation milestone by adding lazy PDF thumbnail navigation before fit controls, new formats, or reconstructed Flow Mode.
+The PDF-open/back-navigation repair, native outline/Contents navigation, and lazy thumbnail navigation are merged. This patch completes the next Phase 2 reader-continuity milestone by adding explicit Fit Width / Fit Page commands before two-page spread, new formats, or reconstructed Flow Mode.
 
 ## Current implementation
 
@@ -22,9 +22,11 @@ The PDF-open/back-navigation repair and native outline/Contents navigation are m
 - Loading/missing/error states can be left; resume-read/save failures degrade without trapping the reader.
 - PDF outline capability is integrated: the active pdfrx document loads its outline lazily, the navigation bar exposes Contents only when usable, nested outline nodes render in a sheet, and selection uses the PDF destination directly through `goToDest`.
 - PDF thumbnail navigation is integrated: the Pages action reuses the already-open `PdfDocument`, lazily builds visible previews with `PdfPageView`, marks the current page, and jumps through the existing viewer controller without reopening the file.
+- PDF fit controls are integrated behind one compact Fit menu. Fit Width uses pdfrx's native width-fit matrix for the active page; Fit Page combines the native width/height fit calculations and centers the active page at the smaller zoom.
+- Fit commands animate through the existing `PdfViewerController`, emit the resulting fidelity position, and therefore participate in normal durable zoom persistence. They are commands, not sticky resize modes.
 - Thumbnail rendering remains local and disposable; it introduces no persisted image cache or generic-reader dependency on pdfrx.
 - Outline loading failure remains non-blocking and retryable; PDFs without an outline keep the Contents action disabled.
-- Native PDF regression coverage includes a multi-page synthetic document, real page rendering, thumbnail navigation, outline navigation, and viewer rebuild behavior.
+- Native PDF regression coverage includes a multi-page synthetic document, real page rendering, Fit Width / Fit Page behavior, thumbnail navigation, outline navigation, and viewer rebuild behavior.
 - PDF remains the only registered adapter/renderer. Import recognition does not imply reading support.
 
 ## Important files
@@ -41,31 +43,33 @@ The PDF-open/back-navigation repair and native outline/Contents navigation are m
 ## Invariants
 
 - Local reading/search/annotation requires no account/network; original files remain untouched.
-- Generic reader code does not import pdfrx; PDF-engine destinations and preview widgets stay inside the PDF renderer boundary.
+- Generic reader code does not import pdfrx; PDF-engine destinations, previews, and fit transforms stay inside the PDF renderer boundary.
 - Persist source coordinates, not screen coordinates. Ambiguous recovery stays unresolved.
 - Recovery paints verified current-source geometry without mutating stored anchors.
 - Caches remain disposable and per handle; profiling remains local and ephemeral.
 - Position progress stays separate from coverage and active reading time.
-- Outline and thumbnail navigation are progressive disclosure around the document; neither replaces or blocks the readable source.
+- Outline, thumbnail, and fit controls are progressive disclosure around the document; none replaces or blocks the readable source.
 - Thumbnail navigation reuses the active PDF document and must not create an unbounded app-owned preview cache.
+- Fit actions use renderer-native page geometry rather than duplicate layout constants in Kola.
 - No new format, cloud, AI or study-system scope is introduced.
 
 ## Verification
 
-The previous outline-navigation main validation passed code generation, formatting, analyzer, and the full Flutter test suite on Flutter 3.47.4 / Dart 3.13.3. This thumbnail patch adds multi-page native-PDF widget coverage for opening Pages, rendering lazy `PdfPageView` previews, selecting page 2, returning through outline navigation, and preserving viewer rebuild behavior. Repository CI remains the authoritative gate for the new commit.
+The thumbnail-navigation main validation passed code generation, formatting, analyzer, and the full Flutter test suite on Flutter 3.47.4 / Dart 3.13.3. This fit-controls patch adds native-PDF widget coverage on a wide viewport that verifies Fit Width and Fit Page produce the expected native controller zooms, then re-runs thumbnail navigation, outline navigation, and viewer rebuild behavior. Repository CI remains the authoritative gate for the new commit.
 
 ## Risks / blockers
 
 - Physical Linux/Android UX, predictive Back, large text, keyboard focus, thumbnail performance on very large PDFs, outline depth/size and atypical PDFs still need validation.
-- Fit-width/fit-page controls and later two-page spread remain unfinished Phase 2 work.
+- Two-page spread and remaining page-layout ergonomics are unfinished Phase 2 work.
+- Fit commands are intentionally one-shot; a future sticky fit-on-resize mode should be added only if usability testing justifies it.
 - Flow remains blocked on reading-order/source-map quality; scanned PDFs need OCR for selection/search.
 - PDF metadata title fallback, `lastOpenedAt`, and missing managed-copy reimport repair remain follow-ups identified by the audit.
 - Many unique stale quotes still warrant measurement before new indexing optimizations.
 
 ## Next recommended action
 
-1. Physically validate import/open/scroll/select/Contents/Pages/Back/reopen on Linux + Android.
-2. Add fit-width / fit-page controls as the next Phase 2 reader-continuity milestone.
-3. Finish remaining page-layout details; add the many-unique-quotes profile before reconstructed Flow work.
+1. Physically validate import/open/scroll/select/Contents/Pages/Fit/Back/reopen on Linux + Android.
+2. Add optional two-page spread for sufficiently wide reader windows as the next Phase 2 page-layout milestone.
+3. Finish remaining continuity details; add the many-unique-quotes profile before reconstructed Flow work.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
