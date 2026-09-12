@@ -8,9 +8,9 @@ Last updated: 2026-09-13
 
 **Phase 2: PDF fidelity + search + source-linked annotation management/recovery; reader continuity and adaptive page layout.**
 
-PDF reader continuity and adaptive page controls are merged. This patch adds the previously missing many-unique-quotes recovery baseline so the next indexing change is driven by measured algorithmic cost rather than assumption.
+PDF reader continuity and adaptive page controls are merged. This patch adds handle-scoped batch/multi-quote anchor recovery: one recovery pass now collects exact-quote candidates for all pending highlight anchors with a single page-text scan (Aho–Corasick over the pending quotes) instead of one full-document scan per distinct quote, while per-anchor candidate verification, context scoring, and ambiguity rules are unchanged.
 
-This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a static web mirror of the current Flutter UI (tokens, shell, Home/Library/Search/Insights, reader with real PDF rendering, selection highlights, annotation panel, in-document search, fit/spread/zoom, debounced position resume) served at `http://0.0.0.0:8080`. It exists because the development sandbox cannot run Flutter (network policy blocks `pub.dev` and Flutter's Google storage), and shares no code with the product.
+The repo also carries a **dev-only web preview harness** (`tool/web_preview/`): a static web mirror of the current Flutter UI (tokens, shell, Home/Library/Search/Insights, reader with real PDF rendering, selection highlights, annotation panel, in-document search, fit/spread/zoom, debounced position resume) served at `http://0.0.0.0:8080`. It exists because the development sandbox cannot run Flutter (network policy blocks `pub.dev` and Flutter's Google storage), and shares no code with the product.
 
 ## Current implementation
 
@@ -20,9 +20,10 @@ This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a
 - PDF source text/geometry, local search/source jumps, persistent highlights, notes/recolor/delete, conservative anchor recovery and transient recovered geometry.
 - Handle-scoped page-text and exact-quote caches remain disposable and local to one open PDF handle (D-029..D-031).
 - Recovery profiling is deterministic and operation-count based; it does not depend on machine-specific timing thresholds.
-- Existing repeated-quote baseline: 50 stale annotations sharing one quote across 200 pages require 200 quote-scan page visits after candidate reuse, rather than 10,000 independent scans.
-- New unique-quote baseline: 50 distinct stale quotes across 200 pages produce 10,000 quote-scan page visits and 50 exact-quote cache misses, while `PdfPageTextCache` still limits underlying page-text extraction misses to 200.
-- The unique-quote result isolates the remaining cost: repeated substring scans over already-cached page text, not repeated PDF/PDFium text extraction.
+- Repeated-quote baseline: 50 stale annotations sharing one quote across 200 pages require 200 quote-scan page visits after candidate reuse, rather than 10,000 independent scans.
+- Per-anchor unique-quote baseline (kept as the regression bound): 50 distinct stale quotes across 200 pages produce 10,000 quote-scan page visits and 50 exact-quote cache misses, while `PdfPageTextCache` still limits underlying page-text extraction misses to 200.
+- New batch warm-up result: the same 50 distinct stale quotes need one 200-page warm-up pass (0 per-anchor quote-scan visits, 50 candidate cache hits, 0 misses; each anchor still loads its locator + candidate page from cache), meeting the roadmap target.
+- `AnnotationGeometryRecoveryService` uses the optional `BatchAnchorResolver` capability when the adapter provides it and falls back to sequential `resolveAnchor` otherwise; `PdfrxPdfAdapter` implements the batch path by warming its handle-scoped quote index first.
 - Reader uses toolbar + Expanded source surface; compact toolbar and PDF page controls wrap.
 - Home/Library push reader routes, matching Search; Back restores origin with Library fallback for direct routes.
 - PDF outline, lazy thumbnail navigation, Fit Width / Fit Page, and optional >= 840 dp facing-page spread remain integrated inside the PDF renderer boundary.
@@ -36,8 +37,10 @@ This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a
 
 - `lib/document/adapters/pdf/pdf_anchor_recovery_profile.dart`
 - `lib/document/adapters/pdf/pdf_anchor_resolver.dart`
-- `lib/document/adapters/pdf/pdf_exact_quote_index.dart`
+- `lib/document/adapters/pdf/pdf_exact_quote_index.dart` (per-quote lookup + `warmUp` batch scan)
 - `lib/document/adapters/pdf/pdf_page_text_cache.dart`
+- `lib/document/registry/document_adapter.dart` (`BatchAnchorResolver` optional capability)
+- `lib/features/annotations/application/annotation_geometry_recovery_service.dart`
 - `test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart`
 - `tool/web_preview/` (dev-only preview harness; see its README)
 - `docs/PROJECT_GRAPH.md`
@@ -48,6 +51,7 @@ This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a
 - Generic reader code does not import pdfrx; PDF-engine behavior stays behind PDF boundaries.
 - Persist source coordinates, not screen coordinates. Ambiguous recovery stays unresolved.
 - Exact-quote candidates remain advisory; every recovered candidate is still verified with current page text and context/ambiguity rules.
+- Batch resolution must return the same resolutions, in input order, as sequential per-anchor resolution; a failed warm-up falls back to unchanged per-anchor scanning.
 - Recovery paints verified current-source geometry without mutating stored anchors.
 - Page-text and quote caches remain disposable and handle-scoped.
 - Profiling remains local/ephemeral and uses deterministic counters for CI assertions.
@@ -56,7 +60,7 @@ This patch also adds a **dev-only web preview harness** (`tool/web_preview/`): a
 
 ## Verification
 
-Continuity commit `c4aa1eb` passed Flutter CI #153: code generation, formatting, analyzer, and the full Flutter test suite. This patch adds a deterministic 50-unique-quotes × 200-pages recovery regression that separates exact-quote string-scan work from cached PDF page extraction. Repository CI is the authoritative gate for the new commit.
+Continuity commit `c4aa1eb` passed Flutter CI #153: code generation, formatting, analyzer, and the full Flutter test suite. The batch warm-up patch adds deterministic operation-count regressions for the new behavior: a 50-unique-quotes × 200-pages batch profile (one 200-page warm-up, 0 per-anchor quote-scan visits, 50 candidate cache hits), warm-up/per-quote scan candidate equivalence (including overlapping matches), failure eviction + retry, skip semantics for cached/duplicate/empty quotes, ambiguity/context invariants preserved after warm-up, and service-level batch/sequential equivalence. Because the sandbox cannot run Dart, the algorithm and every new counter expectation were additionally validated against a faithful Python port of the cache/index/resolver logic before commit. Repository CI is the authoritative gate for the new commit.
 
 The preview harness change touches no Dart code; it was verified headlessly in Chromium (43/43 DOM/pixel assertions across shell, screens, reader, selection→highlight, annotation management, search, and resume flows) plus `node --check`. Flutter CI remains the only gate for product code.
 
@@ -70,13 +74,12 @@ The preview harness change touches no Dart code; it was verified headlessly in C
 - Spread preference is not persisted across reader sessions; persist it only if usability testing shows clear value.
 - Fit commands remain one-shot; sticky fit-on-resize should be added only if testing justifies it.
 - Flow remains blocked on reading-order/source-map quality; scanned PDFs need OCR for selection/search.
-- Many distinct stale quotes still scale as O(unique quotes × pages) for exact substring scans even though PDF extraction is bounded by the page cache.
+- Batch warm-up is scoped to one recovery pass over an open handle: single-annotation navigation still resolves one anchor per open handle, and the transient automaton costs O(total pending quote characters) memory per pass.
 
 ## Next recommended action
 
-1. Prototype a handle-scoped batch/multi-quote candidate lookup for one recovery pass, with a target of reducing the 50 × 200 unique-quote baseline from 10,000 page-string scans toward one 200-page pass while preserving context scoring and ambiguity behavior.
-2. Compare the optimized deterministic operation counts against this baseline before retaining the change; do not add a global/unbounded cache.
-3. Physically validate import/open/scroll/select/Contents/Pages/Fit/Spread/Back/reopen on Linux + Android, including managed-copy repair.
-4. Do not start reconstructed PDF Flow until reading-order/source-map quality is ready.
+1. Physically validate import/open/scroll/select/Contents/Pages/Fit/Spread/Back/reopen on Linux + Android, including managed-copy repair, with 50+ stale annotations across a large PDF to exercise batch recovery in practice.
+2. Consider profiling whether navigation (single-anchor) paths ever need warm-up sharing; do not add caches beyond the open handle.
+3. Do not start reconstructed PDF Flow until reading-order/source-map quality is ready.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
