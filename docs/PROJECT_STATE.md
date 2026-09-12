@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, and now has a handle-scoped PDF text cache for recovery/indexing performance. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, and a merged handle-scoped PDF text cache for recovery/indexing performance. Flow remains disabled.
 
 ## Current implementation
 
@@ -65,7 +65,7 @@ test/features/annotations/annotation_geometry_recovery_service_test.dart
 
 ## Verification
 
-PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce599487`; implementation-head run 127 and exact-head run 128 passed. PR #11 implementation-head CI run 131 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new PDF page-cache tests, annotation recovery tests, search/database tests, and the existing app smoke suite. This state synchronization is the only change after run 131 and requires one final exact-head CI pass before merge.
+PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`. Implementation-head CI run 131 and exact synchronized-head run 132 both passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all PDF page-cache tests, annotation recovery tests, search/database tests, and the existing app smoke suite.
 
 ## Current risks / blockers
 
@@ -77,11 +77,10 @@ PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce5
 
 ## Next recommended action
 
-1. Merge handle-scoped recovery caching after exact-head CI.
-2. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
-3. Profile quote-fallback recovery on documents with hundreds/thousands of highlights before adding further optimization.
-4. Add annotation filters/export only after management UX is stable.
-5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
+2. Profile quote-fallback recovery on documents with hundreds/thousands of highlights before adding further optimization.
+3. Add annotation filters/export only after management UX is stable.
+4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
