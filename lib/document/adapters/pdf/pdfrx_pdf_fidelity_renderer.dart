@@ -174,7 +174,10 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
 
     final Object? rawPage = request.location.data['page'];
     if (rawPage is! num) return;
-    final int page = rawPage.toInt().clamp(1, _controller.pageCount);
+    final int page = rawPage
+        .toInt()
+        .clamp(1, _controller.pageCount)
+        .toInt();
     _lastNavigationSequence = request.sequence;
     await _controller.goToPage(pageNumber: page, anchor: PdfPageAnchor.top);
     if (!mounted) return;
