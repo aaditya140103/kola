@@ -19,12 +19,12 @@ Kola imports content-addressed local documents, renders real PDFs through `pdfrx
 - PDF engine: `pdfrx ^2.6.1` / PDFium behind `PdfrxPdfAdapter` (D-021).
 - PDF fidelity: progressive rendering, page navigation, zoom, keyboard navigation, durable resume.
 - PDF resume: source page + progress + zoom + view mode through `ReadingState`; saves debounce 400 ms and flush on exit.
-- `DocumentAdapter` now exposes `extractTextGeometry()` returning Kola-owned `DocumentTextChunk`s.
+- `DocumentAdapter` exposes `extractTextGeometry()` returning Kola-owned `DocumentTextChunk`s.
 - PDF extraction uses `PdfPage.loadStructuredText()` and maps engine objects through `PdfTextGeometryMapper`.
 - `DocumentTextChunk` preserves page text, per-character rectangles, fragment ranges/bounds/direction, page extent, rotation, and source locator.
 - Geometry remains native PDF points with bottom-left origin; screen/viewer coordinates are never source geometry (D-022).
-- PDF `extractIndexableContent()` now emits page-level `IndexChunk`s with stable PDF locations.
-- PDF KDG currently emits conservative page `sourceVisualBlock` nodes at `FlowQuality.extracted`; no semantic paragraph claim yet.
+- PDF `extractIndexableContent()` emits page-level `IndexChunk`s with stable PDF locations.
+- PDF KDG emits conservative page `sourceVisualBlock` nodes at `FlowQuality.extracted`; no semantic paragraph claim yet.
 - PDF capability flags still advertise fidelity only. Search/Flow/selection/annotations remain false until user-facing integrations exist.
 
 ## Extraction path
@@ -46,8 +46,7 @@ lib/document/text/document_text_geometry.dart
 lib/document/registry/document_adapter.dart
 lib/document/adapters/pdf/pdf_text_geometry_mapper.dart
 lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
-lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
-lib/features/reader/presentation/reader_screen.dart
+test/document/adapters/pdf/pdf_text_geometry_mapper_test.dart
 test/document/adapters/pdf/pdf_text_extraction_test.dart
 ```
 
@@ -65,7 +64,7 @@ test/document/adapters/pdf/pdf_text_extraction_test.dart
 
 ## Verification
 
-PR #3 (PDF reading-state persistence) is merged and fully green on Flutter 3.47.4 / Dart 3.13.3. The current text-extraction branch adds a real generated PDF integration test that opens PDFium, extracts source-linked text geometry, builds index chunks, and builds conservative KDG chunks. CI verification is required before merge.
+PR #3 (PDF reading-state persistence) is merged and fully green on Flutter 3.47.4 / Dart 3.13.3. Text geometry mapping is covered in normal CI without loading native PDFium. A generated real-PDF/PDFium integration test remains in the suite but is enabled only when `PDFIUM_PATH` points to a native libpdfium; standard `flutter test` runners do not bundle pdfrx native assets. The branch must pass formatter, analyzer, mapper/unit tests, and all existing tests before merge.
 
 ## Current risks / blockers
 
@@ -74,6 +73,7 @@ PR #3 (PDF reading-state persistence) is merged and fully green on Flutter 3.47.
 - Search index persistence/query UI is not implemented yet despite `IndexChunk` production.
 - Text selection and durable text anchors are not implemented yet.
 - Physical PDF rendering/resume/extraction still needs hands-on platform testing.
+- Native PDFium engine extraction test requires `PDFIUM_PATH` when run under `flutter test`.
 - Password-protected/corrupt PDF UX remains basic.
 - Native platform folders still need stable generation/commit on a Flutter-equipped machine.
 
