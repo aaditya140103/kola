@@ -6,10 +6,10 @@ import 'package:kola/document/model/document_models.dart';
 void main() {
   group('PdfFidelityPosition', () {
     test('restores page and zoom from a pdf locator', () {
-      const FidelityViewState state = FidelityViewState(
+      final FidelityViewState state = FidelityViewState(
         location: DocumentLocation(
           scheme: 'pdf',
-          data: <String, Object?>{'page': 37},
+          data: const <String, Object?>{'page': 37},
           label: 'Page 37',
         ),
         positionProgress: 0.37,
@@ -21,10 +21,10 @@ void main() {
     });
 
     test('ignores non-pdf locators for page restoration', () {
-      const FidelityViewState state = FidelityViewState(
+      final FidelityViewState state = FidelityViewState(
         location: DocumentLocation(
           scheme: 'epub',
-          data: <String, Object?>{'chapter': 4},
+          data: const <String, Object?>{'chapter': 4},
         ),
         positionProgress: 0.5,
         zoom: 1.0,
