@@ -14,13 +14,13 @@ import 'package:pdfrx/pdfrx.dart' as pdfrx;
 final class PdfrxPdfAdapter implements DocumentAdapter {
   const PdfrxPdfAdapter(
     this._sourceResolver, {
-    PdfAnchorRecoveryProfileObserver? onAnchorRecoveryProfile,
-  }) : _onAnchorRecoveryProfile = onAnchorRecoveryProfile;
+    this.onAnchorRecoveryProfile,
+  });
 
   static const String _graphVersion = 'pdf-text-v1';
 
   final DocumentSourceResolver _sourceResolver;
-  final PdfAnchorRecoveryProfileObserver? _onAnchorRecoveryProfile;
+  final PdfAnchorRecoveryProfileObserver? onAnchorRecoveryProfile;
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;
@@ -153,7 +153,7 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
           end: end,
         );
       },
-      onProfile: _onAnchorRecoveryProfile,
+      onProfile: onAnchorRecoveryProfile,
     );
     return resolver.resolve(anchor);
   }
