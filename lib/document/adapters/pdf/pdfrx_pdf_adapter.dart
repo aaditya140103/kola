@@ -192,7 +192,17 @@ final class PdfrxPdfAdapter implements DocumentAdapter, BatchAnchorResolver {
 
     final List<AnchorResolution> resolutions = <AnchorResolution>[];
     for (final AnnotationAnchor anchor in anchors) {
-      resolutions.add(await resolveAnchor(handle, anchor));
+      try {
+        resolutions.add(await resolveAnchor(handle, anchor));
+      } catch (_) {
+        // One malformed/stale anchor must not suppress the rest of the
+        // batch; it resolves as unresolved and the caller skips it.
+        resolutions.add(
+          const AnchorResolution.unresolved(
+            reason: 'Annotation anchor recovery failed.',
+          ),
+        );
+      }
     }
     return resolutions;
   }

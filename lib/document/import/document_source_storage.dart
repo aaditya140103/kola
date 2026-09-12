@@ -48,12 +48,24 @@ final class LocalDocumentSourceStorage implements DocumentSourceStorage {
         '${libraryDirectory.path}${Platform.pathSeparator}${fingerprint.hex}$suffix';
     final File destination = File(destinationPath);
 
-    if (!await destination.exists()) {
+    bool needsCopy = !await destination.exists();
+    if (!needsCopy) {
+      try {
+        needsCopy = await destination.length() != fingerprint.fileSize;
+      } on FileSystemException {
+        needsCopy = true;
+      }
+    }
+
+    if (needsCopy) {
       final File temporary = File('$destinationPath.importing');
       if (await temporary.exists()) {
         await temporary.delete();
       }
       await source.copy(temporary.path);
+      if (await destination.exists()) {
+        await destination.delete();
+      }
       await temporary.rename(destination.path);
     }
 

@@ -56,6 +56,53 @@ void main() {
     expect(adapter.handle.closed, isTrue);
   });
 
+  test('one broken anchor does not suppress other recovered highlights', () async {
+    const recoveredGeometry = <Map<String, Object?>>[
+      <String, Object?>{'scheme': 'pdf', 'page': 3, 'left': 30.0},
+    ];
+    final adapter = _FakeAdapter(
+      resolution: const AnchorResolution.unresolved(reason: 'unused'),
+      resolutionFor: (AnnotationAnchor anchor) {
+        if (anchor.exactQuote == 'broken') {
+          throw StateError('malformed stale anchor');
+        }
+        return AnchorResolution.resolved(
+          location: DocumentLocation(
+            scheme: 'pdf',
+            data: const <String, Object?>{'page': 3, 'start': 2, 'end': 7},
+          ),
+          strategy: AnchorResolutionStrategy.quoteContext,
+          confidence: 0.96,
+          sourceGeometry: recoveredGeometry,
+        );
+      },
+    );
+    final service = AnnotationGeometryRecoveryService(
+      FormatRegistry(<DocumentAdapter>[adapter]),
+    );
+
+    final recovered = await service.recover(
+      _document(),
+      <Annotation>[
+        _annotation(
+          const <Map<String, Object?>>[{'page': 1}],
+          id: 'broken-id',
+          quote: 'broken',
+        ),
+        _annotation(
+          const <Map<String, Object?>>[{'page': 1}],
+          id: 'healthy-id',
+          quote: 'healthy',
+        ),
+      ],
+    );
+
+    expect(recovered, <String, List<Map<String, Object?>>>{
+      'healthy-id': recoveredGeometry,
+    });
+    expect(adapter.handle.closed, isTrue);
+  });
+
   test('batch adapters receive eligible anchors once and stay zipped', () async {
     final adapter = _FakeBatchAdapter(
       resolutions: <AnchorResolution>[
@@ -113,6 +160,26 @@ void main() {
     expect(adapter.handle.closed, isTrue);
   });
 
+  test('a failing batch adapter recovers nothing but still closes the handle', () async {
+    final adapter = _FakeBatchAdapter(
+      resolutions: const <AnchorResolution>[],
+      throwOnBatch: true,
+    );
+    final service = AnnotationGeometryRecoveryService(
+      FormatRegistry(<DocumentAdapter>[adapter]),
+    );
+
+    final recovered = await service.recover(
+      _document(),
+      <Annotation>[
+        _annotation(const <Map<String, Object?>>[{'page': 9}], id: 'a1'),
+      ],
+    );
+
+    expect(recovered, isEmpty);
+    expect(adapter.handle.closed, isTrue);
+  });
+
   test('non-batch adapters keep per-anchor resolution', () async {
     final adapter = _FakeAdapter(
       resolution: AnchorResolution.resolved(
@@ -140,23 +207,22 @@ void main() {
 }
 
 KolaDocument _document() {
-  final now = DateTime.utc(2026, 9, 12);
   return KolaDocument(
     id: 'doc',
-    source: DocumentSource(
-      kind: DocumentSourceKind.linkedFile,
-      uri: Uri.file('/tmp/doc.pdf'),
-    ),
+    title: 'Doc',
     format: DocumentFormat.pdf,
-    metadata: const DocumentMetadata(title: 'Doc'),
-    importedAt: now,
-    updatedAt: now,
+    source: DocumentSource(
+      scheme: 'file',
+      location: 'doc.pdf',
+      label: 'doc.pdf',
+    ),
   );
 }
 
 Annotation _annotation(
   List<Map<String, Object?>> geometry, {
   String id = 'a1',
+  String quote = 'hello',
   String documentId = 'doc',
   AnnotationType type = AnnotationType.highlight,
 }) {
@@ -171,7 +237,7 @@ Annotation _annotation(
         scheme: 'pdf',
         data: const <String, Object?>{'page': 1, 'start': 0, 'end': 5},
       ),
-      exactQuote: 'hello',
+      exactQuote: quote,
       sourceGeometry: geometry,
     ),
     createdAt: now,
@@ -180,9 +246,10 @@ Annotation _annotation(
 }
 
 final class _FakeAdapter implements DocumentAdapter {
-  _FakeAdapter({required this.resolution});
+  _FakeAdapter({required this.resolution, this.resolutionFor});
 
   final AnchorResolution resolution;
+  final AnchorResolution Function(AnnotationAnchor anchor)? resolutionFor;
   final _FakeHandle handle = _FakeHandle();
   int resolveCalls = 0;
 
@@ -224,7 +291,7 @@ final class _FakeAdapter implements DocumentAdapter {
     AnnotationAnchor anchor,
   ) async {
     resolveCalls += 1;
-    return resolution;
+    return resolutionFor?.call(anchor) ?? resolution;
   }
 
   @override
@@ -234,10 +301,11 @@ final class _FakeAdapter implements DocumentAdapter {
 
 final class _FakeBatchAdapter extends _FakeAdapter
     implements BatchAnchorResolver {
-  _FakeBatchAdapter({required this.resolutions})
+  _FakeBatchAdapter({required this.resolutions, this.throwOnBatch = false})
     : super(resolution: const AnchorResolution.unresolved(reason: 'unused'));
 
   final List<AnchorResolution> resolutions;
+  final bool throwOnBatch;
   final List<AnnotationAnchor> requestedAnchors = <AnnotationAnchor>[];
   int batchCalls = 0;
   int singleCalls = 0;
@@ -248,6 +316,9 @@ final class _FakeBatchAdapter extends _FakeAdapter
     List<AnnotationAnchor> anchors,
   ) async {
     batchCalls += 1;
+    if (throwOnBatch) {
+      throw StateError('batch adapter failure');
+    }
     requestedAnchors.addAll(anchors);
     return resolutions;
   }

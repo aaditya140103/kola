@@ -1,8 +1,8 @@
 import 'package:kola/document/anchors/anchor_resolution.dart';
+import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/document/registry/format_registry.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
-import 'package:kola/document/model/document_models.dart';
 
 final class AnnotationGeometryRecoveryService {
   const AnnotationGeometryRecoveryService(this._formats);
@@ -37,11 +37,17 @@ final class AnnotationGeometryRecoveryService {
       if (adapter is BatchAnchorResolver) {
         // Adapters with handle-scoped caches share one scanning pass across
         // the whole batch; behavior stays identical to per-anchor resolution.
-        resolutions = await adapter.resolveAnchors(handle, anchors);
+        try {
+          resolutions = await adapter.resolveAnchors(handle, anchors);
+        } catch (_) {
+          // Batch recovery stays best-effort: an adapter-level failure must
+          // not break the app, matching the per-anchor isolation below.
+          resolutions = const <AnchorResolution>[];
+        }
       } else {
         resolutions = <AnchorResolution>[
           for (final AnnotationAnchor anchor in anchors)
-            await adapter.resolveAnchor(handle, anchor),
+            await _resolveIsolated(adapter, handle, anchor),
         ];
       }
 
@@ -63,6 +69,22 @@ final class AnnotationGeometryRecoveryService {
       return Map<String, List<Map<String, Object?>>>.unmodifiable(result);
     } finally {
       await handle.close();
+    }
+  }
+
+  static Future<AnchorResolution> _resolveIsolated(
+    DocumentAdapter adapter,
+    DocumentHandle handle,
+    AnnotationAnchor anchor,
+  ) async {
+    // Recovery is best-effort per annotation. One malformed/stale anchor
+    // must not suppress every other valid highlight in the document.
+    try {
+      return await adapter.resolveAnchor(handle, anchor);
+    } catch (_) {
+      return const AnchorResolution.unresolved(
+        reason: 'Annotation anchor recovery failed.',
+      );
     }
   }
 }

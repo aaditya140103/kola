@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/core/database/kola_database.dart';
@@ -10,6 +12,7 @@ import 'package:kola/document/text/document_text_geometry.dart';
 import 'package:kola/features/library/data/drift_document_repository.dart';
 import 'package:kola/features/search/application/document_search_service.dart';
 import 'package:kola/features/search/data/drift_search_repository.dart';
+import 'package:kola/features/search/domain/search_models.dart';
 
 void main() {
   late KolaDatabase database;
@@ -57,6 +60,45 @@ void main() {
     await service.searchDocument(secondRevision, 'needle');
     expect(adapter.openCount, 2);
   });
+
+  test('newer revision waits for older in-flight indexing and wins', () async {
+    final Completer<void> releaseRevisionOne = Completer<void>();
+    adapter.revisionOneGate = releaseRevisionOne;
+
+    final KolaDocument firstRevision = _document(revision: 1);
+    await documents.upsert(firstRevision);
+    final Future<void> first = service.ensureIndexed(firstRevision);
+    await adapter.revisionOneExtractionStarted.future;
+
+    final KolaDocument secondRevision = _document(revision: 2);
+    await documents.upsert(secondRevision);
+    final Future<void> second = service.ensureIndexed(secondRevision);
+
+    expect(adapter.openCount, 1);
+    releaseRevisionOne.complete();
+    await Future.wait(<Future<void>>[first, second]);
+
+    final SearchIndexStatus? status = await search.getIndexStatus(
+      secondRevision.id,
+    );
+    expect(status?.indexedRevision, 2);
+    expect(adapter.openCount, 2);
+  });
+
+  test('stale revision cannot downgrade a newer persistent index', () async {
+    final KolaDocument secondRevision = _document(revision: 2);
+    await documents.upsert(secondRevision);
+    await service.ensureIndexed(secondRevision);
+    expect(adapter.openCount, 1);
+
+    await service.ensureIndexed(_document(revision: 1));
+
+    final SearchIndexStatus? status = await search.getIndexStatus(
+      secondRevision.id,
+    );
+    expect(status?.indexedRevision, 2);
+    expect(adapter.openCount, 1);
+  });
 }
 
 KolaDocument _document({required int revision}) {
@@ -68,7 +110,7 @@ KolaDocument _document({required int revision}) {
       uri: Uri.file('/tmp/lazy-index.pdf'),
     ),
     format: DocumentFormat.pdf,
-    metadata: const DocumentMetadata(title: 'Lazy Index'),
+    metadata: DocumentMetadata(title: 'Lazy Index r$revision'),
     importedAt: now,
     updatedAt: now,
     revision: revision,
@@ -77,6 +119,8 @@ KolaDocument _document({required int revision}) {
 
 final class _FakeTextAdapter implements DocumentAdapter {
   int openCount = 0;
+  Completer<void>? revisionOneGate;
+  final Completer<void> revisionOneExtractionStarted = Completer<void>();
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;
@@ -92,7 +136,7 @@ final class _FakeTextAdapter implements DocumentAdapter {
   @override
   Future<DocumentHandle> open(KolaDocument document) async {
     openCount += 1;
-    return _FakeHandle(document.id);
+    return _FakeHandle(document.id, document.revision);
   }
 
   @override
@@ -111,9 +155,18 @@ final class _FakeTextAdapter implements DocumentAdapter {
 
   @override
   Stream<IndexChunk> extractIndexableContent(DocumentHandle handle) async* {
+    final _FakeHandle fakeHandle = handle as _FakeHandle;
+    final Completer<void>? gate = revisionOneGate;
+    if (fakeHandle.revision == 1 && gate != null) {
+      if (!revisionOneExtractionStarted.isCompleted) {
+        revisionOneExtractionStarted.complete();
+      }
+      await gate.future;
+    }
+
     yield IndexChunk(
       documentId: handle.documentId,
-      text: 'There is a needle inside this searchable page.',
+      text: 'There is a needle inside revision ${fakeHandle.revision}.',
       location: DocumentLocation(
         scheme: 'pdf',
         data: const <String, Object?>{'page': 3},
@@ -148,10 +201,12 @@ final class _FakeTextAdapter implements DocumentAdapter {
 }
 
 final class _FakeHandle implements DocumentHandle {
-  const _FakeHandle(this.documentId);
+  const _FakeHandle(this.documentId, this.revision);
 
   @override
   final String documentId;
+
+  final int revision;
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;

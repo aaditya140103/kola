@@ -84,16 +84,17 @@ final class DocumentImportService {
     DocumentImportMode mode = DocumentImportMode.managedCopy,
   }) async {
     final String normalizedPath = File(path).absolute.path;
-    final Future<DocumentFingerprint> fingerprintFuture = _fingerprints.fingerprint(
-      normalizedPath,
-    );
-    final Future<FormatMatch> formatFuture = _formatDetector.detect(normalizedPath);
 
-    final DocumentFingerprint fingerprint = await fingerprintFuture;
-    final FormatMatch match = await formatFuture;
+    // Detect first, then fingerprint. Starting independent futures here can leave
+    // one future unobserved if the other fails first, which surfaces as an
+    // unrelated asynchronous error during import.
+    final FormatMatch match = await _formatDetector.detect(normalizedPath);
     if (!match.isRecognized) {
       throw UnsupportedDocumentFormatException(normalizedPath);
     }
+    final DocumentFingerprint fingerprint = await _fingerprints.fingerprint(
+      normalizedPath,
+    );
 
     final KolaDocument? existing = await _documents.getById(
       fingerprint.stableId,
@@ -105,7 +106,7 @@ final class DocumentImportService {
         existing.source.uri == originalUri) {
       repairingManagedCopy =
           mode == DocumentImportMode.managedCopy &&
-          !await _managedCopyExists(existing.source);
+          !await _managedCopyIsHealthy(existing.source, fingerprint.fileSize);
       if (!repairingManagedCopy) {
         return DocumentImportResult(
           status: DocumentImportStatus.alreadyPresent,
@@ -171,10 +172,18 @@ final class DocumentImportService {
     return DocumentMetadata(title: _titleFromFileName(fallbackName));
   }
 
-  static Future<bool> _managedCopyExists(DocumentSource source) async {
+  static Future<bool> _managedCopyIsHealthy(
+    DocumentSource source,
+    int expectedFileSize,
+  ) async {
     final String? managedPath = source.managedPath;
     if (managedPath == null || managedPath.isEmpty) return false;
-    return File(managedPath).exists();
+    final File file = File(managedPath);
+    try {
+      return await file.exists() && await file.length() == expectedFileSize;
+    } on FileSystemException {
+      return false;
+    }
   }
 
   static DocumentSourceKind _sourceKindFor(DocumentImportMode mode) {
