@@ -118,19 +118,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       loading: () => const <Annotation>[],
       error: (Object error, StackTrace stackTrace) => const <Annotation>[],
     );
-    final List<FidelityTextHighlight> highlights = annotations
-        .where(
-          (Annotation annotation) =>
-              annotation.type == AnnotationType.highlight &&
-              annotation.anchor.sourceGeometry.isNotEmpty,
-        )
-        .map(
-          (Annotation annotation) => FidelityTextHighlight(
+    final AsyncValue<Map<String, List<Map<String, Object?>>>> geometryState =
+        ref.watch(recoveredAnnotationGeometryProvider(document.id));
+    final Map<String, List<Map<String, Object?>>> recoveredGeometry =
+        geometryState.when(
+          data: (Map<String, List<Map<String, Object?>>> value) => value,
+          loading: () => const <String, List<Map<String, Object?>>>{},
+          error: (Object error, StackTrace stackTrace) =>
+              const <String, List<Map<String, Object?>>>{},
+        );
+    final Map<String, Annotation> annotationsById = <String, Annotation>{
+      for (final Annotation annotation in annotations) annotation.id: annotation,
+    };
+    final List<FidelityTextHighlight> highlights = recoveredGeometry.entries
+        .where((entry) => annotationsById.containsKey(entry.key))
+        .map((entry) {
+          final Annotation annotation = annotationsById[entry.key]!;
+          return FidelityTextHighlight(
             id: annotation.id,
-            sourceGeometry: annotation.anchor.sourceGeometry,
+            sourceGeometry: entry.value,
             colorToken: annotation.colorToken,
-          ),
-        )
+          );
+        })
         .toList(growable: false);
 
     final bool persistedFlowMode =
