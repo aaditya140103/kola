@@ -21,10 +21,11 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
 - PDF selection -> `DocumentTextSelection` -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - `AnnotationManagementService` recolors highlights, edits/clears notes, and soft-deletes annotations while preserving source anchors (D-025).
+- Each annotation mutation uses one UTC timestamp for `updatedAt`/delete tombstone ordering.
 - `AnnotationPanel` watches live document annotations and provides quote/location preview, Go to, six highlight colors, note edit, and delete confirmation.
-- Annotation Go to emits the existing `DocumentLocation` and Reader uses the same `FidelityNavigationRequest` path as search.
-- Delete writes `deletedAt`; `watchForDocument()` already filters tombstones, so deletion removes the highlight from the live reader without hard-destroying sync history.
-- Reader search UI was extracted into `reader_search_sheet.dart` to keep Reader orchestration smaller.
+- Annotation Go to emits the existing `DocumentLocation`; Reader uses the same `FidelityNavigationRequest` path as search.
+- Delete writes `deletedAt`; live document annotation queries hide tombstones, immediately removing deleted highlights from the reader while retaining sync history.
+- Reader search UI is extracted into `reader_search_sheet.dart` to keep Reader orchestration smaller.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
 ## Annotation paths
@@ -67,12 +68,12 @@ lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 
 ## Verification
 
-PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110 on Flutter 3.47.4 / Dart 3.13.3. Current annotation-management branch adds command-layer and SQLite tests for recolor, note edit, revision increments, anchor preservation, and tombstone filtering. Full CI for this branch is required before merge.
+PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110. PR #7 annotation management run 113 passed dependency resolution, Drift generation, formatting, and analyzer; its only failure was a test clock exposing that delete used two timestamps. The service now uses one timestamp per mutation. Corrected run 114 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, generation, formatting, analyzer, command-layer tests, SQLite note/color/tombstone persistence, search/database tests, and the existing app smoke suite. Exact-head CI is required after this state-file synchronization before merge.
 
 ## Current risks / blockers
 
-- Annotation management UI needs analyzer/widget validation in CI and physical UX testing.
-- Physical PDF drag-selection/highlight alignment still needs Linux + Android validation first.
+- Annotation management UI still needs physical UX validation.
+- Physical PDF drag-selection/highlight alignment needs Linux + Android validation first.
 - Rotated/cropped/atypical PDF highlight geometry needs hands-on validation.
 - `resolveAnchor()` still returns the stored locator directly; quote/context recovery across changed source revisions is not implemented.
 - Scanned/image-only PDFs need local OCR for selection/search.
@@ -80,7 +81,7 @@ PR #6 PDF highlighting is merged and passed exact-head Flutter CI run 110 on Flu
 
 ## Next recommended action
 
-1. Pass CI and merge annotation-management branch.
+1. Merge PR #7 after exact-head CI.
 2. Physically validate Reader annotations on Linux + Android.
 3. Strengthen PDF `resolveAnchor()` with quote/context fallback for changed document revisions.
 4. Add annotation filters/export only after management UX is stable.
