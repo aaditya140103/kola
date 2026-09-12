@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + resume + source text/geometry + persistent local search.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, and now has a verified on-device persistent full-text search path. Text selection, annotations, and Flow remain intentionally disabled.
+Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, and now has a merged on-device persistent full-text search path. Text selection, annotations, and Flow remain intentionally disabled.
 
 ## Current implementation
 
@@ -75,7 +75,7 @@ lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 
 ## Verification
 
-PR #5 code head `bfde404261e1c04a037c43ee6ac0755f082ba9ec` passed Flutter CI run 101 on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, FTS5 persistence/query/cleanup tests, lazy-index + revision-invalidation tests, and the full existing test suite are green. A final exact-head CI run is required after this mandatory state-file synchronization before merge.
+PR #5 is merged on `main` as `16bd5fcc3b7ebafcb4d3391877e39a5cb7b6a6b7`. Code head `bfde404261e1c04a037c43ee6ac0755f082ba9ec` passed Flutter CI run 101, and exact synchronized PR head `1aadbd2c5bc546d109a8614f34165a6b1f75e710` passed run 102 on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3. Dependency resolution, Drift generation, formatting, analyzer, FTS5 persistence/query/cleanup tests, lazy-index + revision-invalidation tests, and the full existing test suite are green.
 
 ## Current risks / blockers
 
@@ -88,11 +88,10 @@ PR #5 code head `bfde404261e1c04a037c43ee6ac0755f082ba9ec` passed Flutter CI run
 
 ## Next recommended action
 
-1. Merge verified persistent local search after exact-head CI.
-2. Build source-linked PDF text selection from character indices + PDF rectangles.
-3. Persist highlight/note anchors with quote/context + logical ranges + source geometry.
-4. Render/search annotation results and only then enable PDF text-annotation capability.
-5. Begin reconstructed PDF Flow after reading-order/source-map quality tests exist.
+1. Build source-linked PDF text selection from character indices + PDF rectangles.
+2. Persist highlight/note anchors with quote/context + logical ranges + source geometry.
+3. Render/search annotation results and only then enable PDF text-annotation capability.
+4. Begin reconstructed PDF Flow after reading-order/source-map quality tests exist.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
