@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked text highlighting.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, provides persistent local full-text search, and now has a CI-verified implementation for source-linked PDF text selection + persistent highlights. Flow and note-editing UI remain disabled.
+Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, provides persistent local full-text search, and now has a merged source-linked PDF text-selection + persistent-highlight path. Flow and note-editing UI remain disabled.
 
 ## Current implementation
 
@@ -73,7 +73,7 @@ test/document/registry/pdf_registration_test.dart
 
 ## Verification
 
-PR #5 persistent local search is merged and green. PR #6 run 109 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, the new single-page highlight-anchor test, multi-page fallback-range test, SQLite geometry round-trip test, updated PDF capability contract, search/database tests, and the existing app smoke suite. The native PDFium extraction test remains intentionally skipped in CI unless `PDFIUM_PATH` is supplied. This state-file synchronization is the only change after run 109 and requires one final exact-head CI pass before merge.
+PR #6 is merged on `main` as squash commit `0dfe9d2071b1dce0df3cf70841b15ef0e2feef5a`. Run 109 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, the single-page highlight-anchor test, multi-page fallback-range test, SQLite geometry round-trip test, updated PDF capability contract, search/database tests, and the existing app smoke suite. Final exact-head run 110 also passed generation, formatting, analyzer, and the full test suite before merge. The native PDFium extraction test remains intentionally skipped in CI unless `PDFIUM_PATH` is supplied.
 
 ## Current risks / blockers
 
@@ -86,11 +86,10 @@ PR #5 persistent local search is merged and green. PR #6 run 109 passed Flutter 
 
 ## Next recommended action
 
-1. Merge PR #6 after the final exact-head CI pass.
-2. Physically validate selection and highlight alignment on Linux + Android first, then other targets.
-3. Add annotation management: list, jump, recolor, delete, note attachment.
-4. Strengthen `resolveAnchor()` with quote/context fallback when document revisions change.
-5. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
+1. Physically validate selection and highlight alignment on Linux + Android first, then other targets.
+2. Add annotation management: list, jump, recolor, delete, note attachment.
+3. Strengthen `resolveAnchor()` with quote/context fallback when document revisions change.
+4. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
