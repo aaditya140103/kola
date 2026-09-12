@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, and merged transient recovered highlight geometry. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, and now has a handle-scoped PDF text cache for recovery/indexing performance. Flow remains disabled.
 
 ## Current implementation
 
@@ -21,41 +21,31 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
 - PDF selection -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
-- `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` (D-026).
-- `PdfAnchorResolver` conservatively verifies stored ranges/locator/logical range before quote+context fallback; ambiguous/missing matches stay unresolved.
-- `AnnotationNavigationService` resolves Go to against the current source before Reader navigation (D-027).
-- `AnchorResolution` carries transient current-source geometry rebuilt from resolved PDF character ranges (D-028).
-- `AnnotationGeometryRecoveryService` opens the document once, resolves all highlights, and exposes geometry only for successfully resolved annotations.
-- Reader paints from recovered geometry rather than persisted rectangles; unresolved stale geometry is suppressed and the persisted `AnnotationAnchor` is never rewritten.
+- Conservative `AnchorResolution` recovery + resolved navigation + transient recovered geometry are merged (D-026..D-028).
+- `PdfrxPdfHandle` owns a disposable `PdfPageTextCache` (D-029): repeated/concurrent reads of one page share one extraction future; failures are evicted; close clears the cache.
+- `AnnotationGeometryRecoveryService` opens one handle for the full highlight batch, so hundreds of annotations can reuse page extraction across the batch instead of reloading the same page per annotation.
+- Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
-## Annotation recovery path
+## Recovery performance path
 
 ```text
-AnnotationAnchor
-  -> current DocumentAdapter + DocumentHandle
-  -> resolve current source location/range
-  -> rebuild PDF-point geometry from current structured text
-  -> AnchorResolution(sourceGeometry)
-  -> transient recovered geometry map
-  -> FidelityTextHighlight
-  -> PDF paint callback
-
-unresolved -> no paint
-persisted anchor -> unchanged
+AnnotationGeometryRecoveryService
+  -> open one PdfrxPdfHandle
+  -> resolve annotation A -> page N -> PdfPageTextCache
+  -> resolve annotation B -> page N -> same cached/in-flight chunk
+  -> resolve annotation C -> page M -> one new extraction
+  -> close handle -> clear cache
 ```
 
 ## Important files
 
 ```text
-lib/document/text/document_text_range_geometry.dart
-lib/document/anchors/anchor_resolution.dart
-lib/document/adapters/pdf/pdf_anchor_resolver.dart
+lib/document/adapters/pdf/pdf_page_text_cache.dart
 lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
 lib/features/annotations/application/annotation_geometry_recovery_service.dart
-lib/core/providers/annotation_providers.dart
-lib/features/reader/presentation/reader_screen.dart
-test/document/text/document_text_range_geometry_test.dart
+lib/document/text/document_text_range_geometry.dart
+test/document/adapters/pdf/pdf_page_text_cache_test.dart
 test/features/annotations/annotation_geometry_recovery_service_test.dart
 ```
 
@@ -64,33 +54,34 @@ test/features/annotations/annotation_geometry_recovery_service_test.dart
 - Core reading/search/annotation requires no account/network.
 - Original files are never modified.
 - Generic Reader/annotation code does not import pdfrx.
-- Delete uses a tombstone (`deletedAt`) for future sync compatibility.
 - Persist source coordinates/ranges, never viewer/screen coordinates.
-- Ambiguous anchor recovery must return unresolved rather than guess.
-- Annotation Go to must resolve against the current source before moving Reader.
-- Reader paint must use successfully resolved current-source geometry; unresolved stale rectangles are suppressed.
+- Ambiguous anchor recovery returns unresolved rather than guessing.
+- Reader paint uses only successfully resolved current-source geometry.
 - Recovery never silently mutates the persisted annotation anchor.
+- PDF text cache is scoped to one open handle; no unbounded global cache.
+- Failed page extraction is evicted so a later read can retry.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce599487`. Implementation-head CI run 127 and exact synchronized-head run 128 both passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, pure geometry reconstruction tests, annotation geometry recovery tests, anchor/search/database tests, and the existing app smoke suite.
+PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce599487`; implementation-head run 127 and exact-head run 128 passed. PR #11 implementation-head CI run 131 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new PDF page-cache tests, annotation recovery tests, search/database tests, and the existing app smoke suite. This state synchronization is the only change after run 131 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
 - Recovered geometry still needs physical validation on rotated/cropped/atypical PDFs and Linux + Android.
-- Automatic recovery opens/extracts PDF text for annotations and may need caching/performance tuning on very annotation-heavy documents.
+- Handle-scoped caching removes duplicate extraction within one open session, but recovery over very large documents may still spend CPU scanning many cached page strings for quote fallback; profile before adding indexing/global caches.
 - Annotation management/navigation UI still needs physical UX validation.
 - Scanned/image-only PDFs need local OCR for selection/search/recovery.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
-2. Profile annotation recovery on documents with hundreds/thousands of highlights and add caching if measured.
-3. Add annotation filters/export only after management UX is stable.
-4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Merge handle-scoped recovery caching after exact-head CI.
+2. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
+3. Profile quote-fallback recovery on documents with hundreds/thousands of highlights before adding further optimization.
+4. Add annotation filters/export only after management UX is stable.
+5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
