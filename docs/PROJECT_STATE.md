@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, and CI-verified resolved annotation navigation. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, and merged resolved annotation navigation. Flow remains disabled.
 
 ## Current implementation
 
@@ -67,7 +67,7 @@ test/features/annotations/annotation_navigation_service_test.dart
 
 ## Verification
 
-PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/annotation-resolved-navigation` implementation passed Flutter CI run 123 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, navigation-service lifecycle tests, anchor/search/database tests, and the existing app smoke suite all passed. This state-file synchronization is the only change after run 123 and requires one final exact-head CI pass before merge.
+PR #9 is merged on `main` as squash commit `3c8d71be946b94577da3929f5daf1f37f2856c00`. Flutter CI run 123 passed dependency resolution, Drift generation, formatting, analyzer, navigation-service lifecycle tests, anchor/search/database tests, and the existing app smoke suite on Flutter 3.47.4 / Dart 3.13.3. Exact synchronized head run 124 also passed every CI stage before merge.
 
 ## Current risks / blockers
 
@@ -80,11 +80,10 @@ PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/
 
 ## Next recommended action
 
-1. Merge resolved annotation navigation after exact-head CI.
-2. Regenerate source geometry for confidently recovered PDF anchors after source changes.
-3. Physically validate Reader annotation UX on Linux + Android.
-4. Add annotation filters/export only after management UX is stable.
-5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+1. Regenerate source geometry for confidently recovered PDF anchors after source changes.
+2. Physically validate Reader annotation UX on Linux + Android.
+3. Add annotation filters/export only after management UX is stable.
+4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
