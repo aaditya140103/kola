@@ -16,8 +16,9 @@ flowchart TD
     Engines[Format Engines]
     Text[Source Text + Geometry]
     Search[Persistent Local Search]
+    Annotation[Source-linked Annotations]
     KDG[Kola Document Graph]
-    Flow[Flow / Annotations]
+    Flow[Flow]
     Sync[Optional BYOC]
 
     OS --> UI --> Domain
@@ -25,11 +26,12 @@ flowchart TD
     Domain --> Format --> Engines --> Files
     Domain --> Fidelity --> Engines
     Engines --> Text --> Search --> DB
+    Text --> Annotation --> DB
     Text --> KDG --> Flow
     DB -. optional .-> Sync
 ```
 
-Local reading/search never depends on sync.
+Local reading/search/annotation never depends on sync.
 
 ## 2. Import + identity
 
@@ -108,7 +110,28 @@ flowchart LR
 
 Index rows store document ID, stable source locator, section label, hit kind, and text. Global search includes metadata + content. Reader search returns content hits only. A document revision or extractor-version change invalidates the cached index.
 
-## 6. Reading-position persistence loop
+## 6. PDF text selection + highlight persistence
+
+```mermaid
+flowchart LR
+    Select[pdfrx text selection]
+    Ranges[PdfPageTextRange + fragment rects]
+    KolaSel[DocumentTextSelection]
+    Service[AnnotationCreationService]
+    Anchor[AnnotationAnchor]
+    Repo[AnnotationRepository]
+    DB[(SQLite)]
+    Live[annotationsProvider]
+    Highlight[FidelityTextHighlight]
+    Paint[PDF page paint callback]
+
+    Select --> Ranges --> KolaSel --> Service --> Anchor --> Repo --> DB
+    DB --> Live --> Highlight --> Paint
+```
+
+Persisted highlight anchors contain stable source locator, exact quote, prefix/suffix context, logical character offsets for single-page selections, per-page fallback ranges, and source-native PDF rectangles. Rendering reads only Kola-owned geometry; screen/viewer coordinates are never persisted.
+
+## 7. Reading-position persistence loop
 
 ```mermaid
 flowchart LR
@@ -126,7 +149,7 @@ flowchart LR
 
 For PDF, `ReadingState.location` uses `scheme=pdf` + 1-based page. Position is distinct from coverage and active reading time.
 
-## 7. PDF capability state
+## 8. PDF capability state
 
 ```mermaid
 flowchart TD
@@ -138,20 +161,21 @@ flowchart TD
     Index[Persistent FTS Index ✅]
     Search[Global + Reader Search ✅]
     Jump[Source-page Navigation ✅]
+    Select[Text Selection ✅]
+    Highlight[Persistent Highlight ✅]
     Flow[Flow ❌]
-    Select[Text Selection ❌]
-    Annotate[Annotations ❌]
+    Notes[Note UI ❌]
 
     PDF --> Fidelity --> Nav --> Resume
     PDF --> Extract --> Index --> Search --> Jump
+    PDF --> Select --> Highlight
     PDF -. future .-> Flow
-    PDF -. future .-> Select
-    PDF -. future .-> Annotate
+    PDF -. future .-> Notes
 ```
 
-Capability flags describe integrated user-facing Kola behavior. PDF now advertises `textSearch`; selection/annotations/Flow remain disabled.
+Capability flags describe integrated user-facing Kola behavior. PDF advertises fidelity, text search, text selection, and source-linked text annotations after the highlight path passes CI/device validation. Flow and note-editing UI remain separate work.
 
-## 8. Universal adapter + fidelity boundary
+## 9. Universal adapter + fidelity boundary
 
 ```mermaid
 flowchart LR
@@ -166,7 +190,7 @@ flowchart LR
 
 `DocumentAdapter.open()` receives `KolaDocument`, preserving stable identity across file moves. Engine-specific text objects are mapped to Kola-owned source geometry before leaving the adapter. Search navigation uses Kola source locations rather than package controllers.
 
-## 9. Flow + annotation invariant
+## 10. Flow + annotation invariant
 
 ```mermaid
 flowchart LR
@@ -176,7 +200,7 @@ flowchart LR
 
 Never enable annotatable Flow/selection unless it resolves back to source reliably.
 
-## 10. Persistence boundary
+## 11. Persistence boundary
 
 ```mermaid
 flowchart LR
@@ -186,7 +210,7 @@ flowchart LR
 
 Drift row types never escape the data layer. Raw datetime writes use UTC ISO-8601 strings. Search is local-only and FTS rows are removed when a document is deleted.
 
-## 11. Adaptive-native policy
+## 12. Adaptive-native policy
 
 ```mermaid
 flowchart LR
@@ -199,7 +223,7 @@ flowchart LR
 
 Semantics stay consistent; navigation/chrome/menus/sheets/back/scrollbars/density adapt.
 
-## 12. Optional BYOC
+## 13. Optional BYOC
 
 ```mermaid
 flowchart LR
@@ -208,7 +232,7 @@ flowchart LR
 
 Never sync the live SQLite file. Sync failures never block local reading.
 
-## 13. Agent patch protocol
+## 14. Agent patch protocol
 
 ```mermaid
 flowchart LR
