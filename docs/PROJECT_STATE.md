@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, and merged conservative annotation-anchor recovery after source revisions. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, and CI-verified resolved annotation navigation. Flow remains disabled.
 
 ## Current implementation
 
@@ -19,34 +19,37 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - PDF fidelity: progressive render, page/zoom/navigation, durable resume.
 - PDF source extraction: structured text + native PDF-point geometry.
 - Search: persistent local FTS5, lazy freshness, global + reader search, source-page jump.
-- PDF selection -> `DocumentTextSelection` -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
+- PDF selection -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
-- `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` rather than a guessed nullable location (D-026).
-- `PdfAnchorResolver` resolution order: verify multi-page stored fallback ranges -> verify stored page/range -> verify logical range -> search exact quote and disambiguate with prefix/suffix context -> unresolved.
-- Ambiguous duplicate quotes and missing quotes remain unresolved; Kola never silently attaches an annotation to uncertain text.
+- `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` (D-026).
+- `PdfAnchorResolver` conservatively verifies stored ranges/locator/logical range before quote+context fallback; ambiguous/missing matches stay unresolved.
+- `AnnotationNavigationService` owns adapter open/resolve/close lifecycle and returns the current `AnchorResolution` (D-027).
+- Annotation panel Go to returns the selected `Annotation`; Reader resolves it against the current source before generating `FidelityNavigationRequest`.
+- Resolved fallback recovery navigates and surfaces a recovery message; unresolved anchors show a warning and do not move the Reader.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
-## Anchor recovery path
+## Annotation navigation path
 
 ```text
-AnnotationAnchor
-  -> verify stored fallback/source ranges against exact quote
-  -> verify logical range
-  -> exact quote search across PDF pages
-  -> prefix/suffix context disambiguation
-  -> AnchorResolution(resolved + strategy + confidence)
-     OR AnchorResolution(unresolved + reason)
+AnnotationPanel -> Annotation
+  -> AnnotationNavigationService
+  -> current DocumentAdapter + DocumentHandle
+  -> resolveAnchor()
+  -> AnchorResolution
+     -> resolved: FidelityNavigationRequest
+     -> unresolved: warning, no movement
+  -> handle close
 ```
 
 ## Important files
 
 ```text
+lib/features/annotations/application/annotation_navigation_service.dart
+lib/features/annotations/presentation/annotation_panel.dart
+lib/features/reader/presentation/reader_screen.dart
 lib/document/anchors/anchor_resolution.dart
 lib/document/adapters/pdf/pdf_anchor_resolver.dart
-lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
-lib/document/registry/document_adapter.dart
-test/document/adapters/pdf/pdf_anchor_resolver_test.dart
-lib/features/annotations/presentation/annotation_panel.dart
+test/features/annotations/annotation_navigation_service_test.dart
 ```
 
 ## Invariants
@@ -58,18 +61,18 @@ lib/features/annotations/presentation/annotation_panel.dart
 - Delete uses a tombstone (`deletedAt`) for future sync compatibility.
 - Persist source coordinates/ranges, never viewer/screen coordinates.
 - Ambiguous anchor recovery must return unresolved rather than guess.
+- Annotation Go to must resolve against the current source before moving Reader.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #8 is merged on `main` as squash commit `81fea2f8c97110b46589958d695f0c498e58554c`. Run 118 surfaced one stale search-test fake using the old nullable resolver contract; production code was unaffected. After updating that fake, corrected run 119 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new anchor recovery tests, search/database tests, and the existing app smoke suite. Final exact synchronized head run 120 also passed every CI stage before merge. The native PDFium extraction test remains intentionally skipped unless `PDFIUM_PATH` is supplied.
+PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/annotation-resolved-navigation` implementation passed Flutter CI run 123 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, navigation-service lifecycle tests, anchor/search/database tests, and the existing app smoke suite all passed. This state-file synchronization is the only change after run 123 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
-- Anchor recovery currently resolves a reliable source location; recovered PDF geometry is not yet regenerated for changed documents.
-- Reader annotation navigation still uses the stored locator directly instead of consuming `AnchorResolution` and surfacing unresolved state.
-- Annotation management UI still needs physical UX validation.
+- Recovered source location is used for navigation, but changed-document PDF highlight geometry is not yet regenerated/repainted at the recovered location.
+- Annotation management/navigation UI still needs physical UX validation.
 - Physical PDF drag-selection/highlight alignment needs Linux + Android validation first.
 - Rotated/cropped/atypical PDF highlight geometry needs hands-on validation.
 - Scanned/image-only PDFs need local OCR for selection/search/recovery.
@@ -77,7 +80,7 @@ PR #8 is merged on `main` as squash commit `81fea2f8c97110b46589958d695f0c498e58
 
 ## Next recommended action
 
-1. Wire `AnchorResolution` into annotation navigation so Go to uses recovery and unresolved annotations are surfaced safely.
+1. Merge resolved annotation navigation after exact-head CI.
 2. Regenerate source geometry for confidently recovered PDF anchors after source changes.
 3. Physically validate Reader annotation UX on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.

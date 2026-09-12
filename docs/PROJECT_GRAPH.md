@@ -118,26 +118,31 @@ flowchart LR
 
 Anchors preserve source locator, exact quote/context, logical range when available, per-page fallback ranges, and PDF-point geometry.
 
-## 7. Annotation management
+## 7. Annotation management + safe navigation
 
 ```mermaid
 flowchart LR
     Panel[Annotations Panel]
     Live[annotationsProvider]
     Command[AnnotationManagementService]
+    NavService[AnnotationNavigationService]
+    Adapter[DocumentAdapter]
+    Resolve[AnchorResolution]
     Repo[AnnotationRepository]
     DB[(SQLite)]
-    Nav[DocumentLocation]
     Reader[FidelityNavigationRequest]
+    Warn[Unresolved warning]
     Paint[Highlight repaint]
 
     DB --> Live --> Panel
     Panel -- recolor / note / delete --> Command --> Repo --> DB
-    Panel -- go to --> Nav --> Reader
+    Panel -- go to annotation --> NavService --> Adapter --> Resolve
+    Resolve -- resolved --> Reader
+    Resolve -- unresolved --> Warn
     DB --> Live --> Paint
 ```
 
-Recolor/note edits preserve the source anchor and increment revision. Delete writes `deletedAt`; live queries hide tombstones.
+Recolor/note edits preserve the source anchor and increment revision. Delete writes `deletedAt`; live queries hide tombstones. Go-to never trusts a stored locator directly once anchor recovery is available.
 
 ## 8. Conservative annotation-anchor recovery
 
@@ -189,7 +194,7 @@ flowchart TD
     Search[Search + source jump ✅]
     Select[Text Selection ✅]
     Highlight[Persistent Highlight ✅]
-    Manage[List / jump / recolor / note / delete ✅]
+    Manage[List / resolve / jump / recolor / note / delete ✅]
     Recover[Conservative anchor recovery ✅]
     Flow[Flow ❌]
     Ink[Ink / area annotations ❌]
@@ -213,10 +218,11 @@ flowchart LR
     Text --> Index[IndexChunk]
     Text --> KDG[KDG + Source Map]
     Handle --> Resolve[AnchorResolution]
-    Location[DocumentLocation] --> Request[FidelityNavigationRequest] --> Fidelity
+    Resolve --> Location[DocumentLocation]
+    Location --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-Engine-specific objects are mapped to Kola-owned models before leaving adapters. Anchor resolution returns an explicit result rather than a guessed location.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters. Annotation navigation must consume `AnchorResolution`; unresolved anchors do not generate a fidelity request.
 
 ## 12. Persistence boundary
 

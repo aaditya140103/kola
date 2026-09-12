@@ -8,11 +8,13 @@ import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/core/providers/document_engine_providers.dart';
 import 'package:kola/core/providers/repository_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
+import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 import 'package:kola/document/text/document_text_selection.dart';
 import 'package:kola/features/annotations/application/annotation_creation_service.dart';
+import 'package:kola/features/annotations/application/annotation_navigation_service.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
 import 'package:kola/features/annotations/presentation/annotation_panel.dart';
 import 'package:kola/features/progress/domain/reading_models.dart';
@@ -243,15 +245,66 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   Future<void> _openAnnotations(KolaDocument document) async {
-    final DocumentLocation? location = await showModalBottomSheet<DocumentLocation>(
+    final Annotation? annotation = await showModalBottomSheet<Annotation>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       builder: (BuildContext context) => AnnotationPanel(documentId: document.id),
     );
-    if (!mounted || location == null) return;
-    _navigateTo(location);
+    if (!mounted || annotation == null) return;
+
+    try {
+      final AnnotationNavigationService service = ref.read(
+        annotationNavigationServiceProvider,
+      );
+      final AnchorResolution resolution = await service.resolve(
+        document,
+        annotation,
+      );
+      if (!mounted) return;
+
+      final DocumentLocation? location = resolution.location;
+      if (!resolution.resolved || location == null) {
+        _showUnresolvedAnnotation(resolution.reason);
+        return;
+      }
+
+      _navigateTo(location);
+      if (resolution.strategy != AnchorResolutionStrategy.storedLocator) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Annotation recovered at its current source location.'),
+            ),
+          );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Kola could not resolve this annotation: $error'),
+          ),
+        );
+    }
+  }
+
+  void _showUnresolvedAnnotation(String? reason) {
+    final String detail = reason?.trim().isNotEmpty == true
+        ? ' ${reason!.trim()}'
+        : '';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Kola could not safely locate this annotation in the current document.$detail',
+          ),
+        ),
+      );
   }
 
   void _navigateTo(DocumentLocation location) {
