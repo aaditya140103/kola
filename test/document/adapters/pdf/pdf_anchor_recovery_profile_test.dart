@@ -100,6 +100,78 @@ void main() {
     expect(quoteStats.cachedQuotes, 1);
     expect(profiles, hasLength(annotationCount));
   });
+
+  test(
+    'many unique stale quotes bound extraction but rescan cached page text',
+    () async {
+      const int pageCount = 200;
+      const int annotationCount = 50;
+      const int firstTargetPage = 101;
+      final PdfPageTextCache cache = PdfPageTextCache((int page) async {
+        final int quoteNumber = page - firstTargetPage;
+        final String text =
+            quoteNumber >= 0 && quoteNumber < annotationCount
+            ? 'prefix ${_uniqueQuote(quoteNumber)} suffix'
+            : 'page $page filler';
+        return _chunk(page, text);
+      });
+      final PdfExactQuoteIndex quoteIndex = PdfExactQuoteIndex(
+        pageCount: pageCount,
+        loadPageText: (int page) async => (await cache.get(page))!.text,
+      );
+      final List<PdfAnchorRecoveryProfile> profiles =
+          <PdfAnchorRecoveryProfile>[];
+
+      for (int i = 0; i < annotationCount; i += 1) {
+        final String quote = _uniqueQuote(i);
+        final PdfAnchorResolver resolver = PdfAnchorResolver(
+          pageCount: pageCount,
+          loadPageText: (int page) async => (await cache.get(page))!.text,
+          lookupQuoteCandidates: quoteIndex.lookup,
+          onProfile: profiles.add,
+        );
+        final AnchorResolution resolution = await resolver.resolve(
+          _anchor(page: 1, start: 0, end: quote.length, quote: quote),
+        );
+
+        expect(resolution.resolved, isTrue);
+        expect(resolution.strategy, AnchorResolutionStrategy.quoteContext);
+      }
+
+      final PdfPageTextCacheSnapshot cacheStats = cache.snapshot;
+      final PdfExactQuoteIndexSnapshot quoteStats = quoteIndex.snapshot;
+      final int scannedPages = profiles.fold<int>(
+        0,
+        (int total, PdfAnchorRecoveryProfile profile) =>
+            total + profile.quoteSearchPagesScanned,
+      );
+
+      expect(profiles, hasLength(annotationCount));
+      expect(scannedPages, pageCount * annotationCount);
+      expect(
+        profiles.every(
+          (PdfAnchorRecoveryProfile profile) =>
+              profile.pageLoadRequests == 2 &&
+              profile.uniquePagesRequested == 2 &&
+              profile.quoteSearchPagesScanned == pageCount &&
+              profile.quoteCandidatesFound == 1,
+        ),
+        isTrue,
+      );
+
+      expect(quoteStats.misses, annotationCount);
+      expect(quoteStats.hits, 0);
+      expect(quoteStats.cachedQuotes, annotationCount);
+
+      expect(cacheStats.misses, pageCount);
+      expect(cacheStats.cachedPages, pageCount);
+      expect(cacheStats.loadFailures, 0);
+      expect(
+        cacheStats.hits,
+        greaterThanOrEqualTo(pageCount * (annotationCount - 1)),
+      );
+    },
+  );
 }
 
 AnnotationAnchor _anchor({
@@ -118,6 +190,9 @@ AnnotationAnchor _anchor({
     exactQuote: quote,
   );
 }
+
+String _uniqueQuote(int index) =>
+    'unique-target-${index.toString().padLeft(2, '0')};';
 
 DocumentTextChunk _chunk(int pageNumber, String text) {
   return DocumentTextChunk(

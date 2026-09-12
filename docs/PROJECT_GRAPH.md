@@ -200,7 +200,7 @@ flowchart LR
     Handle --> QuoteIndex[PdfExactQuoteIndex]
     Resolver[PdfAnchorResolver] --> QuoteIndex
     QuoteIndex -- first quote lookup --> TextCache
-    TextCache --> Scan[Scan each page once for exact quote]
+    TextCache --> Scan[Scan each page text for exact quote]
     Scan --> CandidateCache[Cached source ranges for that quote]
     QuoteIndex -- repeated same quote --> CandidateCache
     CandidateCache --> Verify[Reload candidate pages + context/ambiguity verification]
@@ -209,7 +209,7 @@ flowchart LR
     Profile --> Baseline[Synthetic operation-count tests]
 ```
 
-Both caches are local, disposable, and handle-scoped. The measured repeated-quote baseline is expected to fall from 10,000 quote-scan page visits (50 annotations × 200 pages) to 200, while recovery semantics remain unchanged. Unique quotes can still trigger independent scans and require separate measurement before further optimization.
+Both caches are local, disposable, and handle-scoped. Deterministic profiling now covers both quote distributions. For 50 stale annotations over 200 pages, one repeated quote falls from 10,000 independent quote-scan page visits to 200 because its candidate list is reused. For 50 distinct stale quotes over the same 200 pages, the current per-quote index still records 10,000 page-string scan visits and 50 quote-cache misses, while `PdfPageTextCache` bounds underlying page-text extraction misses to 200. The measured remaining hotspot is therefore repeated substring matching over cached text, not repeated PDF/PDFium extraction. Any next optimization should target a handle-scoped batch/multi-quote scan while preserving candidate verification, context scoring, ambiguity rules, and disposable cache lifetime.
 
 ## 10. Recovered highlight geometry
 
