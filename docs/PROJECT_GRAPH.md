@@ -139,7 +139,35 @@ flowchart LR
 
 Recolor/note edits preserve the source anchor and increment revision. Delete writes `deletedAt`; live queries hide tombstones.
 
-## 8. Reading-position persistence
+## 8. Conservative annotation-anchor recovery
+
+```mermaid
+flowchart TD
+    Anchor[AnnotationAnchor]
+    Stored[Verify stored page/range]
+    Multi[Verify multi-page fallback ranges]
+    Logical[Verify logical range]
+    Quote[Search exact quote]
+    Context[Score prefix/suffix context]
+    Resolved[AnchorResolution: resolved]
+    Unresolved[AnchorResolution: unresolved]
+
+    Anchor --> Multi
+    Multi -- verified --> Resolved
+    Multi -- no --> Stored
+    Stored -- exact quote matches --> Resolved
+    Stored -- no --> Logical
+    Logical -- exact quote matches --> Resolved
+    Logical -- no --> Quote
+    Quote -- none --> Unresolved
+    Quote -- matches --> Context
+    Context -- unique best --> Resolved
+    Context -- ambiguous --> Unresolved
+```
+
+Never silently guess. `AnchorResolution` reports strategy/confidence/reason. An ambiguous or missing quote remains unresolved rather than attaching to incorrect text after a source revision.
+
+## 9. Reading-position persistence
 
 ```mermaid
 flowchart LR
@@ -149,7 +177,7 @@ flowchart LR
 
 Position is distinct from coverage and active reading time.
 
-## 9. PDF capability state
+## 10. PDF capability state
 
 ```mermaid
 flowchart TD
@@ -162,19 +190,20 @@ flowchart TD
     Select[Text Selection ✅]
     Highlight[Persistent Highlight ✅]
     Manage[List / jump / recolor / note / delete ✅]
+    Recover[Conservative anchor recovery ✅]
     Flow[Flow ❌]
     Ink[Ink / area annotations ❌]
 
     PDF --> Fidelity --> Nav --> Resume
     PDF --> Extract --> Search
-    PDF --> Select --> Highlight --> Manage
+    PDF --> Select --> Highlight --> Manage --> Recover
     PDF -. future .-> Flow
     PDF -. future .-> Ink
 ```
 
 Capability flags describe integrated Kola behavior, not engine primitives.
 
-## 10. Universal adapter + fidelity boundary
+## 11. Universal adapter + fidelity boundary
 
 ```mermaid
 flowchart LR
@@ -183,13 +212,13 @@ flowchart LR
     Handle --> Text[DocumentTextChunk]
     Text --> Index[IndexChunk]
     Text --> KDG[KDG + Source Map]
-    Handle --> Resolve[Annotation Resolution]
+    Handle --> Resolve[AnchorResolution]
     Location[DocumentLocation] --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-Engine-specific objects are mapped to Kola-owned models before leaving adapters.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters. Anchor resolution returns an explicit result rather than a guessed location.
 
-## 11. Persistence boundary
+## 12. Persistence boundary
 
 ```mermaid
 flowchart LR
@@ -199,7 +228,7 @@ flowchart LR
 
 Drift row types never escape the data layer; datetime raw writes use UTC ISO-8601.
 
-## 12. Adaptive-native policy
+## 13. Adaptive-native policy
 
 ```mermaid
 flowchart LR
@@ -210,7 +239,7 @@ flowchart LR
     Policy --> UI[Native-feeling Presentation]
 ```
 
-## 13. Optional BYOC
+## 14. Optional BYOC
 
 ```mermaid
 flowchart LR
@@ -219,7 +248,7 @@ flowchart LR
 
 Never sync the live SQLite file. Sync failures never block local reading.
 
-## 14. Agent patch protocol
+## 15. Agent patch protocol
 
 ```mermaid
 flowchart LR
