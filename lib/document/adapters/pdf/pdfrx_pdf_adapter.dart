@@ -1,5 +1,6 @@
 import 'package:kola/document/adapters/pdf/pdf_anchor_recovery_profile.dart';
 import 'package:kola/document/adapters/pdf/pdf_anchor_resolver.dart';
+import 'package:kola/document/adapters/pdf/pdf_exact_quote_index.dart';
 import 'package:kola/document/adapters/pdf/pdf_page_text_cache.dart';
 import 'package:kola/document/adapters/pdf/pdf_text_geometry_mapper.dart';
 import 'package:kola/document/anchors/anchor_resolution.dart';
@@ -153,6 +154,7 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
           end: end,
         );
       },
+      lookupQuoteCandidates: pdfHandle.quoteIndex.lookup,
       onProfile: onAnchorRecoveryProfile,
     );
     return resolver.resolve(anchor);
@@ -214,14 +216,22 @@ final class PdfrxPdfHandle implements DocumentHandle {
     required this.path,
     required this.pdf,
     required PdfPageTextChunkLoader loadPageChunk,
-  }) : textCache = PdfPageTextCache(loadPageChunk);
+  }) {
+    textCache = PdfPageTextCache(loadPageChunk);
+    quoteIndex = PdfExactQuoteIndex(
+      pageCount: pdf.pages.length,
+      loadPageText: (int pageNumber) async =>
+          (await textCache.get(pageNumber))?.text,
+    );
+  }
 
   @override
   final String documentId;
 
   final String path;
   final pdfrx.PdfDocument pdf;
-  final PdfPageTextCache textCache;
+  late final PdfPageTextCache textCache;
+  late final PdfExactQuoteIndex quoteIndex;
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;
@@ -230,6 +240,7 @@ final class PdfrxPdfHandle implements DocumentHandle {
 
   @override
   Future<void> close() async {
+    quoteIndex.clear();
     textCache.clear();
     await pdf.dispose();
   }
