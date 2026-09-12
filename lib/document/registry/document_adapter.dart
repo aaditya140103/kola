@@ -1,5 +1,6 @@
 import 'package:kola/document/graph/kola_document_graph.dart';
 import 'package:kola/document/model/document_models.dart';
+import 'package:kola/document/text/document_text_geometry.dart';
 
 enum FidelitySurfaceKind {
   pdfPages,
@@ -121,6 +122,8 @@ abstract interface class DocumentAdapter {
   Future<DocumentMetadata> readMetadata(DocumentSource source);
   Future<DocumentHandle> open(KolaDocument document);
   Future<FidelityDescriptor?> buildFidelityView(DocumentHandle handle);
+
+  Stream<DocumentTextChunk> extractTextGeometry(DocumentHandle handle);
 
   Stream<GraphChunk> buildDocumentGraph(
     DocumentHandle handle,
