@@ -1,38 +1,28 @@
 # Kola — Project Graph
 
-Compact architecture context for agents. Read with `AGENTS.md` and `docs/PROJECT_STATE.md` before opening long specs.
+Compact architecture context for agents. Read with `AGENTS.md` and `docs/PROJECT_STATE.md` before long specs.
 
 ## 1. Application architecture
 
 ```mermaid
 flowchart TD
     OS[Linux / Windows / macOS / Android / iOS]
-    Shell[Adaptive Native Shell]
-    UI[Flutter UI + Kola Design System]
-    App[Application / Use Cases]
-    Domain[Kola-owned Domain Models]
+    UI[Adaptive Flutter UI]
+    Domain[Kola Domain]
     DB[(SQLite / Drift)]
     Files[(Local / Managed Files)]
-    AdapterRegistry[FormatRegistry]
-    FidelityRegistry[FidelityRendererRegistry]
+    Format[FormatRegistry]
+    Fidelity[FidelityRendererRegistry]
     Engines[Format Engines]
     KDG[Kola Document Graph]
-    Flow[Flow Mode]
-    Search[Local Search]
-    Ann[Annotations]
-    Read[Progress / Coverage / Sessions]
-    Sync[Optional BYOC Projection]
+    Flow[Flow / Search / Annotations]
+    Sync[Optional BYOC]
 
-    OS --> Shell --> UI --> App --> Domain
+    OS --> UI --> Domain
     Domain <--> DB
-    Domain --> AdapterRegistry --> Engines
-    Domain --> FidelityRegistry --> Engines
-    Engines --> Files
-    Engines --> KDG
-    KDG --> Flow
-    KDG --> Search
-    KDG --> Ann
-    KDG --> Read
+    Domain --> Format --> Engines --> Files
+    Domain --> Fidelity --> Engines
+    Engines --> KDG --> Flow
     DB -. optional .-> Sync
 ```
 
@@ -42,205 +32,135 @@ Local reading never depends on sync.
 
 ```mermaid
 flowchart LR
-    Pick[Native Picker]
-    Source[Selected File]
-    Detect[Signature + Container + Extension]
-    Hash[Stream SHA-256]
-    ID[sha256 Document ID]
-    Mode{Import Mode}
-    Managed[Managed Copy]
-    Linked[Linked File]
-    Registry[FormatRegistry]
-    Meta[Adapter Metadata / Filename Fallback]
-    Repo[DocumentRepository]
-    DB[(SQLite)]
-    Library[Reactive Library]
-
-    Pick --> Source
-    Source --> Detect
-    Source --> Hash --> ID
-    ID --> Mode
-    Mode -- default --> Managed
-    Mode -- explicit --> Linked
-    Detect --> Registry --> Meta
-    Managed --> Meta
-    Linked --> Meta
-    ID --> Repo
-    Meta --> Repo --> DB --> Library
+    Pick[Native Picker] --> Detect[Format Probe]
+    Pick --> Hash[Stream SHA-256] --> ID[sha256 Document ID]
+    ID --> Store[Managed Copy / Linked File]
+    Detect --> Registry[FormatRegistry]
+    Store --> Repo[DocumentRepository]
+    Registry --> Repo --> DB[(SQLite)] --> Library[Reactive Library]
 ```
 
-Rules: original files are untouched; identical bytes share identity; unknown formats do not mutate the library; managed copies are durable, not cache.
+Rules: originals untouched; identical bytes share identity; unknown formats do not mutate library; managed copies are durable.
 
-## 3. Current real PDF reader path
+## 3. Current PDF reader path
 
 ```mermaid
 flowchart LR
     Route[reader/:documentId]
-    Provider[documentProvider]
     Repo[DocumentRepository]
     Doc[KolaDocument]
-    Cap[FormatRegistry]
-    Renderers[FidelityRendererRegistry]
+    Fidelity[FidelityRendererRegistry]
     Resolver[DocumentSourceResolver]
-    PdfAdapter[PdfrxPdfAdapter]
-    PdfView[PdfrxPdfFidelityRenderer]
+    View[PdfrxPdfFidelityRenderer]
     PDFium[pdfrx / PDFium]
     Pages[Real PDF Pages]
 
-    Route --> Provider --> Repo --> Doc
-    Doc --> Cap --> PdfAdapter
-    Doc --> Renderers --> PdfView
-    PdfView --> Resolver --> PDFium --> Pages
+    Route --> Repo --> Doc --> Fidelity --> View --> Resolver --> PDFium --> Pages
 ```
 
-Important boundary:
+Generic Reader code does not import `pdfrx`.
+
+## 4. Reading-position persistence loop
+
+```mermaid
+flowchart LR
+    PDF[PDF Viewer]
+    State[FidelityViewState]
+    Debounce[400 ms Debounce]
+    Reading[ReadingState]
+    Repo[ReadingRepository]
+    DB[(SQLite)]
+    Restore[Restore page + zoom + view mode]
+
+    PDF -- page/zoom --> State --> Debounce --> Reading --> Repo --> DB
+    DB --> Repo --> Reading --> Restore --> PDF
+```
+
+For PDF, `ReadingState.location` is source-based:
 
 ```text
-Generic Reader feature
-  -> Kola registries/interfaces
-  -> package-specific PDF adapter/renderer
-  -> pdfrx/PDFium
+scheme: pdf
+data.page: 1-based page number
+zoom: viewer zoom ratio
+positionProgress: page / pageCount
+viewMode: fidelity
 ```
 
-Generic Reader code must not import `pdfrx`.
+Position is distinct from coverage and active reading time. Reader flushes pending state when leaving.
 
-## 4. PDF capability state
+## 5. PDF capability state
 
 ```mermaid
 flowchart TD
     PDF[PDF Adapter]
-    Fidelity[Fidelity View ✅]
-    Nav[Page navigation / zoom ✅]
-    Flow[Flow Mode ❌]
+    Fidelity[Fidelity ✅]
+    Nav[Page / Zoom ✅]
+    Resume[Resume Position ✅]
+    Flow[Flow ❌]
     Search[Search ❌]
-    Select[Text selection ❌]
-    Annotate[Text annotations ❌]
-    Outline[Outline UI ❌]
+    Select[Text Selection ❌]
+    Annotate[Annotations ❌]
 
-    PDF --> Fidelity --> Nav
+    PDF --> Fidelity --> Nav --> Resume
     PDF -. future .-> Flow
     PDF -. future .-> Search
     PDF -. future .-> Select
     PDF -. future .-> Annotate
-    PDF -. future .-> Outline
 ```
 
 Capability flags describe integrated Kola behavior, not raw engine features.
 
-## 5. Universal adapter contract
+## 6. Universal adapter boundary
 
 ```mermaid
 flowchart LR
-    Doc[KolaDocument]
-    Adapter[DocumentAdapter]
-    Handle[DocumentHandle with stable documentId]
-    Fidelity[Fidelity Descriptor]
-    Extract[Semantic Extraction]
-    Graph[KDG + Source Map]
-    Index[Index Chunks]
-    Resolve[Annotation Resolution]
-
-    Doc --> Adapter --> Handle
-    Handle --> Fidelity
-    Handle --> Extract --> Graph
-    Handle --> Index
-    Handle --> Resolve
+    Doc[KolaDocument] --> Adapter[DocumentAdapter] --> Handle[DocumentHandle]
+    Handle --> Fidelity[Fidelity]
+    Handle --> Extract[Semantic Extraction] --> KDG[KDG + Source Map]
+    Handle --> Index[Index Chunks]
+    Handle --> Resolve[Annotation Resolution]
 ```
 
-`DocumentAdapter.open()` receives `KolaDocument`, never only a file path, because handles must preserve stable content identity across file moves/renames.
+`DocumentAdapter.open()` receives `KolaDocument`, preserving stable document identity across file moves.
 
-## 6. Flow + annotation invariant
+## 7. Flow + annotation invariant
 
 ```mermaid
 flowchart LR
-    Source[Source Content]
-    Block[KDG Block]
-    Map[Source Mapping]
-    Flow[Flow Block]
-    Selection[Selection]
-    Anchor[Hybrid Annotation Anchor]
-    Back[Resolve to Source]
-
-    Source --> Block --> Flow --> Selection --> Anchor
-    Source --> Map --> Anchor --> Back --> Source
+    Source[Source] --> Block[KDG Block] --> Flow[Flow Block] --> Selection[Selection] --> Anchor[Hybrid Anchor]
+    Source --> Map[Source Map] --> Anchor --> Back[Resolve Back] --> Source
 ```
 
-Never enable Flow/selection when annotatable content cannot resolve back to source reliably.
+Never enable annotatable Flow/selection unless it resolves back to source reliably.
 
-## 7. Persistence/data path
+## 8. Persistence boundary
 
 ```mermaid
 flowchart LR
-    DB[(SQLite / Drift)]
-    DocRepo[Document Repository]
-    ReadRepo[Reading Repository]
-    AnnRepo[Annotation Repository]
-    Models[Kola Domain Models]
-    Providers[Riverpod Providers]
-    Home[Home]
-    Library[Library]
-    Insights[Insights]
-    Reader[Reader]
-
-    DB --> DocRepo --> Models
-    DB --> ReadRepo --> Models
-    DB --> AnnRepo --> Models
-    Models --> Providers
-    Providers --> Home
-    Providers --> Library
-    Providers --> Insights
-    Providers --> Reader
+    DB[(SQLite / Drift)] --> Repos[Document / Reading / Annotation Repositories]
+    Repos --> Models[Kola Domain Models] --> Providers[Riverpod] --> UI[Home / Library / Insights / Reader]
 ```
 
-Drift row types never escape the data layer. Raw datetime writes serialize to UTC ISO-8601 strings.
+Drift row types never escape the data layer. Raw datetime writes use UTC ISO-8601 strings.
 
-## 8. Reading state model
+## 9. Adaptive-native policy
 
 ```mermaid
 flowchart LR
-    Events[Reader Events]
-    Position[Position]
-    Coverage[Actual Coverage]
-    Session[Active Reading Session]
-    DB[(SQLite)]
-
-    Events --> Position --> DB
-    Events --> Coverage --> DB
-    Events --> Session --> DB
+    Platform[Platform] --> Policy[Kola Adaptive Policy]
+    Window[Window Size] --> Policy
+    Input[Touch / Mouse / Keyboard / Stylus] --> Policy
+    A11y[Accessibility] --> Policy
+    Policy --> UI[Native-feeling Presentation]
 ```
 
-`position != coverage != active reading time`.
-
-## 9. Adaptive-native UI policy
-
-```mermaid
-flowchart LR
-    Platform[Platform]
-    Window[Window Size]
-    Input[Touch / Mouse / Keyboard / Stylus]
-    A11y[Accessibility]
-    Policy[Kola Adaptive Policy]
-    UI[Native-feeling Presentation]
-
-    Platform --> Policy
-    Window --> Policy
-    Input --> Policy
-    A11y --> Policy
-    Policy --> UI
-```
-
-Semantics stay consistent; navigation/chrome/menus/sheets/back/scrollbars/selection/density adapt to platform and capabilities.
+Semantics stay consistent; navigation/chrome/menus/sheets/back/scrollbars/density adapt.
 
 ## 10. Optional BYOC
 
 ```mermaid
 flowchart LR
-    DB[(Local SQLite)]
-    Projection[Versioned Sync Records]
-    Backend[User-selected SyncBackend]
-    Cloud[(User Cloud / Folder)]
-
-    DB -. optional .-> Projection -.-> Backend -.-> Cloud
+    DB[(Local SQLite)] -. optional .-> Projection[Versioned Sync Records] -.-> Backend[User SyncBackend] -.-> Cloud[(User Cloud / Folder)]
 ```
 
 Never sync the live SQLite file. Sync failures never block local reading.
@@ -249,14 +169,5 @@ Never sync the live SQLite file. Sync failures never block local reading.
 
 ```mermaid
 flowchart LR
-    Task[Task]
-    Read[AGENTS + STATE + GRAPH + one spec]
-    Change[Implement]
-    Test[Test / Analyze]
-    State[Update PROJECT_STATE]
-    Graph[Update GRAPH if architecture changed]
-    Decision[Update DECISIONS if durable choice changed]
-    Done[Done]
-
-    Task --> Read --> Change --> Test --> State --> Graph --> Decision --> Done
+    Task --> Read[AGENTS + STATE + GRAPH] --> Change --> Test --> State[Update PROJECT_STATE] --> Graph[Update graph if architecture changed] --> Decision[Update DECISIONS if needed] --> Done
 ```

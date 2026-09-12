@@ -1,10 +1,27 @@
 import 'package:flutter/widgets.dart';
 import 'package:kola/document/model/document_models.dart';
 
+final class FidelityViewState {
+  const FidelityViewState({
+    required this.positionProgress,
+    required this.zoom,
+    this.location,
+  });
+
+  final DocumentLocation? location;
+  final double positionProgress;
+  final double zoom;
+}
+
 abstract interface class DocumentFidelityRenderer {
   DocumentFormat get format;
 
-  Widget build(BuildContext context, KolaDocument document);
+  Widget build(
+    BuildContext context,
+    KolaDocument document, {
+    FidelityViewState? initialState,
+    ValueChanged<FidelityViewState>? onStateChanged,
+  });
 }
 
 final class FidelityRendererRegistry {

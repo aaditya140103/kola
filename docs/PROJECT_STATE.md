@@ -6,95 +6,97 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 2: first real PDF Fidelity View.**
+**Phase 2: PDF Fidelity View + durable resume state.**
 
-Kola can import local documents into a stable content-addressed library and now has its first concrete format engine: PDF via `pdfrx`/PDFium. Reader resolves a persisted document by ID, chooses app-owned capabilities/renderers, and renders real local PDF pages. PDF Flow/search/selection/annotations are intentionally not enabled yet.
+Kola imports local documents into a content-addressed library and renders real PDFs via `pdfrx`/PDFium. PDF page/zoom/view-mode state now persists through the existing `reading_states` table. PDF Flow/search/selection/annotations remain intentionally disabled.
 
 ## Current implementation
 
-- App: Flutter/Dart + Riverpod + go_router; declared Dart floor is 3.13.
-- Persistence: SQLite/Drift schema v1 with reactive repository implementations.
+- Flutter/Dart + Riverpod + go_router; Dart floor 3.13.
+- SQLite/Drift schema v1 with reactive repository implementations.
 - Import: native picker -> format probe + streamed SHA-256 -> managed copy or linked source -> repository.
-- Identity: stable `sha256:<hex>` document ID (D-020).
-- Timestamps: UTC ISO-8601 text at raw SQLite write boundaries (D-019).
-- Source access: one app-owned `DocumentSourceResolver` handles managed and linked files.
-- Registry: `FormatRegistry` contains `PdfrxPdfAdapter` for PDF.
-- Fidelity UI: separate `FidelityRendererRegistry`; generic Reader never imports `pdfrx`.
-- PDF: `pdfrx ^2.6.1`, progressive page loading, previous/next page navigation, zoom, keyboard navigation.
-- Capabilities: PDF currently advertises **fidelity only**. Flow, text selection, search, text annotations, outline UI, and export remain false/unintegrated.
-- Reader: title/format come from the persisted `KolaDocument`; fake prototype document text has been removed.
-- UI: tokenized Kola Core prototype; final visual direction remains unvalidated.
+- Stable identity: `sha256:<hex>` (D-020).
+- Raw SQLite timestamps: UTC ISO-8601 text (D-019).
+- `DocumentSourceResolver` centralizes managed/linked source access.
+- PDF engine: `pdfrx ^2.6.1` / PDFium behind `PdfrxPdfAdapter`.
+- PDF fidelity UI lives behind `FidelityRendererRegistry`; generic Reader does not import `pdfrx`.
+- PDF supports progressive rendering, page navigation, zoom, keyboard navigation, and durable resume state.
+- `FidelityViewState` is format-neutral and carries source location + normalized position + zoom from renderer to Reader.
+- Reader debounces page/zoom saves for 400 ms and flushes pending state on explicit exit/dispose.
+- PDF source locator: `scheme=pdf`, `data.page=<1-based page>`.
+- Restored state initializes PDF page, zoom, and saved view mode before presenting the reader.
+- A stale-state overwrite race during immediate mode changes was removed by building the mode write from the exact state returned by the pending-position flush.
+- PDF capability flags remain fidelity-only; search/Flow/text selection/annotation/export remain unintegrated.
 
-## Core reader path
+## Resume data path
 
 ```text
-Library item/documentId
-  -> DocumentRepository
-  -> KolaDocument
-  -> FormatRegistry -> DocumentAdapter capabilities/lifecycle
-  -> FidelityRendererRegistry
-  -> DocumentSourceResolver
-  -> pdfrx PdfViewer.file
-  -> real PDF pages + page/zoom controls
+pdfrx page/zoom event
+  -> FidelityViewState
+  -> Reader 400 ms debounce
+  -> ReadingState
+  -> ReadingRepository
+  -> SQLite
+
+reopen
+  -> readingStateProvider
+  -> FidelityViewState
+  -> PdfrxPdfFidelityRenderer
+  -> initial page + zoom
 ```
 
-The adapter opens a `KolaDocument`, not a bare path/source, so `DocumentHandle.documentId` always preserves stable Kola identity.
+`position != coverage != active reading time`.
 
 ## Important files
 
 ```text
-lib/core/providers/document_engine_providers.dart
-lib/document/source/document_source_resolver.dart
-lib/document/registry/document_adapter.dart
 lib/document/fidelity/document_fidelity_renderer.dart
-lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
+lib/document/adapters/pdf/pdf_fidelity_position.dart
 lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 lib/features/reader/presentation/reader_screen.dart
-lib/core/providers/app_data_providers.dart
-lib/main.dart
-pubspec.yaml
-test/document/source/document_source_resolver_test.dart
-test/document/registry/pdf_registration_test.dart
+lib/features/progress/domain/reading_models.dart
+lib/features/progress/data/drift_reading_repository.dart
+test/document/adapters/pdf/pdf_fidelity_position_test.dart
+test/core/repositories/repository_integration_test.dart
 ```
 
 ## Invariants
 
-- Core reading requires no network or account.
+- Core reading requires no account/network.
 - Original source files are never modified.
-- Managed source copies are durable user-library files, not cache.
-- Format packages do not escape Kola-owned registries/contracts into generic feature code.
-- Capability flags describe **integrated Kola behavior**, not merely what a third-party engine can theoretically do.
-- Flow Mode must be source-linked before it can be enabled.
-- Text selection/annotations must not be enabled until PDF coordinates/ranges can produce stable Kola anchors.
-- Position, reading coverage, and active reading time remain distinct.
+- Managed copies are durable user-library files, not cache.
+- Format packages stay behind Kola-owned contracts/registries.
+- Capability flags describe integrated Kola behavior, not theoretical package features.
+- Flow must be source-linked before it can be enabled.
+- Selection/annotations stay disabled until PDF text ranges/geometry can generate stable Kola anchors.
+- Reading position, reading coverage, and active reading time stay separate.
 - AI and dedicated study systems remain out of scope.
-- BYOC stays optional and outside the critical reading path.
+- BYOC remains optional and outside the critical reading path.
 
 ## Verification
 
-Import/persistence is merged on `main`. PR #2 passed full Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution (including `pdfrx`/PDFium), Drift generation, formatting, analyzer, and all tests are green. Tests cover managed/linked/missing source resolution and ensure the PDF adapter does not claim unfinished Flow/search/selection/annotation capabilities. Physical-device PDF rendering is still a separate validation requirement.
+Import/persistence and the first PDF fidelity reader are merged on `main`. PR #3 passed full Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, and all tests are green. New coverage verifies PDF position encoding/restoration and a real SQLite round-trip for page locator, progress, view mode, and zoom.
 
 ## Current risks / blockers
 
-- Real PDF rendering still needs hands-on Linux/Android/iOS/Windows/macOS device testing; CI verifies compilation/tests, not visual/device behavior.
+- Physical PDF rendering/resume still needs hands-on Linux/Android/iOS/Windows/macOS testing; CI validates code/tests, not device UX.
 - Password-protected/corrupt PDF UX is not yet Kola-specific.
-- PDF current-page/zoom state is not persisted into `reading_states` yet.
-- PDF text extraction, source-coordinate mapping, selection, search, annotations, and Flow remain unimplemented.
-- Native platform project folders still need stable generation/commit using `bash tool/bootstrap.sh` on a Flutter-equipped development machine.
-- Schema v1 has no release migration path yet because no released schema exists.
+- PDF resume is page-level; intra-page viewport offset is not persisted yet.
+- PDF text extraction, geometry, search, selection, annotations, and Flow remain unimplemented.
+- Native platform folders still need stable generation/commit with `bash tool/bootstrap.sh` on a Flutter-equipped machine.
+- Schema v1 has no release migration path because no public schema release exists yet.
 
 ## Next recommended action
 
-1. Merge verified PR #2.
-2. Persist PDF page/zoom position into `ReadingState` and restore it on reopen.
-3. Extract PDF page text and geometry through pdfrx/PDFium into Kola-owned source locations.
-4. Build local PDF search/index chunks from that extraction.
-5. Add source-linked PDF text selection and durable highlight/note anchors.
-6. Only then enable PDF text-selection/search/annotation capability flags.
-7. Begin reconstructed PDF Flow Mode after reading-order/source-map quality tests exist.
+1. Merge verified PR #3.
+2. Extract PDF page text + character/word geometry into Kola-owned source structures.
+3. Produce local `IndexChunk`s and enable PDF search only after extraction tests pass.
+4. Add source-linked PDF text selection and durable highlight/note anchors.
+5. Enable annotation/search capability flags only after those integrations exist.
+6. Begin reconstructed PDF Flow Mode after reading-order/source-map quality tests exist.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
 ## Required update after every patch
 
-Architecture/data-flow changes -> `PROJECT_GRAPH.md`. Durable choices -> `DECISIONS.md`. Feature-scope changes -> relevant detailed spec. Meaningful UX changes must remain consistent with `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
+Architecture/data-flow changes -> `PROJECT_GRAPH.md`. Durable decisions -> `DECISIONS.md`. Feature-scope changes -> relevant spec. Meaningful UX changes must remain consistent with `UX_RESEARCH.md`, `UX_VALIDATION.md`, and `VISUAL_DIRECTIONS.md`.
