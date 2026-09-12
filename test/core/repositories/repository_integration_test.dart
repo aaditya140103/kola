@@ -114,6 +114,45 @@ void main() {
     expect(sessions.single.activeTime, const Duration(minutes: 22));
   });
 
+  test('pdf page locator and zoom survive reading-state persistence', () async {
+    final DateTime now = DateTime.utc(2026, 9, 12, 11, 30);
+    await documents.upsert(
+      KolaDocument(
+        id: 'doc-pdf-state',
+        source: DocumentSource(
+          kind: DocumentSourceKind.managedCopy,
+          uri: Uri.file('/library/stateful.pdf'),
+        ),
+        format: DocumentFormat.pdf,
+        metadata: const DocumentMetadata(title: 'Stateful PDF'),
+        importedAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await reading.saveState(
+      ReadingState(
+        documentId: 'doc-pdf-state',
+        location: DocumentLocation(
+          scheme: 'pdf',
+          data: const <String, Object?>{'page': 42},
+          label: 'Page 42',
+        ),
+        positionProgress: 0.42,
+        viewMode: ReaderViewMode.fidelity,
+        zoom: 1.75,
+        updatedAt: now,
+      ),
+    );
+
+    final ReadingState? stored = await reading.watchState('doc-pdf-state').first;
+    expect(stored?.location?.scheme, 'pdf');
+    expect(stored?.location?.data['page'], 42);
+    expect(stored?.positionProgress, 0.42);
+    expect(stored?.viewMode, ReaderViewMode.fidelity);
+    expect(stored?.zoom, 1.75);
+  });
+
   test('annotation source anchors survive serialization', () async {
     final DateTime now = DateTime.utc(2026, 9, 12, 12);
     await documents.upsert(
