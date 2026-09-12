@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/core/database/kola_database.dart';
+import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/graph/kola_document_graph.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
@@ -123,10 +124,22 @@ final class _FakeTextAdapter implements DocumentAdapter {
   }
 
   @override
-  Future<DocumentLocation?> resolveAnchor(
+  Future<AnchorResolution> resolveAnchor(
     DocumentHandle handle,
     AnnotationAnchor anchor,
-  ) async => anchor.sourceLocator;
+  ) async {
+    final DocumentLocation? location = anchor.sourceLocator;
+    if (location == null) {
+      return const AnchorResolution.unresolved(
+        reason: 'Fake adapter has no source locator.',
+      );
+    }
+    return AnchorResolution.resolved(
+      location: location,
+      strategy: AnchorResolutionStrategy.storedLocator,
+      confidence: 1.0,
+    );
+  }
 
   @override
   Future<ExportResult> export(ExportRequest request) {
