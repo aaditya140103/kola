@@ -12,6 +12,7 @@ import 'package:kola/document/text/document_text_geometry.dart';
 import 'package:kola/features/library/data/drift_document_repository.dart';
 import 'package:kola/features/search/application/document_search_service.dart';
 import 'package:kola/features/search/data/drift_search_repository.dart';
+import 'package:kola/features/search/domain/search_models.dart';
 
 void main() {
   late KolaDatabase database;
