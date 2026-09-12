@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, and now has branch support for transient recovered highlight geometry. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, and now has CI-verified transient recovered highlight geometry. Flow remains disabled.
 
 ## Current implementation
 
@@ -24,7 +24,7 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` (D-026).
 - `PdfAnchorResolver` conservatively verifies stored ranges/locator/logical range before quote+context fallback; ambiguous/missing matches stay unresolved.
 - `AnnotationNavigationService` resolves Go to against the current source before Reader navigation (D-027).
-- `AnchorResolution` can now carry transient current-source geometry rebuilt from resolved PDF character ranges (D-028).
+- `AnchorResolution` can carry transient current-source geometry rebuilt from resolved PDF character ranges (D-028).
 - `AnnotationGeometryRecoveryService` opens the document once, resolves all highlights, and exposes geometry only for successfully resolved annotations.
 - Reader paints from recovered geometry rather than persisted rectangles; unresolved stale geometry is suppressed and the persisted `AnnotationAnchor` is never rewritten.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
@@ -75,7 +75,7 @@ test/features/annotations/annotation_geometry_recovery_service_test.dart
 
 ## Verification
 
-PR #9 resolved annotation navigation is merged as `3c8d71be946b94577da3929f5daf1f37f2856c00`; exact-head CI run 124 passed. Current `feat/recovered-annotation-geometry` adds pure geometry reconstruction, transient resolution geometry, batch recovery, Reader paint integration, and focused tests. Full CI is required before merge.
+PR #9 resolved annotation navigation is merged as `3c8d71be946b94577da3929f5daf1f37f2856c00`; exact-head CI run 124 passed. PR #10 implementation head CI run 127 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, pure geometry reconstruction tests, annotation geometry recovery tests, anchor/search/database tests, and the existing app smoke suite. This state synchronization is the only change after run 127 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -87,7 +87,7 @@ PR #9 resolved annotation navigation is merged as `3c8d71be946b94577da3929f5daf1
 
 ## Next recommended action
 
-1. Pass CI and merge recovered annotation geometry.
+1. Merge recovered annotation geometry after exact-head CI.
 2. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
 3. Profile annotation recovery on documents with hundreds/thousands of highlights and add caching if measured.
 4. Add annotation filters/export only after management UX is stable.
