@@ -46,7 +46,15 @@ final class PdfAnchorRecoveryProfiler {
 
   void recordQuoteSearchPage() => _quoteSearchPagesScanned += 1;
 
+  void recordQuoteSearchPages(int count) {
+    _quoteSearchPagesScanned += count;
+  }
+
   void recordQuoteCandidate() => _quoteCandidatesFound += 1;
+
+  void recordQuoteCandidates(int count) {
+    _quoteCandidatesFound += count;
+  }
 
   void complete(AnchorResolution resolution) {
     _stopwatch.stop();
