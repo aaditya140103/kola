@@ -27,7 +27,7 @@ Kola imports content-addressed local documents, renders real PDFs through `pdfrx
 - Reader watches durable annotations and maps highlights to format-neutral `FidelityTextHighlight` records.
 - PDF renderer repaints persisted highlight rectangles through page paint callbacks; no viewer/screen coordinates are stored.
 - PDF context menu adds `Highlight` only when selected text/ranges are accessible.
-- PDF capability on this branch advertises fidelity, search, text selection, and text annotations; keep these flags only if CI and physical validation confirm the integrated path.
+- PDF capability on this branch advertises fidelity, search, text selection, and text annotations; area/ink annotations and Flow remain false.
 
 ## Highlight path
 
@@ -54,6 +54,7 @@ lib/features/annotations/application/annotation_creation_service.dart
 lib/features/annotations/data/drift_annotation_repository.dart
 lib/core/providers/annotation_providers.dart
 lib/features/reader/presentation/reader_screen.dart
+test/document/registry/pdf_registration_test.dart
 ```
 
 ## Invariants
@@ -70,21 +71,21 @@ lib/features/reader/presentation/reader_screen.dart
 
 ## Verification
 
-PR #5 persistent local search is merged and green. PR #6 run 105 reached Drift generation/formatting successfully; analyzer found only that `uuid` was referenced transitively. The branch now declares `uuid ^4.6.0` directly. A new exact-head Flutter CI run must reach analyzer + tests before merge.
+PR #5 persistent local search is merged and green. PR #6 run 107 passed dependency resolution, Drift generation, formatting, and analyzer. The new annotation creation test, multi-page fallback-range test, SQLite geometry round-trip test, search tests, database tests, and existing app smoke test all passed. The only failing test was the pre-feature PDF capability contract still expecting `textSelection`/`textAnnotations` to be false; that stale expectation has now been updated to true while area/ink/Flow remain false. Exact-head CI must pass before merge.
 
 ## Current risks / blockers
 
-- pdfrx context-menu and selection callback integration still needs analyzer/runtime verification on Flutter 3.47.4.
 - Physical drag-selection/selection-handle behavior must be tested on touch and desktop pointer platforms.
 - Highlight paint alignment must be verified on rotated/cropped/atypical PDF pages.
 - Scanned/image-only PDFs have no selectable text until local OCR exists.
+- Native PDFium extraction test remains skipped in CI unless `PDFIUM_PATH` is supplied.
 - Existing annotations have no edit/delete/color UI in the Reader yet.
 - Text notes/margin notes are not integrated yet.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Pass CI for source-linked PDF highlight creation/persistence/rendering.
+1. Pass exact-head CI for source-linked PDF highlight creation/persistence/rendering.
 2. Physically validate selection and highlight alignment on Linux + Android first, then other targets.
 3. Add annotation management: list, jump, recolor, delete, note attachment.
 4. Strengthen `resolveAnchor()` with quote/context fallback when document revisions change.
