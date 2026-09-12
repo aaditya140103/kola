@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kola/core/providers/annotation_providers.dart';
 import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/core/providers/document_engine_providers.dart';
 import 'package:kola/core/providers/repository_providers.dart';
@@ -11,6 +12,9 @@ import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
+import 'package:kola/document/text/document_text_selection.dart';
+import 'package:kola/features/annotations/application/annotation_creation_service.dart';
+import 'package:kola/features/annotations/domain/annotation_models.dart';
 import 'package:kola/features/progress/domain/reading_models.dart';
 import 'package:kola/features/progress/domain/reading_repository.dart';
 import 'package:kola/features/search/application/document_search_service.dart';
@@ -105,6 +109,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final DocumentFidelityRenderer? fidelityRenderer = ref
         .watch(fidelityRendererRegistryProvider)
         .rendererFor(document.format);
+    final AsyncValue<List<Annotation>> annotationState = ref.watch(
+      annotationsProvider(document.id),
+    );
+    final List<Annotation> annotations = annotationState.when(
+      data: (List<Annotation> value) => value,
+      loading: () => const <Annotation>[],
+      error: (Object error, StackTrace stackTrace) => const <Annotation>[],
+    );
+    final List<FidelityTextHighlight> highlights = annotations
+        .where(
+          (Annotation annotation) =>
+              annotation.type == AnnotationType.highlight &&
+              annotation.anchor.sourceGeometry.isNotEmpty,
+        )
+        .map(
+          (Annotation annotation) => FidelityTextHighlight(
+            id: annotation.id,
+            sourceGeometry: annotation.anchor.sourceGeometry,
+            colorToken: annotation.colorToken,
+          ),
+        )
+        .toList(growable: false);
 
     final bool persistedFlowMode =
         readingState?.viewMode == ReaderViewMode.flow && capabilities.flowMode;
@@ -119,6 +145,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 navigationRequest: _navigationRequest,
                 onStateChanged: (FidelityViewState state) =>
                     _scheduleFidelityStateSave(state, readingState),
+                onTextSelection: capabilities.textSelection
+                    ? (DocumentTextSelection selection) =>
+                          unawaited(_createHighlight(document, selection))
+                    : null,
+                highlights: highlights,
               ) ??
               _FidelityUnavailable(document: document);
 
@@ -172,6 +203,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       positionProgress: state?.positionProgress ?? 0.0,
       zoom: state?.zoom ?? 1.0,
     );
+  }
+
+  Future<void> _createHighlight(
+    KolaDocument document,
+    DocumentTextSelection selection,
+  ) async {
+    try {
+      final AnnotationCreationService service = ref.read(
+        annotationCreationServiceProvider,
+      );
+      await service.createHighlight(document: document, selection: selection);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Highlight saved.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Kola could not save this highlight: $error')),
+        );
+    }
   }
 
   Future<void> _openSearch(KolaDocument document) async {

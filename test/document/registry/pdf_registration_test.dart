@@ -15,8 +15,10 @@ void main() {
     expect(capabilities, isNotNull);
     expect(capabilities!.fidelityView, isTrue);
     expect(capabilities.textSearch, isTrue);
+    expect(capabilities.textSelection, isTrue);
+    expect(capabilities.textAnnotations, isTrue);
     expect(capabilities.flowMode, isFalse);
-    expect(capabilities.textSelection, isFalse);
-    expect(capabilities.textAnnotations, isFalse);
+    expect(capabilities.areaAnnotations, isFalse);
+    expect(capabilities.inkAnnotations, isFalse);
   });
 }

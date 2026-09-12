@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:kola/document/model/document_models.dart';
+import 'package:kola/document/text/document_text_selection.dart';
 
 final class FidelityViewState {
   const FidelityViewState({
@@ -32,6 +33,8 @@ abstract interface class DocumentFidelityRenderer {
     FidelityViewState? initialState,
     FidelityNavigationRequest? navigationRequest,
     ValueChanged<FidelityViewState>? onStateChanged,
+    ValueChanged<DocumentTextSelection>? onTextSelection,
+    List<FidelityTextHighlight> highlights = const <FidelityTextHighlight>[],
   });
 }
 
