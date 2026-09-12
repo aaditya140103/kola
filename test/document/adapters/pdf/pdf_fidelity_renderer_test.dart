@@ -7,15 +7,15 @@ import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../../../support/simple_pdf.dart';
 import '../../../support/native_pdfium.dart';
+import '../../../support/simple_pdf.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(initializeTestPdfium);
 
   testWidgets(
-    'managed PDF renders actual pages, exposes outline, and survives provider rebuilds',
+    'managed PDF renders pages, navigates thumbnails and outline, and survives rebuilds',
     (tester) async {
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
@@ -24,7 +24,10 @@ void main() {
       final directory = Directory.systemTemp.createTempSync('kola-viewer-');
       final file = File('${directory.path}/sample.pdf');
       file.writeAsBytesSync(
-        buildSimplePdf('Hello Kola', outlineTitle: 'Introduction'),
+        buildPdfWithPages(
+          <String>['Hello Kola', 'Second page'],
+          outlineTitle: 'Introduction',
+        ),
       );
       final document = KolaDocument(
         id: 'sha256:viewer-test',
@@ -48,10 +51,11 @@ void main() {
           ),
         ),
       );
+
       // Native file IO/rendering is real asynchronous work outside the fake clock.
       for (
         var attempt = 0;
-        attempt < 100 && find.text('Page 1 of 1').evaluate().isEmpty;
+        attempt < 100 && find.text('Page 1 of 2').evaluate().isEmpty;
         attempt++
       ) {
         await tester.runAsync(
@@ -59,10 +63,10 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.text('Page 1 of 1'), findsOneWidget);
+      expect(find.text('Page 1 of 2'), findsOneWidget);
       final viewer = tester.widget<PdfViewer>(find.byType(PdfViewer));
       expect(viewer.controller!.isReady, isTrue);
-      expect(viewer.controller!.document.pages, hasLength(1));
+      expect(viewer.controller!.document.pages, hasLength(2));
       final page = viewer.controller!.document.pages.first;
       final image = await tester.runAsync(
         () => page.render(fullWidth: 306, fullHeight: 396),
@@ -70,6 +74,27 @@ void main() {
       expect(image, isNotNull);
       expect(image!.pixels, isNotEmpty);
       image.dispose();
+
+      expect(find.byTooltip('Pages'), findsOneWidget);
+      await tester.tap(find.byTooltip('Pages'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey<String>('pdf-thumbnail-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('pdf-thumbnail-2')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey<String>('pdf-thumbnail-2')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      for (
+        var attempt = 0;
+        attempt < 50 && find.text('Page 2 of 2').evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('Page 2 of 2'), findsOneWidget);
 
       for (
         var attempt = 0;
@@ -90,10 +115,17 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Introduction'), findsNothing);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)),
-      );
-      await tester.pump(const Duration(milliseconds: 50));
+      for (
+        var attempt = 0;
+        attempt < 50 && find.text('Page 1 of 2').evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(find.text('Page 1 of 2'), findsOneWidget);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -105,7 +137,7 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Page 1 of 1'), findsOneWidget);
+      expect(find.text('Page 1 of 2'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(() => directory.delete(recursive: true));

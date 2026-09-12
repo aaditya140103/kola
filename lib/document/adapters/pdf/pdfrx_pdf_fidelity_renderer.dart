@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/adapters/pdf/pdf_fidelity_position.dart';
+import 'package:kola/document/adapters/pdf/pdf_thumbnail_sheet.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
@@ -147,6 +148,8 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
             : _outlineError != null
             ? 'Retry loading contents'
             : 'Contents';
+        final bool thumbnailsAvailable =
+            _pdfDocument != null && (_pageCount ?? 0) > 0;
 
         return Stack(
           children: <Widget>[
@@ -216,6 +219,9 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
                     ? () => unawaited(_openOutline())
                     : null,
                 outlineTooltip: outlineTooltip,
+                onThumbnails: thumbnailsAvailable
+                    ? () => unawaited(_openThumbnails())
+                    : null,
                 onPrevious: _goPrevious,
                 onNext: _goNext,
                 onZoomOut: _zoomOut,
@@ -289,6 +295,32 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final int page = destination.pageNumber
         .clamp(1, _controller.pageCount)
         .toInt();
+    if (_pageNumber != page) setState(() => _pageNumber = page);
+    _emitPosition();
+  }
+
+  Future<void> _openThumbnails() async {
+    final PdfDocument? document = _pdfDocument;
+    if (document == null || !_controller.isReady) return;
+
+    final int currentPage = (_controller.pageNumber ?? _pageNumber ?? 1)
+        .clamp(1, document.pages.length)
+        .toInt();
+    final int? selectedPage = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (BuildContext context) => PdfThumbnailSheet(
+        document: document,
+        currentPage: currentPage,
+      ),
+    );
+    if (!mounted || selectedPage == null || !_controller.isReady) return;
+
+    final int page = selectedPage.clamp(1, _controller.pageCount).toInt();
+    await _controller.goToPage(pageNumber: page, anchor: PdfPageAnchor.top);
+    if (!mounted) return;
     if (_pageNumber != page) setState(() => _pageNumber = page);
     _emitPosition();
   }
@@ -492,6 +524,7 @@ class _PdfNavigationBar extends StatelessWidget {
     required this.pageCount,
     required this.onOutline,
     required this.outlineTooltip,
+    required this.onThumbnails,
     required this.onPrevious,
     required this.onNext,
     required this.onZoomOut,
@@ -502,6 +535,7 @@ class _PdfNavigationBar extends StatelessWidget {
   final int? pageCount;
   final VoidCallback? onOutline;
   final String outlineTooltip;
+  final VoidCallback? onThumbnails;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onZoomOut;
@@ -532,6 +566,11 @@ class _PdfNavigationBar extends StatelessWidget {
                 onPressed: onOutline,
                 tooltip: outlineTooltip,
                 icon: const Icon(Icons.menu_book_rounded),
+              ),
+              IconButton(
+                onPressed: onThumbnails,
+                tooltip: onThumbnails == null ? 'Loading pages…' : 'Pages',
+                icon: const Icon(Icons.grid_view_rounded),
               ),
               IconButton(
                 onPressed: onPrevious,
