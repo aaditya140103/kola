@@ -8,7 +8,7 @@ Last updated: 2026-09-13
 
 **Phase 2 stability/debug pass: PDF fidelity + search + source-linked annotation management/recovery.**
 
-Feature work is temporarily paused while runtime paths are hardened. Startup/import/recovery lifecycle failures are contained, and this patch fixes revision races in persistent search indexing.
+Feature work is temporarily paused while runtime paths are hardened. Startup/import/recovery lifecycle failures are contained, and the current patch fixes revision races in persistent search indexing.
 
 ## Current implementation
 
@@ -54,7 +54,7 @@ Feature work is temporarily paused while runtime paths are hardened. Startup/imp
 
 ## Verification
 
-Stability commit `31f1333` passed Flutter CI #155: code generation, formatting, analyzer, and the full Flutter test suite. This search-race patch adds deterministic tests for a newer revision arriving while an older index build is in flight and for a stale revision attempting to downgrade a newer persistent index. Repository CI is the authoritative gate for the new commit.
+Stability commit `31f1333` passed Flutter CI #155: code generation, formatting, analyzer, and the full Flutter test suite. Search-race commit `fb979ef` initially failed analyzer because its new regression test omitted the `search_models.dart` import; production code was unaffected. The missing import is corrected on `main`, and repository CI on the corrected head is the authoritative gate.
 
 ## Risks / blockers
 
