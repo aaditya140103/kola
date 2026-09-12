@@ -23,6 +23,7 @@ Kola imports content-addressed local documents, renders real PDFs through `pdfrx
 - Search: persistent SQLite FTS5, lazy freshness checks, global + reader search, source-page navigation (D-023).
 - PDF selection branch: pdfrx `PdfPageTextRange`/fragment rectangles -> Kola `DocumentTextSelection`.
 - `AnnotationCreationService` converts a selection into the existing hybrid `AnnotationAnchor` with quote/context, single-page logical offsets, per-page fallback ranges, and PDF-point source geometry (D-024).
+- Highlight IDs use UUID v4 through an explicit `uuid ^4.6.0` direct dependency.
 - Reader watches durable annotations and maps highlights to format-neutral `FidelityTextHighlight` records.
 - PDF renderer repaints persisted highlight rectangles through page paint callbacks; no viewer/screen coordinates are stored.
 - PDF context menu adds `Highlight` only when selected text/ranges are accessible.
@@ -69,7 +70,7 @@ lib/features/reader/presentation/reader_screen.dart
 
 ## Verification
 
-PR #5 persistent local search is merged and green. Current `feat/pdf-highlights` adds selection/highlight integration plus anchor-creation and SQLite-geometry persistence tests. Full Flutter CI has not yet run for this branch.
+PR #5 persistent local search is merged and green. PR #6 run 105 reached Drift generation/formatting successfully; analyzer found only that `uuid` was referenced transitively. The branch now declares `uuid ^4.6.0` directly. A new exact-head Flutter CI run must reach analyzer + tests before merge.
 
 ## Current risks / blockers
 
