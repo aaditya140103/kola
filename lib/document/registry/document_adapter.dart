@@ -1,3 +1,4 @@
+import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/graph/kola_document_graph.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/text/document_text_geometry.dart';
@@ -132,7 +133,7 @@ abstract interface class DocumentAdapter {
 
   Stream<IndexChunk> extractIndexableContent(DocumentHandle handle);
 
-  Future<DocumentLocation?> resolveAnchor(
+  Future<AnchorResolution> resolveAnchor(
     DocumentHandle handle,
     AnnotationAnchor anchor,
   );
