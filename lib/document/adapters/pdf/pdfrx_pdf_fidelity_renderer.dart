@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
+import 'package:kola/document/adapters/pdf/pdf_fidelity_position.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
@@ -14,10 +15,17 @@ final class PdfrxPdfFidelityRenderer implements DocumentFidelityRenderer {
   DocumentFormat get format => DocumentFormat.pdf;
 
   @override
-  Widget build(BuildContext context, KolaDocument document) {
+  Widget build(
+    BuildContext context,
+    KolaDocument document, {
+    FidelityViewState? initialState,
+    ValueChanged<FidelityViewState>? onStateChanged,
+  }) {
     return _PdfrxPdfFidelityView(
       document: document,
       sourceResolver: _sourceResolver,
+      initialState: initialState,
+      onStateChanged: onStateChanged,
     );
   }
 }
@@ -26,10 +34,14 @@ class _PdfrxPdfFidelityView extends StatefulWidget {
   const _PdfrxPdfFidelityView({
     required this.document,
     required this.sourceResolver,
+    this.initialState,
+    this.onStateChanged,
   });
 
   final KolaDocument document;
   final DocumentSourceResolver sourceResolver;
+  final FidelityViewState? initialState;
+  final ValueChanged<FidelityViewState>? onStateChanged;
 
   @override
   State<_PdfrxPdfFidelityView> createState() => _PdfrxPdfFidelityViewState();
@@ -71,28 +83,50 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
           return _PdfLoadError(error: snapshot.error);
         }
 
+        final int initialPage = PdfFidelityPosition.initialPageNumber(
+          widget.initialState,
+        );
+        final double? initialZoom = PdfFidelityPosition.initialZoom(
+          widget.initialState,
+        );
+
         return Stack(
           children: <Widget>[
             Positioned.fill(
               child: PdfViewer.file(
                 snapshot.data!,
                 controller: _controller,
+                initialPageNumber: initialPage,
                 useProgressiveLoading: true,
                 params: PdfViewerParams(
                   margin: KolaSpacing.md,
                   enableKeyboardNavigation: true,
+                  sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+                    calculateInitialZoom: initialZoom == null
+                        ? null
+                        : (
+                            PdfDocument document,
+                            PdfViewerController controller,
+                            double fitZoom,
+                            double coverZoom,
+                          ) => initialZoom,
+                  ),
                   textSelectionParams: const PdfTextSelectionParams(enabled: false),
                   onViewerReady: (PdfDocument document, PdfViewerController controller) {
                     if (!mounted) return;
                     setState(() {
                       _pageCount = controller.pageCount;
-                      _pageNumber = controller.pageNumber ?? 1;
+                      _pageNumber = controller.pageNumber ?? initialPage;
                     });
                   },
                   onPageChanged: (int? pageNumber) {
-                    if (!mounted || pageNumber == _pageNumber) return;
-                    setState(() => _pageNumber = pageNumber);
+                    if (!mounted || pageNumber == null) return;
+                    if (pageNumber != _pageNumber) {
+                      setState(() => _pageNumber = pageNumber);
+                    }
+                    _emitPosition();
                   },
+                  onInteractionEnd: (ScaleEndDetails details) => _emitPosition(),
                 ),
               ),
             ),
@@ -115,11 +149,27 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     );
   }
 
+  void _emitPosition() {
+    if (!_controller.isReady) return;
+    final int? pageNumber = _controller.pageNumber;
+    final int pageCount = _controller.pageCount;
+    if (pageNumber == null || pageCount < 1) return;
+
+    widget.onStateChanged?.call(
+      PdfFidelityPosition.fromViewer(
+        pageNumber: pageNumber,
+        pageCount: pageCount,
+        zoom: _controller.currentZoom,
+      ),
+    );
+  }
+
   Future<void> _goPrevious() async {
     if (!_controller.isReady) return;
     final int current = _controller.pageNumber ?? 1;
     if (current <= 1) return;
     await _controller.goToPage(pageNumber: current - 1, anchor: PdfPageAnchor.top);
+    _emitPosition();
   }
 
   Future<void> _goNext() async {
@@ -127,14 +177,19 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final int current = _controller.pageNumber ?? 1;
     if (current >= _controller.pageCount) return;
     await _controller.goToPage(pageNumber: current + 1, anchor: PdfPageAnchor.top);
+    _emitPosition();
   }
 
   Future<void> _zoomOut() async {
-    if (_controller.isReady) await _controller.zoomDown();
+    if (!_controller.isReady) return;
+    await _controller.zoomDown();
+    _emitPosition();
   }
 
   Future<void> _zoomIn() async {
-    if (_controller.isReady) await _controller.zoomUp();
+    if (!_controller.isReady) return;
+    await _controller.zoomUp();
+    _emitPosition();
   }
 }
 
