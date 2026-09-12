@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kola/core/providers/import_providers.dart';
+import 'package:kola/core/providers/search_providers.dart';
 import 'package:kola/document/import/document_file_picker.dart';
 import 'package:kola/document/import/document_import_service.dart';
 
@@ -41,6 +44,13 @@ class _ImportDocumentButtonState extends ConsumerState<ImportDocumentButton> {
           .read(documentImportServiceProvider)
           .pickAndImport();
       if (!mounted || result == null) return;
+
+      unawaited(
+        ref
+            .read(documentSearchServiceProvider)
+            .ensureIndexed(result.document)
+            .catchError((Object _) {}),
+      );
 
       final String title = result.document.metadata.title;
       final String message = switch (result.status) {
