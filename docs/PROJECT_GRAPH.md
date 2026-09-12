@@ -65,11 +65,12 @@ flowchart LR
 
 Generic Reader code does not import `pdfrx`.
 
-## 4. PDF source-text extraction
+## 4. PDF source-text extraction + handle cache
 
 ```mermaid
 flowchart LR
     Handle[PdfrxPdfHandle]
+    Cache[Handle-scoped PdfPageTextCache]
     Page[PdfPage]
     Structured[loadStructuredText]
     Pdfrx[PdfPageText + fragments + char rects]
@@ -78,12 +79,15 @@ flowchart LR
     Index[IndexChunk]
     Graph[KDG sourceVisualBlock]
 
-    Handle --> Page --> Structured --> Pdfrx --> Mapper --> Kola
+    Handle --> Cache
+    Cache -- cache miss --> Page --> Structured --> Pdfrx --> Mapper --> Kola
+    Kola --> Cache
+    Cache -- cached / in-flight reuse --> Kola
     Kola --> Index
     Kola --> Graph
 ```
 
-PDF geometry stays in PDF page points (bottom-left origin), never viewer pixels.
+PDF geometry stays in PDF page points (bottom-left origin), never viewer pixels. Cache lifetime is one open document handle; close clears it, and failed page loads are evicted for retry.
 
 ## 5. Persistent local search
 
@@ -182,7 +186,7 @@ flowchart LR
     Resolve -- unresolved --> Suppress[Do not paint stale geometry]
 ```
 
-Recovered geometry is transient. It never silently rewrites the persisted anchor.
+Recovered geometry is transient. It never silently rewrites the persisted anchor. All resolutions within one recovery pass share the open PDF handle and its page-text cache.
 
 ## 10. Reading-position persistence
 
