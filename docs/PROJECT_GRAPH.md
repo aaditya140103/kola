@@ -108,12 +108,8 @@ flowchart LR
     Anchor[AnnotationAnchor]
     Repo[AnnotationRepository]
     DB[(SQLite)]
-    Live[annotationsProvider]
-    Highlight[FidelityTextHighlight]
-    Paint[PDF page paint callback]
 
     Select --> Ranges --> KolaSel --> Service --> Anchor --> Repo --> DB
-    DB --> Live --> Highlight --> Paint
 ```
 
 Anchors preserve source locator, exact quote/context, logical range when available, per-page fallback ranges, and PDF-point geometry.
@@ -132,17 +128,15 @@ flowchart LR
     DB[(SQLite)]
     Reader[FidelityNavigationRequest]
     Warn[Unresolved warning]
-    Paint[Highlight repaint]
 
     DB --> Live --> Panel
     Panel -- recolor / note / delete --> Command --> Repo --> DB
     Panel -- go to annotation --> NavService --> Adapter --> Resolve
     Resolve -- resolved --> Reader
     Resolve -- unresolved --> Warn
-    DB --> Live --> Paint
 ```
 
-Recolor/note edits preserve the source anchor and increment revision. Delete writes `deletedAt`; live queries hide tombstones. Go-to never trusts a stored locator directly once anchor recovery is available.
+Go-to never trusts a stored locator directly once anchor recovery is available.
 
 ## 8. Conservative annotation-anchor recovery
 
@@ -170,9 +164,27 @@ flowchart TD
     Context -- ambiguous --> Unresolved
 ```
 
-Never silently guess. `AnchorResolution` reports strategy/confidence/reason. An ambiguous or missing quote remains unresolved rather than attaching to incorrect text after a source revision.
+Never silently guess. `AnchorResolution` reports strategy/confidence/reason.
 
-## 9. Reading-position persistence
+## 9. Recovered highlight geometry
+
+```mermaid
+flowchart LR
+    DB[(Persisted AnnotationAnchor)] --> Live[annotationsProvider]
+    Live --> Recovery[AnnotationGeometryRecoveryService]
+    Recovery --> Adapter[DocumentAdapter]
+    Adapter --> Resolve[AnchorResolution + current source range]
+    Resolve --> Text[Current DocumentTextChunk]
+    Text --> Geometry[Rebuilt PDF-point geometry]
+    Geometry --> Provider[recoveredAnnotationGeometryProvider]
+    Provider --> Highlight[FidelityTextHighlight]
+    Highlight --> Paint[PDF page paint callback]
+    Resolve -- unresolved --> Suppress[Do not paint stale geometry]
+```
+
+Recovered geometry is transient. It never silently rewrites the persisted anchor.
+
+## 10. Reading-position persistence
 
 ```mermaid
 flowchart LR
@@ -182,7 +194,7 @@ flowchart LR
 
 Position is distinct from coverage and active reading time.
 
-## 10. PDF capability state
+## 11. PDF capability state
 
 ```mermaid
 flowchart TD
@@ -195,7 +207,7 @@ flowchart TD
     Select[Text Selection ✅]
     Highlight[Persistent Highlight ✅]
     Manage[List / resolve / jump / recolor / note / delete ✅]
-    Recover[Conservative anchor recovery ✅]
+    Recover[Anchor + highlight geometry recovery ✅]
     Flow[Flow ❌]
     Ink[Ink / area annotations ❌]
 
@@ -208,7 +220,7 @@ flowchart TD
 
 Capability flags describe integrated Kola behavior, not engine primitives.
 
-## 11. Universal adapter + fidelity boundary
+## 12. Universal adapter + fidelity boundary
 
 ```mermaid
 flowchart LR
@@ -219,12 +231,13 @@ flowchart LR
     Text --> KDG[KDG + Source Map]
     Handle --> Resolve[AnchorResolution]
     Resolve --> Location[DocumentLocation]
+    Resolve --> Geometry[Transient Source Geometry]
     Location --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-Engine-specific objects are mapped to Kola-owned models before leaving adapters. Annotation navigation must consume `AnchorResolution`; unresolved anchors do not generate a fidelity request.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters.
 
-## 12. Persistence boundary
+## 13. Persistence boundary
 
 ```mermaid
 flowchart LR
@@ -234,7 +247,7 @@ flowchart LR
 
 Drift row types never escape the data layer; datetime raw writes use UTC ISO-8601.
 
-## 13. Adaptive-native policy
+## 14. Adaptive-native policy
 
 ```mermaid
 flowchart LR
@@ -245,7 +258,7 @@ flowchart LR
     Policy --> UI[Native-feeling Presentation]
 ```
 
-## 14. Optional BYOC
+## 15. Optional BYOC
 
 ```mermaid
 flowchart LR
@@ -254,7 +267,7 @@ flowchart LR
 
 Never sync the live SQLite file. Sync failures never block local reading.
 
-## 15. Agent patch protocol
+## 16. Agent patch protocol
 
 ```mermaid
 flowchart LR

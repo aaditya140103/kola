@@ -3,15 +3,22 @@ import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
 
 typedef PdfPageTextLoader = Future<String?> Function(int pageNumber);
+typedef PdfRangeGeometryLoader = Future<List<Map<String, Object?>>> Function(
+  int pageNumber,
+  int start,
+  int end,
+);
 
 final class PdfAnchorResolver {
   const PdfAnchorResolver({
     required this.pageCount,
     required this.loadPageText,
+    this.loadRangeGeometry,
   });
 
   final int pageCount;
   final PdfPageTextLoader loadPageText;
+  final PdfRangeGeometryLoader? loadRangeGeometry;
 
   Future<AnchorResolution> resolve(AnnotationAnchor anchor) async {
     final DocumentLocation? locator = anchor.sourceLocator;
@@ -39,8 +46,10 @@ final class PdfAnchorResolver {
     if (locatorPage != null && locatorStart != null && locatorEnd != null) {
       final String? pageText = await _safeLoad(locatorPage);
       if (_rangeMatches(pageText, locatorStart, locatorEnd, quote)) {
-        return AnchorResolution.resolved(
-          location: _location(locatorPage, locatorStart, locatorEnd),
+        return _resolved(
+          page: locatorPage,
+          start: locatorStart,
+          end: locatorEnd,
           strategy: AnchorResolutionStrategy.storedLocator,
           confidence: 1.0,
         );
@@ -57,12 +66,10 @@ final class PdfAnchorResolver {
         anchor.logicalEnd!,
         quote,
       )) {
-        return AnchorResolution.resolved(
-          location: _location(
-            locatorPage,
-            anchor.logicalStart!,
-            anchor.logicalEnd!,
-          ),
+        return _resolved(
+          page: locatorPage,
+          start: anchor.logicalStart!,
+          end: anchor.logicalEnd!,
           strategy: AnchorResolutionStrategy.logicalRange,
           confidence: 0.98,
         );
@@ -127,8 +134,10 @@ final class PdfAnchorResolver {
       );
     }
 
-    return AnchorResolution.resolved(
-      location: _location(best.page, best.start, best.end),
+    return _resolved(
+      page: best.page,
+      start: best.start,
+      end: best.end,
       strategy: AnchorResolutionStrategy.quoteContext,
       confidence: confidence,
     );
@@ -166,13 +175,44 @@ final class PdfAnchorResolver {
     final String joined = pieces.join('\n');
     if (joined != quote && pieces.join() != quote) return null;
 
+    final List<Map<String, Object?>> geometry = <Map<String, Object?>>[];
+    for (final _StoredRange range in ranges) {
+      geometry.addAll(await _geometry(range.page, range.start, range.end));
+    }
+
     final _StoredRange first = ranges.first;
     return AnchorResolution.resolved(
       location: _location(first.page, first.start, first.end),
       strategy: AnchorResolutionStrategy.storedLocator,
       confidence: 0.99,
       reason: 'Verified all stored multi-page fallback ranges.',
+      sourceGeometry: geometry,
     );
+  }
+
+  Future<AnchorResolution> _resolved({
+    required int page,
+    required int start,
+    required int end,
+    required AnchorResolutionStrategy strategy,
+    required double confidence,
+  }) async {
+    return AnchorResolution.resolved(
+      location: _location(page, start, end),
+      strategy: strategy,
+      confidence: confidence,
+      sourceGeometry: await _geometry(page, start, end),
+    );
+  }
+
+  Future<List<Map<String, Object?>>> _geometry(
+    int page,
+    int start,
+    int end,
+  ) async {
+    final PdfRangeGeometryLoader? loader = loadRangeGeometry;
+    if (loader == null) return const <Map<String, Object?>>[];
+    return loader(page, start, end);
   }
 
   Future<String?> _safeLoad(int pageNumber) async {
@@ -214,11 +254,7 @@ final class PdfAnchorResolver {
   static DocumentLocation _location(int page, int start, int end) {
     return DocumentLocation(
       scheme: 'pdf',
-      data: <String, Object?>{
-        'page': page,
-        'start': start,
-        'end': end,
-      },
+      data: <String, Object?>{'page': page, 'start': start, 'end': end},
       label: 'Page $page',
     );
   }
@@ -227,11 +263,7 @@ final class PdfAnchorResolver {
 }
 
 final class _StoredRange {
-  const _StoredRange({
-    required this.page,
-    required this.start,
-    required this.end,
-  });
+  const _StoredRange({required this.page, required this.start, required this.end});
 
   final int page;
   final int start;

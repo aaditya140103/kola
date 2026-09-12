@@ -12,17 +12,23 @@ final class AnchorResolution {
     required this.strategy,
     required this.confidence,
     this.reason,
-  }) : resolved = true;
+    List<Map<String, Object?>> sourceGeometry = const <Map<String, Object?>>[],
+  }) : resolved = true,
+       sourceGeometry = List<Map<String, Object?>>.unmodifiable(
+         sourceGeometry.map(Map<String, Object?>.unmodifiable),
+       );
 
   const AnchorResolution.unresolved({required this.reason})
     : resolved = false,
       location = null,
       strategy = null,
-      confidence = 0.0;
+      confidence = 0.0,
+      sourceGeometry = const <Map<String, Object?>>[];
 
   final bool resolved;
   final DocumentLocation? location;
   final AnchorResolutionStrategy? strategy;
   final double confidence;
   final String? reason;
+  final List<Map<String, Object?>> sourceGeometry;
 }
