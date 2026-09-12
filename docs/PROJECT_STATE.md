@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and merged local quote-fallback recovery profiling. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, recovery profiling, and now branch-level exact-quote candidate reuse for repeated fallback recovery. Flow remains disabled.
 
 ## Current implementation
 
@@ -22,11 +22,10 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - PDF selection -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
 - Conservative `AnchorResolution` recovery + resolved navigation + transient recovered geometry are merged (D-026..D-028).
-- `PdfrxPdfHandle` owns a disposable `PdfPageTextCache` (D-029): repeated/concurrent reads of one page share one extraction future; failures are evicted; close clears the cache.
-- `PdfAnchorResolver` can emit local ephemeral `PdfAnchorRecoveryProfile` diagnostics (D-030): page-load requests, unique pages, quote-scan pages, candidates, strategy, and elapsed time.
-- `PdfPageTextCache` exposes in-memory hit/miss/failure/cached-page counters for profiling; counters reset when the cache is cleared.
-- `PdfrxPdfAdapter` accepts an optional recovery-profile observer for development/tests; normal app behavior does not persist or transmit diagnostics.
-- Synthetic baseline is verified: 50 stale annotations over 200 pages produce 200 actual cached page loads but 10,000 quote-fallback page scans, identifying repeated string scanning as the next measured bottleneck.
+- `PdfrxPdfHandle` owns disposable page-text caching (D-029) and local recovery profiling is available (D-030).
+- Branch `perf/anchor-quote-index` adds a handle-scoped `PdfExactQuoteIndex` (D-031): first lookup for one exact quote scans page text once; later identical-quote recoveries reuse source candidate positions and still run normal context/ambiguity verification.
+- Quote candidate scans are disposable, in-memory, failure-evicting, and cleared with the document handle.
+- The 50 stale annotations × 200 pages repeated-quote baseline is expected to drop from 10,000 quote-scan page visits to 200 while keeping actual page extraction bounded to 200 unique pages.
 - Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -36,20 +35,23 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 AnnotationGeometryRecoveryService
   -> open one PdfrxPdfHandle
   -> PdfPageTextCache bounds extraction to unique pages
-  -> PdfAnchorResolver profiles each resolution
-       page requests / unique pages / quote pages / candidates / strategy / elapsed
-  -> synthetic heavy baseline compares extraction reuse vs repeated quote scanning
+  -> PdfExactQuoteIndex
+       first exact quote -> scan pages once -> candidate positions
+       same quote later -> reuse candidates, 0 quote-scan pages
+  -> PdfAnchorResolver reloads candidate pages from cache
+  -> prefix/suffix context + ambiguity rules remain authoritative
 ```
 
 ## Important files
 
 ```text
+lib/document/adapters/pdf/pdf_exact_quote_index.dart
 lib/document/adapters/pdf/pdf_anchor_recovery_profile.dart
 lib/document/adapters/pdf/pdf_anchor_resolver.dart
 lib/document/adapters/pdf/pdf_page_text_cache.dart
 lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
+test/document/adapters/pdf/pdf_exact_quote_index_test.dart
 test/document/adapters/pdf/pdf_anchor_recovery_profile_test.dart
-test/document/adapters/pdf/pdf_page_text_cache_test.dart
 ```
 
 ## Invariants
@@ -59,22 +61,23 @@ test/document/adapters/pdf/pdf_page_text_cache_test.dart
 - Generic Reader/annotation code does not import pdfrx.
 - Persist source coordinates/ranges, never viewer/screen coordinates.
 - Ambiguous anchor recovery returns unresolved rather than guessing.
+- Candidate indexing accelerates lookup only; it never bypasses context verification or ambiguity checks.
 - Reader paint uses only successfully resolved current-source geometry.
 - Recovery never silently mutates the persisted annotation anchor.
-- PDF text cache is scoped to one open handle; no unbounded global cache.
+- PDF text and quote caches are scoped to one open handle; no unbounded global cache.
+- Failed page/quote loads are evicted so later work can retry.
 - Recovery profiling is local/ephemeral only; no telemetry, persistence, or cloud reporting.
 - Performance optimizations require repeatable evidence; do not assert machine-specific duration thresholds in CI.
-- Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78bf3fa8`. CI run 136 passed the substantive profiling implementation and exact-head run 137 passed every stage on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, cache-counter tests, profiling tests including the 50×200 synthetic baseline, annotation recovery tests, search/database tests, and the existing app smoke suite.
+PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78bf3fa8`; CI runs 136 and 137 passed the profiling baseline and full suite. Current `perf/anchor-quote-index` implements exact-quote candidate reuse and updates the same 50×200 baseline from 10,000 repeated quote-scan page visits to an expected 200. Full CI is required before merge.
 
 ## Current risks / blockers
 
 - Recovered geometry still needs physical validation on rotated/cropped/atypical PDFs and Linux + Android.
-- Current quote-context fallback still scans every PDF page for each stale annotation; handle caching removes extraction duplication but not repeated string-scan work.
+- Exact-quote candidate caching strongly helps repeated identical quotes; many unique stale quotes can still each require a full-document scan. Measure that workload before adding n-gram/token indexing or a batched resolver.
 - Profiling is synthetic in CI; physical-device timing measurements are still needed before choosing thresholds or user-facing performance claims.
 - Annotation management/navigation UI still needs physical UX validation.
 - Scanned/image-only PDFs need local OCR for selection/search/recovery.
@@ -82,11 +85,10 @@ PR #12 is merged on `main` as squash commit `d5aa093a485a3cdd7090f70fc94edacc78b
 
 ## Next recommended action
 
-1. Design a per-handle exact-quote candidate index or batched fallback resolver, using the 10,000-scan baseline as the before-measurement.
-2. Compare scan counts and cache behavior against the same synthetic workload before keeping the optimization.
+1. Pass CI and merge exact-quote candidate reuse only if the 50×200 scan count falls from 10,000 to 200 without recovery regressions.
+2. Add a synthetic many-unique-quotes profile before deciding whether batched fallback or n-gram/token indexing is justified.
 3. Physically validate recovered highlight alignment and recovery timing on Linux + Android.
-4. Add annotation filters/export only after management UX is stable.
-5. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
+4. Begin reconstructed PDF Flow after reading-order/source-map quality tests.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 
