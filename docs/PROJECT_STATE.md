@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, and now has branch wiring for resolved annotation navigation. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, and CI-verified resolved annotation navigation. Flow remains disabled.
 
 ## Current implementation
 
@@ -24,7 +24,7 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - `DocumentAdapter.resolveAnchor()` returns explicit `AnchorResolution` (D-026).
 - `PdfAnchorResolver` conservatively verifies stored ranges/locator/logical range before quote+context fallback; ambiguous/missing matches stay unresolved.
 - `AnnotationNavigationService` owns adapter open/resolve/close lifecycle and returns the current `AnchorResolution` (D-027).
-- Annotation panel Go to now returns the selected `Annotation`; Reader resolves it against the current source before generating `FidelityNavigationRequest`.
+- Annotation panel Go to returns the selected `Annotation`; Reader resolves it against the current source before generating `FidelityNavigationRequest`.
 - Resolved fallback recovery navigates and surfaces a recovery message; unresolved anchors show a warning and do not move the Reader.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -67,7 +67,7 @@ test/features/annotations/annotation_navigation_service_test.dart
 
 ## Verification
 
-PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/annotation-resolved-navigation` adds Reader integration and service tests for resolved/unresolved results, document mismatch, and guaranteed handle cleanup. Full CI is required before merge.
+PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/annotation-resolved-navigation` implementation passed Flutter CI run 123 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, navigation-service lifecycle tests, anchor/search/database tests, and the existing app smoke suite all passed. This state-file synchronization is the only change after run 123 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -80,7 +80,7 @@ PR #8 anchor recovery is merged and exact-head CI run 120 passed. Current `feat/
 
 ## Next recommended action
 
-1. Pass CI and merge resolved annotation navigation.
+1. Merge resolved annotation navigation after exact-head CI.
 2. Regenerate source geometry for confidently recovered PDF anchors after source changes.
 3. Physically validate Reader annotation UX on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.
