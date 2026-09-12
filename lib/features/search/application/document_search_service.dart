@@ -13,9 +13,13 @@ final class DocumentSearchService {
     required DocumentRepository documents,
     required SearchRepository search,
     required FormatRegistry formats,
-  }) : _documents = documents,
-       _search = search,
-       _formats = formats;
+  }) : this._(documents, search, formats);
+
+  DocumentSearchService._(
+    this._documents,
+    this._search,
+    this._formats,
+  );
 
   static const String extractorVersion = 'kola-search-v1';
 
