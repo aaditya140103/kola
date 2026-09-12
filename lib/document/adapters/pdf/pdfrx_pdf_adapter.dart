@@ -1,4 +1,6 @@
+import 'package:kola/document/adapters/pdf/pdf_anchor_resolver.dart';
 import 'package:kola/document/adapters/pdf/pdf_text_geometry_mapper.dart';
+import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/graph/kola_document_graph.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
@@ -131,16 +133,26 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
   }
 
   @override
-  Future<DocumentLocation?> resolveAnchor(
+  Future<AnchorResolution> resolveAnchor(
     DocumentHandle handle,
     AnnotationAnchor anchor,
   ) async {
-    _requireHandle(handle);
-    final DocumentLocation? locator = anchor.sourceLocator;
-    if (anchor.documentId != handle.documentId || locator?.scheme != 'pdf') {
-      return null;
+    final PdfrxPdfHandle pdfHandle = _requireHandle(handle);
+    if (anchor.documentId != pdfHandle.documentId) {
+      return const AnchorResolution.unresolved(
+        reason: 'Anchor belongs to a different document.',
+      );
     }
-    return locator;
+
+    final PdfAnchorResolver resolver = PdfAnchorResolver(
+      pageCount: pdfHandle.pageCount,
+      loadPageText: (int pageNumber) async {
+        final pdfrx.PdfPage page = pdfHandle.pdf.pages[pageNumber - 1];
+        final pdfrx.PdfPageText text = await page.loadStructuredText();
+        return text.fullText;
+      },
+    );
+    return resolver.resolve(anchor);
   }
 
   @override
