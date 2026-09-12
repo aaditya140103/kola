@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked text highlighting.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, provides persistent local full-text search, and now has a branch implementation for source-linked PDF text selection + persistent highlights. Flow and note-editing UI remain disabled.
+Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, provides persistent local full-text search, and now has a CI-verified implementation for source-linked PDF text selection + persistent highlights. Flow and note-editing UI remain disabled.
 
 ## Current implementation
 
@@ -21,13 +21,13 @@ Kola imports content-addressed local documents, renders real PDFs through `pdfrx
 - PDF fidelity: progressive rendering, page navigation, zoom, keyboard navigation, durable resume.
 - PDF extraction: structured page text -> Kola `DocumentTextChunk`; geometry remains native PDF points (D-022).
 - Search: persistent SQLite FTS5, lazy freshness checks, global + reader search, source-page navigation (D-023).
-- PDF selection branch: pdfrx `PdfPageTextRange`/fragment rectangles -> Kola `DocumentTextSelection`.
+- PDF selection: pdfrx `PdfPageTextRange`/fragment rectangles -> Kola `DocumentTextSelection`.
 - `AnnotationCreationService` converts a selection into the existing hybrid `AnnotationAnchor` with quote/context, single-page logical offsets, per-page fallback ranges, and PDF-point source geometry (D-024).
 - Highlight IDs use UUID v4 through an explicit `uuid ^4.6.0` direct dependency.
 - Reader watches durable annotations and maps highlights to format-neutral `FidelityTextHighlight` records.
 - PDF renderer repaints persisted highlight rectangles through page paint callbacks; no viewer/screen coordinates are stored.
 - PDF context menu adds `Highlight` only when selected text/ranges are accessible.
-- PDF capability on this branch advertises fidelity, search, text selection, and text annotations; area/ink annotations and Flow remain false.
+- PDF capability advertises fidelity, search, text selection, and text annotations; area/ink annotations and Flow remain false.
 
 ## Highlight path
 
@@ -54,6 +54,8 @@ lib/features/annotations/application/annotation_creation_service.dart
 lib/features/annotations/data/drift_annotation_repository.dart
 lib/core/providers/annotation_providers.dart
 lib/features/reader/presentation/reader_screen.dart
+test/features/annotations/annotation_creation_service_test.dart
+test/features/annotations/annotation_geometry_persistence_test.dart
 test/document/registry/pdf_registration_test.dart
 ```
 
@@ -71,21 +73,20 @@ test/document/registry/pdf_registration_test.dart
 
 ## Verification
 
-PR #5 persistent local search is merged and green. PR #6 run 107 passed dependency resolution, Drift generation, formatting, and analyzer. The new annotation creation test, multi-page fallback-range test, SQLite geometry round-trip test, search tests, database tests, and existing app smoke test all passed. The only failing test was the pre-feature PDF capability contract still expecting `textSelection`/`textAnnotations` to be false; that stale expectation has now been updated to true while area/ink/Flow remain false. Exact-head CI must pass before merge.
+PR #5 persistent local search is merged and green. PR #6 run 109 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, the new single-page highlight-anchor test, multi-page fallback-range test, SQLite geometry round-trip test, updated PDF capability contract, search/database tests, and the existing app smoke suite. The native PDFium extraction test remains intentionally skipped in CI unless `PDFIUM_PATH` is supplied. This state-file synchronization is the only change after run 109 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
 - Physical drag-selection/selection-handle behavior must be tested on touch and desktop pointer platforms.
 - Highlight paint alignment must be verified on rotated/cropped/atypical PDF pages.
 - Scanned/image-only PDFs have no selectable text until local OCR exists.
-- Native PDFium extraction test remains skipped in CI unless `PDFIUM_PATH` is supplied.
 - Existing annotations have no edit/delete/color UI in the Reader yet.
 - Text notes/margin notes are not integrated yet.
 - Flow Mode remains blocked on reading-order/source-map quality work.
 
 ## Next recommended action
 
-1. Pass exact-head CI for source-linked PDF highlight creation/persistence/rendering.
+1. Merge PR #6 after the final exact-head CI pass.
 2. Physically validate selection and highlight alignment on Linux + Android first, then other targets.
 3. Add annotation management: list, jump, recolor, delete, note attachment.
 4. Strengthen `resolveAnchor()` with quote/context fallback when document revisions change.
