@@ -88,11 +88,12 @@ void main() {
       expect(find.text('Introduction'), findsOneWidget);
       await tester.tap(find.text('Introduction'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Introduction'), findsNothing);
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text('Introduction'), findsNothing);
 
       await tester.pumpWidget(
         MaterialApp(
