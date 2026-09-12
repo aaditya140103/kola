@@ -167,9 +167,7 @@ class _AnnotationCard extends ConsumerWidget {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: location == null
-                      ? null
-                      : () => Navigator.of(context).pop(location),
+                  onPressed: () => Navigator.of(context).pop(annotation),
                   icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                   label: const Text('Go to'),
                 ),
@@ -280,7 +278,7 @@ class _AnnotationCard extends ConsumerWidget {
   }
 
   static String _locationLabel(DocumentLocation? location) {
-    if (location == null) return 'Unknown location';
+    if (location == null) return 'Location will be resolved';
     if (location.label?.trim().isNotEmpty == true) return location.label!.trim();
     final Object? rawPage = location.data['page'];
     if (rawPage is num) return 'Page ${rawPage.toInt()}';
