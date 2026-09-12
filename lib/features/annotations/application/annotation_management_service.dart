@@ -15,7 +15,8 @@ final class AnnotationManagementService {
   Future<Annotation> setHighlightColor(
     Annotation annotation,
     String colorToken,
-  ) async {
+  ) {
+    final DateTime now = _clock().toUtc();
     if (annotation.type != AnnotationType.highlight) {
       throw ArgumentError.value(
         annotation.type,
@@ -25,6 +26,7 @@ final class AnnotationManagementService {
     }
     return _persist(
       annotation,
+      now: now,
       colorToken: colorToken,
       note: annotation.note,
       deletedAt: annotation.deletedAt,
@@ -32,9 +34,11 @@ final class AnnotationManagementService {
   }
 
   Future<Annotation> setNote(Annotation annotation, String? note) {
+    final DateTime now = _clock().toUtc();
     final String? normalized = note?.trim();
     return _persist(
       annotation,
+      now: now,
       colorToken: annotation.colorToken,
       note: normalized == null || normalized.isEmpty ? null : normalized,
       deletedAt: annotation.deletedAt,
@@ -42,21 +46,23 @@ final class AnnotationManagementService {
   }
 
   Future<Annotation> delete(Annotation annotation) {
+    final DateTime now = _clock().toUtc();
     return _persist(
       annotation,
+      now: now,
       colorToken: annotation.colorToken,
       note: annotation.note,
-      deletedAt: _clock().toUtc(),
+      deletedAt: now,
     );
   }
 
   Future<Annotation> _persist(
     Annotation annotation, {
+    required DateTime now,
     required String? colorToken,
     required String? note,
     required DateTime? deletedAt,
   }) async {
-    final DateTime now = _clock().toUtc();
     final Annotation updated = Annotation(
       id: annotation.id,
       documentId: annotation.documentId,
