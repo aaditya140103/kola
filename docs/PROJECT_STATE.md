@@ -22,8 +22,8 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - PDF selection -> hybrid `AnnotationAnchor` -> SQLite -> live highlight repaint.
 - Annotation panel supports list/jump/recolor/note/delete; edits preserve anchors and deletes use tombstones.
 - Conservative `AnchorResolution` recovery + resolved navigation + transient recovered geometry are merged (D-026..D-028).
-- `PdfrxPdfHandle` now owns a disposable `PdfPageTextCache` (D-029): repeated/concurrent reads of one page share one extraction future; failures are evicted; close clears the cache.
-- `AnnotationGeometryRecoveryService` already opens one handle for the full highlight batch, so hundreds of annotations can reuse page extraction across the batch instead of reloading the same page per annotation.
+- `PdfrxPdfHandle` owns a disposable `PdfPageTextCache` (D-029): repeated/concurrent reads of one page share one extraction future; failures are evicted; close clears the cache.
+- `AnnotationGeometryRecoveryService` opens one handle for the full highlight batch, so hundreds of annotations can reuse page extraction across the batch instead of reloading the same page per annotation.
 - Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -65,7 +65,7 @@ test/features/annotations/annotation_geometry_recovery_service_test.dart
 
 ## Verification
 
-PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce599487`; implementation-head run 127 and exact-head run 128 passed. Current `perf/annotation-recovery-cache` adds handle-lifetime page-text reuse and focused cache tests. Full CI is required before merge.
+PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce599487`; implementation-head run 127 and exact-head run 128 passed. PR #11 implementation-head CI run 131 passed Flutter 3.47.4 / Dart 3.13.3 dependency resolution, Drift generation, formatting, analyzer, all new PDF page-cache tests, annotation recovery tests, search/database tests, and the existing app smoke suite. This state synchronization is the only change after run 131 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -77,7 +77,7 @@ PR #10 is merged on `main` as squash commit `af92f5373bcd7f46cf157be8f65959a3ce5
 
 ## Next recommended action
 
-1. Pass CI and merge handle-scoped recovery caching.
+1. Merge handle-scoped recovery caching after exact-head CI.
 2. Physically validate recovered highlight alignment on Linux + Android, including rotated/cropped PDFs.
 3. Profile quote-fallback recovery on documents with hundreds/thousands of highlights before adding further optimization.
 4. Add annotation filters/export only after management UX is stable.
