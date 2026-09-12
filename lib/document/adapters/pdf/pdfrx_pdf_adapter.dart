@@ -1,4 +1,5 @@
 import 'package:kola/document/adapters/pdf/pdf_anchor_resolver.dart';
+import 'package:kola/document/adapters/pdf/pdf_page_text_cache.dart';
 import 'package:kola/document/adapters/pdf/pdf_text_geometry_mapper.dart';
 import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/graph/kola_document_graph.dart';
@@ -40,7 +41,13 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
       path,
       useProgressiveLoading: true,
     );
-    return PdfrxPdfHandle(documentId: document.id, path: path, pdf: pdf);
+    return PdfrxPdfHandle(
+      documentId: document.id,
+      path: path,
+      pdf: pdf,
+      loadPageChunk: (int pageNumber) =>
+          _loadPageChunkUncached(document.id, pdf, pageNumber),
+    );
   }
 
   @override
@@ -130,18 +137,13 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
       );
     }
 
-    final Map<int, DocumentTextChunk> cache = <int, DocumentTextChunk>{};
-    Future<DocumentTextChunk> chunkFor(int pageNumber) async {
-      return cache[pageNumber] ??=
-          await _loadPageChunk(pdfHandle, pageNumber);
-    }
-
     final PdfAnchorResolver resolver = PdfAnchorResolver(
       pageCount: pdfHandle.pageCount,
-      loadPageText: (int pageNumber) async => (await chunkFor(pageNumber)).text,
+      loadPageText: (int pageNumber) async =>
+          (await _loadPageChunk(pdfHandle, pageNumber)).text,
       loadRangeGeometry: (int pageNumber, int start, int end) async {
         return sourceGeometryForRange(
-          await chunkFor(pageNumber),
+          await _loadPageChunk(pdfHandle, pageNumber),
           start: start,
           end: end,
         );
@@ -154,10 +156,22 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
     PdfrxPdfHandle handle,
     int pageNumber,
   ) async {
-    final pdfrx.PdfPage page = handle.pdf.pages[pageNumber - 1];
+    final DocumentTextChunk? chunk = await handle.textCache.get(pageNumber);
+    if (chunk == null) {
+      throw StateError('PDF page $pageNumber did not produce text geometry.');
+    }
+    return chunk;
+  }
+
+  Future<DocumentTextChunk> _loadPageChunkUncached(
+    String documentId,
+    pdfrx.PdfDocument pdf,
+    int pageNumber,
+  ) async {
+    final pdfrx.PdfPage page = pdf.pages[pageNumber - 1];
     final pdfrx.PdfPageText pageText = await page.loadStructuredText();
     return PdfTextGeometryMapper.fromPdfrx(
-      documentId: handle.documentId,
+      documentId: documentId,
       pageNumber: page.pageNumber,
       pageWidth: page.width,
       pageHeight: page.height,
@@ -189,17 +203,19 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
 }
 
 final class PdfrxPdfHandle implements DocumentHandle {
-  const PdfrxPdfHandle({
+  PdfrxPdfHandle({
     required this.documentId,
     required this.path,
     required this.pdf,
-  });
+    required PdfPageTextChunkLoader loadPageChunk,
+  }) : textCache = PdfPageTextCache(loadPageChunk);
 
   @override
   final String documentId;
 
   final String path;
   final pdfrx.PdfDocument pdf;
+  final PdfPageTextCache textCache;
 
   @override
   DocumentFormat get format => DocumentFormat.pdf;
@@ -207,7 +223,10 @@ final class PdfrxPdfHandle implements DocumentHandle {
   int get pageCount => pdf.pages.length;
 
   @override
-  Future<void> close() => pdf.dispose();
+  Future<void> close() async {
+    textCache.clear();
+    await pdf.dispose();
+  }
 }
 
 final class PdfTextExtractionException implements Exception {
