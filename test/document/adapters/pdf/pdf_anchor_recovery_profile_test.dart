@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/document/adapters/pdf/pdf_anchor_recovery_profile.dart';
 import 'package:kola/document/adapters/pdf/pdf_anchor_resolver.dart';
+import 'package:kola/document/adapters/pdf/pdf_exact_quote_index.dart';
 import 'package:kola/document/adapters/pdf/pdf_page_text_cache.dart';
 import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/model/document_models.dart';
@@ -30,7 +31,7 @@ void main() {
     expect(profile!.elapsed, isA<Duration>());
   });
 
-  test('profiles full-document quote fallback', () async {
+  test('profiles full-document quote fallback without an index', () async {
     const int pageCount = 300;
     PdfAnchorRecoveryProfile? profile;
     final PdfAnchorResolver resolver = PdfAnchorResolver(
@@ -52,7 +53,7 @@ void main() {
     expect(profile!.quoteCandidatesFound, 1);
   });
 
-  test('synthetic heavy recovery quantifies scan cost after extraction caching', () async {
+  test('quote index reduces repeated 50x200 fallback scans to one scan', () async {
     const int pageCount = 200;
     const int annotationCount = 50;
     final PdfPageTextCache cache = PdfPageTextCache(
@@ -61,12 +62,17 @@ void main() {
         page == pageCount ? 'prefix common-target suffix' : 'page $page filler',
       ),
     );
+    final PdfExactQuoteIndex quoteIndex = PdfExactQuoteIndex(
+      pageCount: pageCount,
+      loadPageText: (int page) async => (await cache.get(page))!.text,
+    );
     final List<PdfAnchorRecoveryProfile> profiles = <PdfAnchorRecoveryProfile>[];
 
     for (int i = 0; i < annotationCount; i += 1) {
       final PdfAnchorResolver resolver = PdfAnchorResolver(
         pageCount: pageCount,
         loadPageText: (int page) async => (await cache.get(page))!.text,
+        lookupQuoteCandidates: quoteIndex.lookup,
         onProfile: profiles.add,
       );
       final AnchorResolution resolution = await resolver.resolve(
@@ -77,20 +83,21 @@ void main() {
     }
 
     final PdfPageTextCacheSnapshot cacheStats = cache.snapshot;
+    final PdfExactQuoteIndexSnapshot quoteStats = quoteIndex.snapshot;
     final int scannedPages = profiles.fold<int>(
       0,
       (int total, PdfAnchorRecoveryProfile profile) =>
           total + profile.quoteSearchPagesScanned,
     );
 
-    // Extraction work is bounded by unique pages for the open-handle session.
     expect(cacheStats.misses, pageCount);
     expect(cacheStats.cachedPages, pageCount);
     expect(cacheStats.hits, greaterThan(0));
 
-    // The current resolver still scans every page for every fallback recovery.
-    // This baseline intentionally exposes the next optimization target.
-    expect(scannedPages, annotationCount * pageCount);
+    expect(scannedPages, pageCount);
+    expect(quoteStats.misses, 1);
+    expect(quoteStats.hits, annotationCount - 1);
+    expect(quoteStats.cachedQuotes, 1);
     expect(profiles, hasLength(annotationCount));
   });
 }
