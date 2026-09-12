@@ -35,7 +35,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   void dispose() {
     _readingStateTimer?.cancel();
     if (_pendingFidelityState != null) {
-      unawaited(_flushPendingReadingState());
+      final ReadingRepository repository = ref.read(readingRepositoryProvider);
+      unawaited(_flushPendingReadingState(repository));
     }
     super.dispose();
   }
@@ -167,50 +168,54 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _readingStateTimer?.cancel();
     _readingStateTimer = Timer(
       _stateSaveDebounce,
-      () => unawaited(_flushPendingReadingState()),
+      () {
+        final ReadingRepository repository = ref.read(readingRepositoryProvider);
+        unawaited(_flushPendingReadingState(repository));
+      },
     );
   }
 
-  Future<void> _flushPendingReadingState() async {
+  Future<ReadingState?> _flushPendingReadingState(
+    ReadingRepository repository,
+  ) async {
     _readingStateTimer?.cancel();
     _readingStateTimer = null;
 
     final FidelityViewState? pending = _pendingFidelityState;
     final ReadingState? baseState = _pendingBaseState;
-    if (pending == null) return;
+    if (pending == null) return null;
 
     _pendingFidelityState = null;
     _pendingBaseState = null;
 
-    final ReadingRepository repository = ref.read(readingRepositoryProvider);
-    await repository.saveState(
-      ReadingState(
-        documentId: widget.documentId,
-        location: pending.location,
-        positionProgress: pending.positionProgress,
-        viewMode: ReaderViewMode.fidelity,
-        zoom: pending.zoom,
-        activeThemeId: baseState?.activeThemeId,
-        updatedAt: DateTime.now().toUtc(),
-      ),
+    final ReadingState state = ReadingState(
+      documentId: widget.documentId,
+      location: pending.location,
+      positionProgress: pending.positionProgress,
+      viewMode: ReaderViewMode.fidelity,
+      zoom: pending.zoom,
+      activeThemeId: baseState?.activeThemeId,
+      updatedAt: DateTime.now().toUtc(),
     );
+    await repository.saveState(state);
+    return state;
   }
 
   Future<void> _saveViewMode(bool flowMode, ReadingState? current) async {
-    if (_pendingFidelityState != null) {
-      await _flushPendingReadingState();
-      current = ref.read(readingStateProvider(widget.documentId)).value;
-    }
-
     final ReadingRepository repository = ref.read(readingRepositoryProvider);
+    final ReadingState? flushed = _pendingFidelityState == null
+        ? null
+        : await _flushPendingReadingState(repository);
+    final ReadingState? base = flushed ?? current;
+
     await repository.saveState(
       ReadingState(
         documentId: widget.documentId,
-        location: current?.location,
-        positionProgress: current?.positionProgress ?? 0.0,
+        location: base?.location,
+        positionProgress: base?.positionProgress ?? 0.0,
         viewMode: flowMode ? ReaderViewMode.flow : ReaderViewMode.fidelity,
-        zoom: current?.zoom ?? 1.0,
-        activeThemeId: current?.activeThemeId,
+        zoom: base?.zoom ?? 1.0,
+        activeThemeId: base?.activeThemeId,
         updatedAt: DateTime.now().toUtc(),
       ),
     );
@@ -218,7 +223,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   Future<void> _closeReader() async {
     if (_pendingFidelityState != null) {
-      await _flushPendingReadingState();
+      final ReadingRepository repository = ref.read(readingRepositoryProvider);
+      await _flushPendingReadingState(repository);
     }
     if (mounted) context.pop();
   }
