@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kola/document/model/document_models.dart';
 import 'package:kola/features/home/presentation/home_screen.dart';
 import 'package:kola/features/insights/presentation/insights_screen.dart';
 import 'package:kola/features/library/presentation/library_screen.dart';
@@ -36,7 +37,12 @@ final GoRouter kolaRouter = GoRouter(
     GoRoute(
       path: '/reader/:documentId',
       builder: (BuildContext context, GoRouterState state) {
-        return ReaderScreen(documentId: state.pathParameters['documentId'] ?? 'unknown');
+        return ReaderScreen(
+          documentId: state.pathParameters['documentId'] ?? 'unknown',
+          initialLocation: state.extra is DocumentLocation
+              ? state.extra! as DocumentLocation
+              : null,
+        );
       },
     ),
   ],

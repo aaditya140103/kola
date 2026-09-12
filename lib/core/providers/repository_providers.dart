@@ -6,6 +6,8 @@ import 'package:kola/features/library/data/drift_document_repository.dart';
 import 'package:kola/features/library/domain/document_repository.dart';
 import 'package:kola/features/progress/data/drift_reading_repository.dart';
 import 'package:kola/features/progress/domain/reading_repository.dart';
+import 'package:kola/features/search/data/drift_search_repository.dart';
+import 'package:kola/features/search/domain/search_repository.dart';
 
 final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
   return DriftDocumentRepository(ref.watch(kolaDatabaseProvider));
@@ -17,4 +19,8 @@ final readingRepositoryProvider = Provider<ReadingRepository>((ref) {
 
 final annotationRepositoryProvider = Provider<AnnotationRepository>((ref) {
   return DriftAnnotationRepository(ref.watch(kolaDatabaseProvider));
+});
+
+final searchRepositoryProvider = Provider<SearchRepository>((ref) {
+  return DriftSearchRepository(ref.watch(kolaDatabaseProvider));
 });

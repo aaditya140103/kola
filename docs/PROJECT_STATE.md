@@ -6,84 +6,93 @@ Last updated: 2026-09-12
 
 ## Current milestone
 
-**Phase 2: PDF Fidelity View + durable resume + source text/geometry extraction.**
+**Phase 2: PDF Fidelity + resume + source text/geometry + persistent local search.**
 
-Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, and now has a merged Kola-owned PDF text/geometry extraction pipeline. Search UI, text selection, annotations, and Flow remain intentionally disabled until their source-linked integrations are complete.
+Kola imports content-addressed local documents, renders real PDFs through `pdfrx`/PDFium, restores page/zoom state, extracts source-linked text/geometry, and now has a verified on-device persistent full-text search path. Text selection, annotations, and Flow remain intentionally disabled.
 
 ## Current implementation
 
 - Flutter/Dart + Riverpod + go_router; Dart floor 3.13.
-- SQLite/Drift schema v1 with reactive repositories.
+- SQLite/Drift schema v2; v2 adds app-owned FTS5 search tables/state + document-delete cleanup trigger.
 - Import: native picker -> format probe + streamed SHA-256 -> managed copy or linked source.
 - Stable identity: `sha256:<hex>` (D-020); timestamps use UTC ISO-8601 text (D-019).
+- Successful imports start a non-blocking search-index warm-up; failure never fails the import. Search still verifies freshness on demand.
 - PDF engine: `pdfrx ^2.6.1` / PDFium behind `PdfrxPdfAdapter` (D-021).
 - PDF fidelity: progressive rendering, page navigation, zoom, keyboard navigation, durable resume.
 - PDF resume: source page + progress + zoom + view mode through `ReadingState`; saves debounce 400 ms and flush on exit.
-- `DocumentAdapter` exposes `extractTextGeometry()` returning Kola-owned `DocumentTextChunk`s.
-- PDF extraction uses `PdfPage.loadStructuredText()` and maps engine objects through `PdfTextGeometryMapper`.
-- `DocumentTextChunk` preserves page text, per-character rectangles, fragment ranges/bounds/direction, page extent, rotation, and source locator.
-- Geometry remains native PDF points with bottom-left origin; screen/viewer coordinates are never source geometry (D-022).
-- PDF `extractIndexableContent()` emits page-level `IndexChunk`s with stable PDF locations.
-- PDF KDG emits conservative page `sourceVisualBlock` nodes at `FlowQuality.extracted`; no semantic paragraph claim yet.
-- PDF capability flags still advertise fidelity only. Search/Flow/selection/annotations remain false until user-facing integrations exist.
+- PDF extraction: `PdfPage.loadStructuredText()` -> `PdfTextGeometryMapper` -> Kola `DocumentTextChunk`.
+- Geometry stays native PDF points with bottom-left origin (D-022).
+- PDF `extractIndexableContent()` emits page-level `IndexChunk`s with stable PDF locators.
+- `DriftSearchRepository` persists document metadata + content in SQLite FTS5 and stores index freshness separately.
+- `DocumentSearchService` lazily indexes stale documents and reuses an index when document revision + extractor version match.
+- Global Search searches local metadata/content; Reader Search returns content hits only.
+- Search results carry `DocumentLocation`; Reader converts them to format-neutral `FidelityNavigationRequest`s.
+- PDF renderer resolves search jumps to exact source pages without exposing `PdfViewerController` outside the adapter renderer.
+- PDF capability advertises `fidelityView` + `textSearch`. Flow/text selection/text annotations remain false.
 
-## Extraction path
+## Search path
 
 ```text
-PdfrxPdfHandle
-  -> PdfPage.loadStructuredText()
-  -> PdfPageText / fragments / character rectangles
-  -> PdfTextGeometryMapper
-  -> DocumentTextChunk
-       -> IndexChunk
-       -> KDG sourceVisualBlock
+KolaDocument
+  -> revision/extractor freshness check
+  -> DocumentAdapter.extractIndexableContent()
+  -> IndexChunk
+  -> DocumentSearchService
+  -> DriftSearchRepository
+  -> SQLite FTS5
+  -> SearchHit + DocumentLocation
+  -> FidelityNavigationRequest
+  -> PDF source page
 ```
 
 ## Important files
 
 ```text
-lib/document/text/document_text_geometry.dart
-lib/document/registry/document_adapter.dart
-lib/document/adapters/pdf/pdf_text_geometry_mapper.dart
-lib/document/adapters/pdf/pdfrx_pdf_adapter.dart
-test/document/adapters/pdf/pdf_text_geometry_mapper_test.dart
-test/document/adapters/pdf/pdf_text_extraction_test.dart
+lib/core/database/kola_database.dart
+lib/features/search/domain/search_models.dart
+lib/features/search/domain/search_repository.dart
+lib/features/search/data/drift_search_repository.dart
+lib/features/search/application/document_search_service.dart
+lib/core/providers/search_providers.dart
+lib/features/search/presentation/search_screen.dart
+lib/features/reader/presentation/reader_screen.dart
+lib/document/fidelity/document_fidelity_renderer.dart
+lib/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart
 ```
 
 ## Invariants
 
-- Core reading requires no account/network.
+- Core reading/search requires no account/network.
 - Original files are never modified; managed copies are durable library data.
-- Format/engine types stay behind Kola-owned adapters/models.
-- Source geometry is source-native and stable; never store zoom/window/screen coordinates as annotation geometry.
-- Extracted text does not imply correct semantic reading order or Flow readiness.
-- Capability flags describe integrated Kola features, not underlying engine features.
+- Search is format-neutral and consumes `IndexChunk`; no PDF-specific schema columns.
+- Search locators are source locators, never screen/viewer coordinates.
+- Global search may include metadata; in-reader search uses content hits only.
+- Search index failure for one document must not block results from the rest of the library or fail import.
+- Capability flags describe integrated Kola features, not underlying engine primitives.
 - Flow/selection/annotations must resolve back to stable source locations before being enabled.
 - Position, coverage, and active reading time remain separate.
 - AI/study systems remain out of scope; BYOC remains optional.
 
 ## Verification
 
-PR #4 is merged on `main` as `515224bf8953b9050e1b9e49d5abf7328e747ad9`. Its exact head passed Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, mapper/geometry tests, and the full existing test suite are green. The generated real-PDF/PDFium integration test remains in the suite but runs only when `PDFIUM_PATH` points to a native libpdfium because standard `flutter test` runners do not bundle pdfrx native assets. Native/device extraction still requires that separate integration gate.
+PR #5 code head `bfde404261e1c04a037c43ee6ac0755f082ba9ec` passed Flutter CI run 101 on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, FTS5 persistence/query/cleanup tests, lazy-index + revision-invalidation tests, and the full existing test suite are green. A final exact-head CI run is required after this mandatory state-file synchronization before merge.
 
 ## Current risks / blockers
 
-- PDF text fragment order comes from PDF extraction and is not yet a validated semantic reading order.
-- Scanned/image-only PDFs will yield little/no text until local OCR exists.
-- Search index persistence/query UI is not implemented yet despite `IndexChunk` production.
+- First query for an older/stale PDF can take time; new imports are warmed in the background but dedicated indexing-progress UX can improve later.
+- PDF text order is extracted order, not yet validated semantic reading order.
+- Scanned/image-only PDFs yield little/no text until local OCR exists.
+- Physical PDF search/index/navigation still needs hands-on platform testing; CI validates code/data behavior, not full device UX.
+- Native PDFium extraction tests require `PDFIUM_PATH` under `flutter test`.
 - Text selection and durable text anchors are not implemented yet.
-- Physical PDF rendering/resume/extraction still needs hands-on platform testing.
-- Native PDFium engine extraction test requires `PDFIUM_PATH` when run under `flutter test`.
-- Password-protected/corrupt PDF UX remains basic.
-- Native platform folders still need stable generation/commit on a Flutter-equipped machine.
 
 ## Next recommended action
 
-1. Add a local persistent text index/search service consuming `IndexChunk`s.
-2. Wire Reader search UI to page-level results and navigation; only then enable PDF `textSearch` capability.
-3. Build source-linked text selection from page character indices + PDF rectangles.
-4. Persist highlight/note anchors with quote/context + ranges + source geometry; then enable annotation capabilities.
-5. Begin reconstructed PDF Flow only after reading-order/source-map quality tests exist.
+1. Merge verified persistent local search after exact-head CI.
+2. Build source-linked PDF text selection from character indices + PDF rectangles.
+3. Persist highlight/note anchors with quote/context + logical ranges + source geometry.
+4. Render/search annotation results and only then enable PDF text-annotation capability.
+5. Begin reconstructed PDF Flow after reading-order/source-map quality tests exist.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.
 

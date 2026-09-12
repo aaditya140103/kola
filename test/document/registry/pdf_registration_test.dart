@@ -5,7 +5,7 @@ import 'package:kola/document/registry/format_registry.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
 
 void main() {
-  test('PDF adapter registers fidelity without claiming unfinished features', () {
+  test('PDF adapter advertises only integrated reader capabilities', () {
     final FormatRegistry registry = FormatRegistry(<PdfrxPdfAdapter>[
       const PdfrxPdfAdapter(DocumentSourceResolver()),
     ]);
@@ -14,9 +14,9 @@ void main() {
 
     expect(capabilities, isNotNull);
     expect(capabilities!.fidelityView, isTrue);
+    expect(capabilities.textSearch, isTrue);
     expect(capabilities.flowMode, isFalse);
     expect(capabilities.textSelection, isFalse);
-    expect(capabilities.textSearch, isFalse);
     expect(capabilities.textAnnotations, isFalse);
   });
 }

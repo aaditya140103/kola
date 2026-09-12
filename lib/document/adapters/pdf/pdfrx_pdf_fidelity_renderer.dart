@@ -19,12 +19,14 @@ final class PdfrxPdfFidelityRenderer implements DocumentFidelityRenderer {
     BuildContext context,
     KolaDocument document, {
     FidelityViewState? initialState,
+    FidelityNavigationRequest? navigationRequest,
     ValueChanged<FidelityViewState>? onStateChanged,
   }) {
     return _PdfrxPdfFidelityView(
       document: document,
       sourceResolver: _sourceResolver,
       initialState: initialState,
+      navigationRequest: navigationRequest,
       onStateChanged: onStateChanged,
     );
   }
@@ -35,12 +37,14 @@ class _PdfrxPdfFidelityView extends StatefulWidget {
     required this.document,
     required this.sourceResolver,
     this.initialState,
+    this.navigationRequest,
     this.onStateChanged,
   });
 
   final KolaDocument document;
   final DocumentSourceResolver sourceResolver;
   final FidelityViewState? initialState;
+  final FidelityNavigationRequest? navigationRequest;
   final ValueChanged<FidelityViewState>? onStateChanged;
 
   @override
@@ -52,6 +56,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   late Future<String> _pathFuture;
   int? _pageNumber;
   int? _pageCount;
+  int? _lastNavigationSequence;
 
   @override
   void initState() {
@@ -68,6 +73,14 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
       _pathFuture = widget.sourceResolver.resolveReadablePath(widget.document.source);
       _pageNumber = null;
       _pageCount = null;
+      _lastNavigationSequence = null;
+    }
+
+    if (widget.navigationRequest?.sequence !=
+        oldWidget.navigationRequest?.sequence) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _applyNavigationRequest(widget.navigationRequest);
+      });
     }
   }
 
@@ -118,6 +131,9 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
                       _pageCount = controller.pageCount;
                       _pageNumber = controller.pageNumber ?? initialPage;
                     });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _applyNavigationRequest(widget.navigationRequest);
+                    });
                   },
                   onPageChanged: (int? pageNumber) {
                     if (!mounted || pageNumber == null) return;
@@ -147,6 +163,26 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
         );
       },
     );
+  }
+
+  Future<void> _applyNavigationRequest(
+    FidelityNavigationRequest? request,
+  ) async {
+    if (!mounted || request == null || !_controller.isReady) return;
+    if (request.sequence == _lastNavigationSequence) return;
+    if (request.location.scheme != 'pdf') return;
+
+    final Object? rawPage = request.location.data['page'];
+    if (rawPage is! num) return;
+    final int page = rawPage
+        .toInt()
+        .clamp(1, _controller.pageCount)
+        .toInt();
+    _lastNavigationSequence = request.sequence;
+    await _controller.goToPage(pageNumber: page, anchor: PdfPageAnchor.top);
+    if (!mounted) return;
+    if (_pageNumber != page) setState(() => _pageNumber = page);
+    _emitPosition();
   }
 
   void _emitPosition() {
