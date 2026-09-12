@@ -64,7 +64,7 @@ test/document/adapters/pdf/pdf_text_extraction_test.dart
 
 ## Verification
 
-PR #3 (PDF reading-state persistence) is merged and fully green on Flutter 3.47.4 / Dart 3.13.3. Text geometry mapping is covered in normal CI without loading native PDFium. A generated real-PDF/PDFium integration test remains in the suite but is enabled only when `PDFIUM_PATH` points to a native libpdfium; standard `flutter test` runners do not bundle pdfrx native assets. The branch must pass formatter, analyzer, mapper/unit tests, and all existing tests before merge.
+PR #4 passed normal Flutter CI on 2026-09-12 with Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, mapper/geometry tests, and the full existing test suite are green. The generated real-PDF/PDFium integration test remains in the suite but runs only when `PDFIUM_PATH` points to a native libpdfium because standard `flutter test` runners do not bundle pdfrx native assets. Native/device extraction still requires that separate integration gate.
 
 ## Current risks / blockers
 
@@ -79,7 +79,7 @@ PR #3 (PDF reading-state persistence) is merged and fully green on Flutter 3.47.
 
 ## Next recommended action
 
-1. Pass CI and merge PDF text/geometry extraction.
+1. Merge verified PR #4.
 2. Add local persistent text index/search service consuming `IndexChunk`s.
 3. Wire Reader search UI to page-level results and navigation; only then enable PDF `textSearch` capability.
 4. Build source-linked text selection from page character indices + PDF rectangles.
