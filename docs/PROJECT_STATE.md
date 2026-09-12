@@ -8,7 +8,7 @@ Last updated: 2026-09-12
 
 **Phase 2: PDF Fidelity + search + source-linked annotation management + anchor recovery.**
 
-Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and now has branch instrumentation for measured quote-fallback recovery profiling. Flow remains disabled.
+Kola imports local documents, renders real PDFs, restores position, extracts source-linked text/geometry, provides persistent local FTS search, source-linked PDF highlighting, annotation management, conservative anchor recovery, resolved annotation navigation, recovered highlight geometry, handle-scoped PDF text caching, and CI-verified local quote-fallback recovery profiling. Flow remains disabled.
 
 ## Current implementation
 
@@ -26,7 +26,7 @@ Kola imports local documents, renders real PDFs, restores position, extracts sou
 - `PdfAnchorResolver` can emit local ephemeral `PdfAnchorRecoveryProfile` diagnostics (D-030): page-load requests, unique pages, quote-scan pages, candidates, strategy, and elapsed time.
 - `PdfPageTextCache` exposes in-memory hit/miss/failure/cached-page counters for profiling; counters reset when the cache is cleared.
 - `PdfrxPdfAdapter` accepts an optional recovery-profile observer for development/tests; normal app behavior does not persist or transmit diagnostics.
-- Synthetic baseline: 50 stale annotations over 200 pages should produce 200 actual cached page loads but 10,000 quote-fallback page scans, explicitly identifying repeated string scanning as the next candidate bottleneck.
+- Synthetic baseline is verified: 50 stale annotations over 200 pages produce 200 actual cached page loads but 10,000 quote-fallback page scans, identifying repeated string scanning as the next measured bottleneck.
 - Reader paints only successfully resolved current-source geometry; unresolved stale geometry is suppressed and persisted anchors remain unchanged.
 - PDF capabilities remain fidelity + text search + text selection + text annotations. Flow/ink/area annotations remain false.
 
@@ -69,7 +69,7 @@ test/document/adapters/pdf/pdf_page_text_cache_test.dart
 
 ## Verification
 
-PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`; implementation-head CI run 131 and exact-head run 132 passed. Current `perf/anchor-recovery-profiling` adds local recovery metrics, cache counters, adapter injection, and a synthetic large-document baseline. Full CI is required before merge.
+PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b7ae17`; implementation-head CI run 131 and exact-head run 132 passed. PR #12 profiling implementation passed CI run 136 on Flutter 3.47.4 / Dart 3.13.3: dependency resolution, Drift generation, formatting, analyzer, cache-counter tests, profiling tests including the 50×200 synthetic baseline, annotation recovery tests, search/database tests, and the existing app smoke suite all passed. This state synchronization is the only change after run 136 and requires one final exact-head CI pass before merge.
 
 ## Current risks / blockers
 
@@ -82,7 +82,7 @@ PR #11 is merged on `main` as squash commit `8e4069038c725c7e800d3942b393090af1b
 
 ## Next recommended action
 
-1. Pass CI and merge local recovery profiling.
+1. Merge local recovery profiling after exact-head CI.
 2. Use the measured scan baseline to design a per-handle exact-quote candidate index or batched fallback resolver, then compare scan counts before/after.
 3. Physically validate recovered highlight alignment and recovery timing on Linux + Android.
 4. Add annotation filters/export only after management UX is stable.
