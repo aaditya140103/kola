@@ -17,6 +17,7 @@ import 'package:kola/features/annotations/application/annotation_creation_servic
 import 'package:kola/features/annotations/application/annotation_navigation_service.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
 import 'package:kola/features/annotations/presentation/annotation_panel.dart';
+import 'package:kola/features/library/domain/document_repository.dart';
 import 'package:kola/features/progress/domain/reading_models.dart';
 import 'package:kola/features/progress/domain/reading_repository.dart';
 import 'package:kola/features/reader/presentation/reader_search_sheet.dart';
@@ -45,12 +46,15 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   ReadingState? _pendingBaseState;
   FidelityNavigationRequest? _navigationRequest;
   int _navigationSequence = 0;
+  late final DocumentRepository _documentRepository;
   late final ReadingRepository _readingRepository;
+  String? _openedDocumentId;
   bool _closing = false;
 
   @override
   void initState() {
     super.initState();
+    _documentRepository = ref.read(documentRepositoryProvider);
     _readingRepository = ref.read(readingRepositoryProvider);
   }
 
@@ -82,6 +86,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             onBack: _leaveReader,
           );
         }
+        _recordDocumentOpened(value.id);
         return readingState.when(
           data: (ReadingState? state) => _buildReader(context, value, state),
           loading: () => _loadingReader(),
@@ -211,6 +216,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       location: location,
       positionProgress: state?.positionProgress ?? 0.0,
       zoom: state?.zoom ?? 1.0,
+    );
+  }
+
+  void _recordDocumentOpened(String documentId) {
+    if (_openedDocumentId == documentId) return;
+    _openedDocumentId = documentId;
+    unawaited(
+      _documentRepository
+          .markOpened(documentId, DateTime.now().toUtc())
+          .catchError((Object _) {}),
     );
   }
 

@@ -13,6 +13,7 @@ import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/text/document_text_selection.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
+import 'package:kola/features/library/domain/document_repository.dart';
 import 'package:kola/features/progress/domain/reading_models.dart';
 import 'package:kola/features/progress/domain/reading_repository.dart';
 
@@ -34,11 +35,15 @@ Future<void> _mount(
   Future<KolaDocument?>? document,
   Stream<ReadingState?>? readingState,
   _ReadingRepository? repository,
+  _DocumentRepository? documentRepository,
 }) async {
   kolaRouter.go(route);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        documentRepositoryProvider.overrideWithValue(
+          documentRepository ?? _DocumentRepository(),
+        ),
         documentsProvider.overrideWith((ref) => Stream.value([_document])),
         documentProvider(_document.id)
             .overrideWith((ref) => document ?? Future.value(_document)),
@@ -82,6 +87,21 @@ void main() {
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
     expect(kolaRouter.routeInformationProvider.value.uri.path, '/library');
+  });
+
+  testWidgets('opening reader records last opened exactly once', (tester) async {
+    final documentRepository = _DocumentRepository();
+    await _mount(
+      tester,
+      route: '/reader/${_document.id}',
+      documentRepository: documentRepository,
+    );
+
+    expect(documentRepository.openedIds, <String>[_document.id]);
+    expect(documentRepository.openedTimes.single.isUtc, isTrue);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(documentRepository.openedIds, hasLength(1));
   });
 
   testWidgets('Library PDF opens and Back returns to Library', (tester) async {
@@ -199,6 +219,30 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+class _DocumentRepository implements DocumentRepository {
+  final List<String> openedIds = <String>[];
+  final List<DateTime> openedTimes = <DateTime>[];
+
+  @override
+  Stream<List<KolaDocument>> watchAll() => Stream.value(<KolaDocument>[_document]);
+
+  @override
+  Future<KolaDocument?> getById(String id) async =>
+      id == _document.id ? _document : null;
+
+  @override
+  Future<void> upsert(KolaDocument document) async {}
+
+  @override
+  Future<void> markOpened(String id, DateTime openedAt) async {
+    openedIds.add(id);
+    openedTimes.add(openedAt);
+  }
+
+  @override
+  Future<void> remove(String id) async {}
 }
 
 class _ReadingRepository implements ReadingRepository {

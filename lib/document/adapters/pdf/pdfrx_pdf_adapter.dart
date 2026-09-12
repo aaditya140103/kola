@@ -37,8 +37,11 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
 
   @override
   Future<DocumentMetadata> readMetadata(DocumentSource source) async {
-    final String path = await _sourceResolver.resolveReadablePath(source);
-    return DocumentMetadata(title: _titleFromPath(path));
+    final String readablePath = await _sourceResolver.resolveReadablePath(source);
+    final String fallbackPath = source.uri.scheme == 'file'
+        ? source.uri.toFilePath()
+        : readablePath;
+    return DocumentMetadata(title: _titleFromPath(fallbackPath));
   }
 
   @override

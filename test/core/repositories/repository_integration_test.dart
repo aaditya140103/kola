@@ -67,6 +67,60 @@ void main() {
     expect(stored?.importedAt.microsecond, now.microsecond);
   });
 
+  test('markOpened persists recency without changing document revision', () async {
+    final DateTime older = DateTime.utc(2026, 9, 12, 9);
+    final DateTime newer = DateTime.utc(2026, 9, 12, 10);
+    final DateTime opened = DateTime.utc(2026, 9, 12, 12, 30);
+    await documents.upsert(
+      KolaDocument(
+        id: 'older-import',
+        source: DocumentSource(
+          kind: DocumentSourceKind.linkedFile,
+          uri: Uri.file('/tmp/older.pdf'),
+        ),
+        format: DocumentFormat.pdf,
+        metadata: const DocumentMetadata(title: 'Older import'),
+        importedAt: older,
+        revision: 7,
+        updatedAt: older,
+      ),
+    );
+    await documents.upsert(
+      KolaDocument(
+        id: 'newer-import',
+        source: DocumentSource(
+          kind: DocumentSourceKind.linkedFile,
+          uri: Uri.file('/tmp/newer.pdf'),
+        ),
+        format: DocumentFormat.pdf,
+        metadata: const DocumentMetadata(title: 'Newer import'),
+        importedAt: newer,
+        updatedAt: newer,
+      ),
+    );
+
+    final StreamIterator<List<KolaDocument>> iterator =
+        StreamIterator<List<KolaDocument>>(
+          documents.watchAll().timeout(const Duration(seconds: 5)),
+        );
+    try {
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current.first.id, 'newer-import');
+
+      await documents.markOpened('older-import', opened);
+
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current.first.id, 'older-import');
+    } finally {
+      await iterator.cancel();
+    }
+
+    final KolaDocument? stored = await documents.getById('older-import');
+    expect(stored?.lastOpenedAt, opened);
+    expect(stored?.revision, 7);
+    expect(stored?.updatedAt, older);
+  });
+
   test('reading list and sessions round-trip through the repository', () async {
     final DateTime now = DateTime.utc(2026, 9, 12, 11);
     await documents.upsert(

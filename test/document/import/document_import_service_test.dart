@@ -79,6 +79,51 @@ void main() {
     expect((await documents.watchAll().first).length, 1);
   });
 
+  test('re-importing restores a missing managed copy', () async {
+    final File file = File('${tempDirectory.path}/repair.pdf');
+    await file.writeAsString('%PDF-1.7\nrepairable bytes');
+    final _ManagedTestStorage storage = _ManagedTestStorage(
+      Directory('${tempDirectory.path}/managed'),
+    );
+    final DocumentImportService managedImporter = DocumentImportService(
+      documents: documents,
+      picker: const _NeverDocumentPicker(),
+      fingerprints: const DocumentFingerprintService(),
+      formatDetector: const DocumentFormatDetector(),
+      sourceStorage: storage,
+      formatRegistry: FormatRegistry(),
+      now: () => DateTime.utc(2026, 9, 12, 4),
+    );
+
+    final DocumentImportResult first = await managedImporter.importPath(
+      file.path,
+      mode: DocumentImportMode.managedCopy,
+    );
+    final String managedPath = first.document.source.managedPath!;
+    expect(first.status, DocumentImportStatus.imported);
+    expect(await File(managedPath).exists(), isTrue);
+    expect(storage.prepareCalls, 1);
+
+    await File(managedPath).delete();
+    final DocumentImportResult repaired = await managedImporter.importPath(
+      file.path,
+      mode: DocumentImportMode.managedCopy,
+    );
+
+    expect(repaired.status, DocumentImportStatus.sourceRepaired);
+    expect(repaired.document.id, first.document.id);
+    expect(repaired.document.source.managedPath, managedPath);
+    expect(await File(managedPath).exists(), isTrue);
+    expect(storage.prepareCalls, 2);
+
+    final DocumentImportResult unchanged = await managedImporter.importPath(
+      file.path,
+      mode: DocumentImportMode.managedCopy,
+    );
+    expect(unchanged.status, DocumentImportStatus.alreadyPresent);
+    expect(storage.prepareCalls, 2);
+  });
+
   test('the same content at a new path relinks one document identity', () async {
     final File firstPath = File('${tempDirectory.path}/original.pdf');
     final File movedPath = File('${tempDirectory.path}/moved.pdf');
@@ -132,6 +177,39 @@ final class _LinkedTestStorage implements DocumentSourceStorage {
     return DocumentSource(
       kind: DocumentSourceKind.linkedFile,
       uri: Uri.file(File(sourcePath).absolute.path),
+    );
+  }
+}
+
+final class _ManagedTestStorage implements DocumentSourceStorage {
+  _ManagedTestStorage(this.directory);
+
+  final Directory directory;
+  int prepareCalls = 0;
+
+  @override
+  Future<DocumentSource> prepare({
+    required String sourcePath,
+    required DocumentFingerprint fingerprint,
+    required DocumentImportMode mode,
+  }) async {
+    prepareCalls += 1;
+    final String normalizedPath = File(sourcePath).absolute.path;
+    final Uri originalUri = Uri.file(normalizedPath);
+    if (mode == DocumentImportMode.linkedFile) {
+      return DocumentSource(
+        kind: DocumentSourceKind.linkedFile,
+        uri: originalUri,
+      );
+    }
+
+    await directory.create(recursive: true);
+    final File destination = File('${directory.path}/${fingerprint.hex}.pdf');
+    await File(normalizedPath).copy(destination.path);
+    return DocumentSource(
+      kind: DocumentSourceKind.managedCopy,
+      uri: originalUri,
+      managedPath: destination.path,
     );
   }
 }

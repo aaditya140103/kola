@@ -57,6 +57,8 @@ class _ImportDocumentButtonState extends ConsumerState<ImportDocumentButton> {
         DocumentImportStatus.imported => '$title was added to your library.',
         DocumentImportStatus.alreadyPresent => '$title is already in your library.',
         DocumentImportStatus.sourceUpdated => '$title was relinked to this source.',
+        DocumentImportStatus.sourceRepaired =>
+          'Managed copy for $title was restored.',
       };
       _showMessage(message);
     } on UnsupportedDocumentFormatException {

@@ -7,5 +7,7 @@ abstract interface class DocumentRepository {
 
   Future<void> upsert(KolaDocument document);
 
+  Future<void> markOpened(String id, DateTime openedAt);
+
   Future<void> remove(String id);
 }

@@ -10,7 +10,12 @@ import 'package:kola/document/registry/format_match.dart';
 import 'package:kola/document/registry/format_registry.dart';
 import 'package:kola/features/library/domain/document_repository.dart';
 
-enum DocumentImportStatus { imported, alreadyPresent, sourceUpdated }
+enum DocumentImportStatus {
+  imported,
+  alreadyPresent,
+  sourceUpdated,
+  sourceRepaired,
+}
 
 final class DocumentImportResult {
   const DocumentImportResult({
@@ -94,14 +99,20 @@ final class DocumentImportService {
       fingerprint.stableId,
     );
     final Uri originalUri = Uri.file(normalizedPath);
+    bool repairingManagedCopy = false;
     if (existing != null &&
         existing.source.kind == _sourceKindFor(mode) &&
         existing.source.uri == originalUri) {
-      return DocumentImportResult(
-        status: DocumentImportStatus.alreadyPresent,
-        document: existing,
-        formatMatch: match,
-      );
+      repairingManagedCopy =
+          mode == DocumentImportMode.managedCopy &&
+          !await _managedCopyExists(existing.source);
+      if (!repairingManagedCopy) {
+        return DocumentImportResult(
+          status: DocumentImportStatus.alreadyPresent,
+          document: existing,
+          formatMatch: match,
+        );
+      }
     }
 
     final DocumentSource source = await _sourceStorage.prepare(
@@ -139,6 +150,8 @@ final class DocumentImportService {
     return DocumentImportResult(
       status: existing == null
           ? DocumentImportStatus.imported
+          : repairingManagedCopy
+          ? DocumentImportStatus.sourceRepaired
           : DocumentImportStatus.sourceUpdated,
       document: document,
       formatMatch: match,
@@ -156,6 +169,12 @@ final class DocumentImportService {
     }
     if (existing != null) return existing.metadata;
     return DocumentMetadata(title: _titleFromFileName(fallbackName));
+  }
+
+  static Future<bool> _managedCopyExists(DocumentSource source) async {
+    final String? managedPath = source.managedPath;
+    if (managedPath == null || managedPath.isEmpty) return false;
+    return File(managedPath).exists();
   }
 
   static DocumentSourceKind _sourceKindFor(DocumentImportMode mode) {

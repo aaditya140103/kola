@@ -33,19 +33,25 @@ flowchart TD
 
 Local reading/search/annotation never depends on sync.
 
-## 2. Import + identity
+## 2. Import + identity + managed-source repair
 
 ```mermaid
 flowchart LR
     Pick[Native Picker] --> Detect[Format Probe]
     Pick --> Hash[Stream SHA-256] --> ID[sha256 Document ID]
-    ID --> Store[Managed Copy / Linked File]
+    ID --> Existing{Known identity?}
+    Existing -- no --> Store[Managed Copy / Linked File]
+    Existing -- source changed --> Store
+    Existing -- same linked source --> Repo[DocumentRepository]
+    Existing -- same managed source --> Healthy{Managed copy exists?}
+    Healthy -- yes --> Repo
+    Healthy -- no --> Repair[Restore from reselected matching source] --> Store
     Detect --> Registry[FormatRegistry]
-    Store --> Repo[DocumentRepository]
-    Registry --> Repo --> DB[(SQLite)] --> Library[Reactive Library]
+    Registry --> Repo
+    Store --> Repo --> DB[(SQLite)] --> Library[Reactive Library]
 ```
 
-Rules: originals untouched; identical bytes share identity; unknown formats do not mutate library; managed copies are durable.
+Rules: originals untouched; identical bytes share identity; unknown formats do not mutate library; managed copies are durable. An exact managed-source reimport is idempotent only while its managed file exists. If the managed file is missing, the user-selected matching source recreates the deterministic managed copy and updates the existing document rather than creating a duplicate. PDF fallback titles use the original source URI filename, not the hash-named managed path.
 
 ## 3. Current PDF reader path
 
@@ -223,15 +229,16 @@ flowchart LR
 
 Recovered geometry is transient. It never silently rewrites the persisted anchor. All resolutions within one recovery pass share the open PDF handle and its disposable caches.
 
-## 11. Reading-position persistence
+## 11. Reading-position persistence + open recency
 
 ```mermaid
 flowchart LR
     PDF[PDF Viewer] --> State[FidelityViewState] --> Debounce[400 ms] --> Reading[ReadingState] --> Repo[ReadingRepository] --> DB[(SQLite)]
     DB --> Repo --> Restore[Restore page + zoom + mode] --> PDF
+    Lookup[Resolved reader document] --> Opened[DocumentRepository.markOpened] --> Recency[documents.last_opened_at] --> Library[Recent library ordering]
 ```
 
-Position is distinct from coverage and active reading time.
+Position is distinct from coverage and active reading time. `lastOpenedAt` is also separate from document structural revision: opening a document updates recency only and does not bump `revision` or `updatedAt`. The reader records it once per mounted document and treats write failure as non-blocking metadata failure.
 
 ## 12. PDF capability state
 
@@ -282,7 +289,7 @@ flowchart LR
     Location --> Request[FidelityNavigationRequest] --> Fidelity
 ```
 
-Engine-specific objects are mapped to Kola-owned models before leaving adapters. PDF outline destinations, thumbnail previews, fit transforms, and facing-page layout are renderer-local interactions and do not escape into generic Reader/domain APIs.
+Engine-specific objects are mapped to Kola-owned models before leaving adapters. PDF outline destinations, thumbnail previews, fit transforms, facing-page layout, and PDF fallback metadata logic remain renderer/adapter-local and do not escape into generic Reader/domain APIs.
 
 ## 14. Persistence boundary
 

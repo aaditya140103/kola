@@ -98,6 +98,18 @@ final class DriftDocumentRepository implements DocumentRepository {
   }
 
   @override
+  Future<void> markOpened(String id, DateTime openedAt) async {
+    await _database.customStatement(
+      'UPDATE documents SET last_opened_at = ? WHERE id = ?',
+      <Object?>[
+        DatabaseSerialization.encodeDateTime(openedAt),
+        id,
+      ],
+    );
+    _database.markTablesUpdated([_database.documents]);
+  }
+
+  @override
   Future<void> remove(String id) async {
     await _database.customStatement(
       'DELETE FROM documents WHERE id = ?',

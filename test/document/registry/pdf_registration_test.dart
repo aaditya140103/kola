@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/document/adapters/pdf/pdfrx_pdf_adapter.dart';
 import 'package:kola/document/model/document_models.dart';
@@ -21,5 +23,30 @@ void main() {
     expect(capabilities.flowMode, isFalse);
     expect(capabilities.areaAnnotations, isFalse);
     expect(capabilities.inkAnnotations, isFalse);
+  });
+
+  test('managed PDF fallback title uses the original source name', () async {
+    final Directory directory = Directory.systemTemp.createTempSync(
+      'kola-pdf-metadata-',
+    );
+    addTearDown(() async {
+      await directory.delete(recursive: true);
+    });
+    final File managed = File(
+      '${directory.path}/8f14e45fceea167a5a36dedd4bea2543.pdf',
+    );
+    await managed.writeAsString('%PDF-1.7\nmetadata fallback');
+
+    final DocumentMetadata metadata = await const PdfrxPdfAdapter(
+      DocumentSourceResolver(),
+    ).readMetadata(
+      DocumentSource(
+        kind: DocumentSourceKind.managedCopy,
+        uri: Uri.file('${directory.path}/Research Notes.pdf'),
+        managedPath: managed.path,
+      ),
+    );
+
+    expect(metadata.title, 'Research Notes');
   });
 }
