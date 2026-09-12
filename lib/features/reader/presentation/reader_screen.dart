@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/core/providers/document_engine_providers.dart';
+import 'package:kola/core/providers/repository_providers.dart';
 import 'package:kola/design_system/tokens/kola_tokens.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/registry/document_adapter.dart';
+import 'package:kola/features/progress/domain/reading_models.dart';
+import 'package:kola/features/progress/domain/reading_repository.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   const ReaderScreen({required this.documentId, super.key});
@@ -18,13 +23,30 @@ class ReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _ReaderScreenState extends ConsumerState<ReaderScreen> {
-  bool _flowMode = false;
+  static const Duration _stateSaveDebounce = Duration(milliseconds: 400);
+
   bool _controlsVisible = true;
+  bool? _flowModeOverride;
+  Timer? _readingStateTimer;
+  FidelityViewState? _pendingFidelityState;
+  ReadingState? _pendingBaseState;
+
+  @override
+  void dispose() {
+    _readingStateTimer?.cancel();
+    if (_pendingFidelityState != null) {
+      unawaited(_flushPendingReadingState());
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final AsyncValue<KolaDocument?> document = ref.watch(
       documentProvider(widget.documentId),
+    );
+    final AsyncValue<ReadingState?> readingState = ref.watch(
+      readingStateProvider(widget.documentId),
     );
 
     return document.when(
@@ -36,7 +58,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
             onBack: () => context.pop(),
           );
         }
-        return _buildReader(context, value);
+        return readingState.when(
+          data: (ReadingState? state) => _buildReader(context, value, state),
+          loading: () => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
+          error: (Object error, StackTrace stackTrace) => _ReaderMessage(
+            title: 'Could not restore reading position',
+            message: error.toString(),
+            onBack: () => context.pop(),
+          ),
+        );
       },
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -49,7 +81,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
-  Widget _buildReader(BuildContext context, KolaDocument document) {
+  Widget _buildReader(
+    BuildContext context,
+    KolaDocument document,
+    ReadingState? readingState,
+  ) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final FormatCapabilities capabilities =
         ref.watch(formatRegistryProvider).capabilitiesFor(document.format) ??
@@ -58,9 +94,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         .watch(fidelityRendererRegistryProvider)
         .rendererFor(document.format);
 
-    final Widget surface = _flowMode
+    final bool persistedFlowMode =
+        readingState?.viewMode == ReaderViewMode.flow && capabilities.flowMode;
+    final bool flowMode = _flowModeOverride ?? persistedFlowMode;
+
+    final Widget surface = flowMode
         ? const _FlowUnavailable()
-        : fidelityRenderer?.build(context, document) ??
+        : fidelityRenderer?.build(
+                context,
+                document,
+                initialState: _toFidelityViewState(readingState),
+                onStateChanged: (FidelityViewState state) =>
+                    _scheduleFidelityStateSave(state, readingState),
+              ) ??
               _FidelityUnavailable(document: document);
 
     return Scaffold(
@@ -86,12 +132,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 opacity: _controlsVisible ? 1 : 0,
                 child: _ReaderTopBar(
                   document: document,
-                  flowMode: _flowMode,
+                  flowMode: flowMode,
                   flowAvailable: capabilities.flowMode,
-                  onBack: () => context.pop(),
+                  onBack: () => unawaited(_closeReader()),
                   onModeChanged: (bool value) {
                     if (value && !capabilities.flowMode) return;
-                    setState(() => _flowMode = value);
+                    setState(() => _flowModeOverride = value);
+                    unawaited(_saveViewMode(value, readingState));
                   },
                 ),
               ),
@@ -100,6 +147,80 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         ),
       ),
     );
+  }
+
+  FidelityViewState? _toFidelityViewState(ReadingState? state) {
+    if (state == null) return null;
+    return FidelityViewState(
+      location: state.location,
+      positionProgress: state.positionProgress,
+      zoom: state.zoom,
+    );
+  }
+
+  void _scheduleFidelityStateSave(
+    FidelityViewState state,
+    ReadingState? baseState,
+  ) {
+    _pendingFidelityState = state;
+    _pendingBaseState = baseState;
+    _readingStateTimer?.cancel();
+    _readingStateTimer = Timer(
+      _stateSaveDebounce,
+      () => unawaited(_flushPendingReadingState()),
+    );
+  }
+
+  Future<void> _flushPendingReadingState() async {
+    _readingStateTimer?.cancel();
+    _readingStateTimer = null;
+
+    final FidelityViewState? pending = _pendingFidelityState;
+    final ReadingState? baseState = _pendingBaseState;
+    if (pending == null) return;
+
+    _pendingFidelityState = null;
+    _pendingBaseState = null;
+
+    final ReadingRepository repository = ref.read(readingRepositoryProvider);
+    await repository.saveState(
+      ReadingState(
+        documentId: widget.documentId,
+        location: pending.location,
+        positionProgress: pending.positionProgress,
+        viewMode: ReaderViewMode.fidelity,
+        zoom: pending.zoom,
+        activeThemeId: baseState?.activeThemeId,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<void> _saveViewMode(bool flowMode, ReadingState? current) async {
+    if (_pendingFidelityState != null) {
+      await _flushPendingReadingState();
+      current = ref.read(readingStateProvider(widget.documentId)).value;
+    }
+
+    final ReadingRepository repository = ref.read(readingRepositoryProvider);
+    await repository.saveState(
+      ReadingState(
+        documentId: widget.documentId,
+        location: current?.location,
+        positionProgress: current?.positionProgress ?? 0.0,
+        viewMode: flowMode ? ReaderViewMode.flow : ReaderViewMode.fidelity,
+        zoom: current?.zoom ?? 1.0,
+        activeThemeId: current?.activeThemeId,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<void> _closeReader() async {
+    if (_pendingFidelityState != null) {
+      await _flushPendingReadingState();
+    }
+    if (mounted) context.pop();
   }
 }
 
