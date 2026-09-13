@@ -397,17 +397,31 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         : await _flushPendingReadingState(repository);
     final ReadingState? base = flushed ?? current;
 
-    await repository.saveState(
-      ReadingState(
-        documentId: widget.documentId,
-        location: base?.location,
-        positionProgress: base?.positionProgress ?? 0.0,
-        viewMode: flowMode ? ReaderViewMode.flow : ReaderViewMode.fidelity,
-        zoom: base?.zoom ?? 1.0,
-        activeThemeId: base?.activeThemeId,
-        updatedAt: DateTime.now().toUtc(),
-      ),
-    );
+    try {
+      await repository.saveState(
+        ReadingState(
+          documentId: widget.documentId,
+          location: base?.location,
+          positionProgress: base?.positionProgress ?? 0.0,
+          viewMode: flowMode ? ReaderViewMode.flow : ReaderViewMode.fidelity,
+          zoom: base?.zoom ?? 1.0,
+          activeThemeId: base?.activeThemeId,
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+    } catch (error) {
+      // A view-mode metadata write failure must never trap the reader or
+      // escape as an unhandled async error from the mode toggle.
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Could not save view preference: $error'),
+            ),
+          );
+      }
+    }
   }
 
   Widget _loadingReader() => Scaffold(

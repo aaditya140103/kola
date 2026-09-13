@@ -9,8 +9,13 @@ import 'package:kola/core/providers/annotation_providers.dart';
 import 'package:kola/core/providers/app_data_providers.dart';
 import 'package:kola/core/providers/document_engine_providers.dart';
 import 'package:kola/core/providers/repository_providers.dart';
+import 'package:kola/document/anchors/anchor_resolution.dart';
 import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
+import 'package:kola/document/graph/kola_document_graph.dart';
 import 'package:kola/document/model/document_models.dart';
+import 'package:kola/document/registry/document_adapter.dart';
+import 'package:kola/document/registry/format_registry.dart';
+import 'package:kola/document/text/document_text_geometry.dart';
 import 'package:kola/document/text/document_text_selection.dart';
 import 'package:kola/features/annotations/domain/annotation_models.dart';
 import 'package:kola/features/library/domain/document_repository.dart';
@@ -36,6 +41,7 @@ Future<void> _mount(
   Stream<ReadingState?>? readingState,
   _ReadingRepository? repository,
   _DocumentRepository? documentRepository,
+  FormatRegistry? formatRegistry,
 }) async {
   kolaRouter.go(route);
   await tester.pumpWidget(
@@ -65,6 +71,8 @@ Future<void> _mount(
         fidelityRendererRegistryProvider.overrideWithValue(
           FidelityRendererRegistry([_Renderer()]),
         ),
+        if (formatRegistry != null)
+          formatRegistryProvider.overrideWithValue(formatRegistry),
       ],
       child: const KolaApp(),
     ),
@@ -219,6 +227,44 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'flow toggle survives a failing view-mode save',
+    (tester) async {
+      final repository = _ReadingRepository()..fail = true;
+      await _mount(
+        tester,
+        route: '/reader/${_document.id}',
+        repository: repository,
+        formatRegistry: FormatRegistry(<DocumentAdapter>[
+          _FlowCapableAdapter(),
+        ]),
+      );
+      expect(find.text('PDF surface'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Flow'));
+      await tester.pumpAndSettle();
+      expect(find.text('Flow Mode is not available yet'), findsOneWidget);
+      expect(
+        find.textContaining('Could not save view preference'),
+        findsOneWidget,
+      );
+      expect(repository.saved, hasLength(1));
+      expect(repository.saved.single.viewMode, ReaderViewMode.flow);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byTooltip('Fidelity'));
+      await tester.pumpAndSettle();
+      expect(find.text('PDF surface'), findsOneWidget);
+      expect(repository.saved, hasLength(2));
+      expect(repository.saved.last.viewMode, ReaderViewMode.fidelity);
+      expect(tester.takeException(), isNull);
+
+      // Let the snackbar auto-dismiss so no timer outlives the test.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    },
+  );
 }
 
 class _DocumentRepository implements DocumentRepository {
@@ -256,6 +302,53 @@ class _ReadingRepository implements ReadingRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FlowCapableAdapter implements DocumentAdapter {
+  @override
+  DocumentFormat get format => DocumentFormat.pdf;
+
+  @override
+  FormatCapabilities get capabilities => const FormatCapabilities(
+    fidelityView: true,
+    flowMode: true,
+  );
+
+  @override
+  Future<DocumentMetadata> readMetadata(DocumentSource source) async =>
+      const DocumentMetadata(title: 'Navigation sample');
+
+  @override
+  Future<DocumentHandle> open(KolaDocument document) =>
+      throw UnsupportedError('not needed');
+
+  @override
+  Future<FidelityDescriptor?> buildFidelityView(DocumentHandle handle) async =>
+      const FidelityDescriptor(kind: FidelitySurfaceKind.pdfPages);
+
+  @override
+  Stream<DocumentTextChunk> extractTextGeometry(DocumentHandle handle) =>
+      const Stream<DocumentTextChunk>.empty();
+
+  @override
+  Stream<GraphChunk> buildDocumentGraph(
+    DocumentHandle handle,
+    GraphBuildOptions options,
+  ) => const Stream<GraphChunk>.empty();
+
+  @override
+  Stream<IndexChunk> extractIndexableContent(DocumentHandle handle) =>
+      const Stream<IndexChunk>.empty();
+
+  @override
+  Future<AnchorResolution> resolveAnchor(
+    DocumentHandle handle,
+    AnnotationAnchor anchor,
+  ) => throw UnsupportedError('not needed');
+
+  @override
+  Future<ExportResult> export(ExportRequest request) =>
+      throw UnsupportedError('not needed');
 }
 
 class _Renderer implements DocumentFidelityRenderer {

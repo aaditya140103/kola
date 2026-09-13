@@ -8,7 +8,9 @@ Last updated: 2026-09-13
 
 **Phase 2: PDF fidelity + search + source-linked annotation management/recovery.**
 
-The stability/debug pass is merged on main (startup pdfrx init, import detection, per-highlight recovery isolation, search revision serialization, managed-copy repair). This patch resumes the deferred roadmap item: batch/multi-quote anchor recovery — one recovery pass now scans pages once for all pending quotes instead of once per distinct quote.
+The stability/debug pass is merged on main (startup pdfrx init, import detection, per-highlight recovery isolation, search revision serialization, managed-copy repair), and the deferred batch/multi-quote anchor recovery is implemented on this branch: one recovery pass scans pages once for all pending quotes instead of once per distinct quote.
+
+This patch hardens the PDF reader's async action paths per the roadmap: fit commands now bounds-check pdfrx's transient page-layout list before indexing it, page/zoom/selection actions re-check `mounted` after awaits and contain viewer-teardown failures, and a failing view-mode save can no longer escape as an unhandled async error.
 
 The repo also carries a **dev-only web preview harness** (`tool/web_preview/`): a static web mirror of the current Flutter UI served at `http://0.0.0.0:8080` because the development sandbox cannot run Flutter (network policy blocks `pub.dev` and Flutter's Google storage). It shares no code with the product.
 
@@ -27,6 +29,9 @@ The repo also carries a **dev-only web preview harness** (`tool/web_preview/`): 
 - Measured: 50 distinct stale quotes × 200 pages fall from 10,000 per-anchor quote-scan page visits to one 200-page warm-up pass (0 per-anchor scans, 50 candidate cache hits, 0 misses; page-text extraction misses stay 200). The repeated-quote and no-index baselines are unchanged.
 - Handle-scoped page-text and exact-quote caches remain disposable and local to one open PDF handle (D-029..D-032).
 - Recovery profiling remains deterministic and operation-count based; it does not depend on machine-specific timing thresholds.
+- PDF fit commands (Fit width / Fit page) bounds-check the transient page-layout list before indexing it: during progressive loading or an in-flight single/spread relayout the list can be shorter than the page count, and pdfrx's fit-matrix helpers index it without checks; the commands no-op instead of throwing.
+- Page/zoom navigation and selection emission re-check `mounted` after every awaited controller call, and selection emission contains viewer-teardown failures so nothing escapes as an unhandled async error.
+- A failing view-mode save shows a transient warning instead of trapping the reader or escaping as an async error, matching position-save behavior.
 - Reader uses toolbar + Expanded source surface; Home/Library/Search push reader routes and Back restores origin with Library fallback for direct routes.
 - PDF outline, lazy thumbnail navigation, Fit Width / Fit Page, and optional >= 840 dp facing-page spread remain integrated inside the PDF renderer boundary.
 - PDF remains the only registered adapter/renderer. Import recognition does not imply reading support.
@@ -64,23 +69,22 @@ The repo also carries a **dev-only web preview harness** (`tool/web_preview/`): 
 
 Stability commit `31f1333` passed Flutter CI #155; search-revision head `7dd0195` passed CI #158; managed-copy repair `cc67ffb` passed CI as well. Batch warm-up head `8b25e56` passed Flutter CI #161 (format report, analyzer, full test suite), including deterministic operation-count regressions: a 50-unique-quotes × 200-pages batch profile (one 200-page warm-up, 0 per-anchor quote-scan visits, 50 candidate cache hits), warm-up/per-quote scan candidate equivalence (including overlapping matches), failure eviction + retry, skip semantics, ambiguity/context invariants preserved after warm-up, per-anchor isolation in both paths, and service-level batch/sequential equivalence. Because the sandbox cannot run Dart, the algorithm and every new counter expectation were additionally validated against a faithful Python port of the cache/index/resolver logic before commit. Repository CI is the authoritative gate.
 
+The reader-hardening patch adds real-pdfium widget regressions: fit commands exercised during progressive deep-page loading, resize-driven spread activation/deactivation relayouts, and viewer teardown with page/zoom actions mid-flight (no exceptions), plus a reader test proving a failing view-mode save neither traps the reader nor escapes as an unhandled async error while the mode still switches. pdfrx API surface used by the guards was verified against the pinned pdfrx 2.6.1 sources.
+
 The preview harness touches no Dart code; it was verified headlessly in Chromium (43/43 DOM/pixel assertions) plus `node --check`. Flutter CI remains the only gate for product code.
 
 ## Risks / blockers
 
 - Physical Linux/Android reproduction remains essential because CI cannot cover all native PDFium/window/file-picker timing and packaging behavior.
-- Several PDF renderer actions are launched asynchronously from UI callbacks; controller/disposal races still require focused defensive handling.
-- `Fit Page` reads the pdfrx page-layout list without a transient-layout bounds guard; rapid resize/spread changes can race this access.
 - Flow-mode persistence has an unawaited save path that should be hardened before Flow becomes enabled for any format.
 - Managed-copy health catches missing/truncated/wrong-sized files, but same-size bit corruption is not rehashed during ordinary duplicate import.
-- Batch warm-up is scoped to one recovery pass over an open handle: single-annotation navigation still resolves one anchor per open handle, and the transient automaton costs O(total pending quote characters) memory per pass.
 - Physical predictive Back, large text, keyboard focus, atypical/rotated/password PDFs, very large thumbnails/outlines, and packaging remain validation gaps.
 
 ## Next recommended action
 
-1. Harden PDF renderer controller actions, transient page-layout access, selection callbacks, and reader persistence futures; add regressions where feasible.
-2. Physically run import/open/scroll/select/search/annotations/Contents/Pages/Fit/Spread/Back/reopen on Linux, then Android, including 50+ stale annotations across a large PDF to exercise batch recovery in practice.
-3. Capture any Fedora runtime stack traces that remain after the stability fixes and map them to the audited paths.
+1. Physically run import/open/scroll/select/search/annotations/Contents/Pages/Fit/Spread/Back/reopen on Linux, then Android, including 50+ stale annotations across a large PDF to exercise batch recovery in practice.
+2. Capture any Fedora runtime stack traces that remain after the stability fixes and map them to the audited paths.
+3. Harden the Flow-mode persistence save path before Flow becomes enabled for any format.
 4. Consider profiling whether navigation (single-anchor) paths ever need warm-up sharing; do not add caches beyond the open handle.
 
 Do not implement cloud providers yet. Do not add AI or dedicated study systems.

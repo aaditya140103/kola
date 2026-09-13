@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kola/document/adapters/pdf/pdfrx_pdf_fidelity_renderer.dart';
+import 'package:kola/document/fidelity/document_fidelity_renderer.dart';
 import 'package:kola/document/model/document_models.dart';
 import 'package:kola/document/source/document_source_resolver.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -213,6 +214,126 @@ void main() {
       expect(find.text('Page 1 of 3'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(() => directory.delete(recursive: true));
+    },
+  );
+
+  testWidgets(
+    'fit commands and zoom actions survive transient layouts and teardown',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final directory = Directory.systemTemp.createTempSync('kola-viewer-');
+      final file = File('${directory.path}/sample.pdf');
+      file.writeAsBytesSync(
+        buildPdfWithPages(
+          List<String>.generate(40, (int index) => 'Page text ${index + 1}'),
+        ),
+      );
+      final document = KolaDocument(
+        id: 'sha256:viewer-race-test',
+        source: DocumentSource(
+          kind: DocumentSourceKind.managedCopy,
+          uri: Uri.file('/original/removed.pdf'),
+          managedPath: file.path,
+        ),
+        format: DocumentFormat.pdf,
+        metadata: const DocumentMetadata(title: 'Sample'),
+        importedAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
+      );
+      const renderer = PdfrxPdfFidelityRenderer(DocumentSourceResolver());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => renderer.build(
+                context,
+                document,
+                initialState: FidelityViewState(
+                  location: DocumentLocation(
+                    scheme: 'pdf',
+                    data: const <String, Object?>{'page': 35},
+                  ),
+                  positionProgress: 0.0,
+                  zoom: 1.0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Progressive loading is real asynchronous work outside the fake
+      // clock; wait until the deep start page is current.
+      for (
+        var attempt = 0;
+        attempt < 100 && find.text('Page 35 of 40').evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.text('Page 35 of 40'), findsOneWidget);
+
+      // Fit page while progressive page layout may still be catching up
+      // with the deep start position.
+      await tester.tap(find.byTooltip('Fit view'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fit page'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+
+      final viewer = tester.widget<PdfViewer>(find.byType(PdfViewer));
+      final PdfViewerController controller = viewer.controller!;
+
+      // Enable the two-page spread so a narrow resize forces a relayout.
+      await tester.tap(find.byTooltip('Page layout'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Two-page spread'));
+      await tester.pump();
+      for (
+        var attempt = 0;
+        attempt < 50 && !_hasFacingPair(controller);
+        attempt++
+      ) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(_hasFacingPair(controller), isTrue);
+
+      // Fit page while a resize-driven spread deactivation relayout is
+      // still in flight.
+      await tester.tap(find.byTooltip('Fit view'));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(600, 600);
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.tap(find.text('Fit page'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+
+      // Fit width while the resize back re-enables the spread layout.
+      await tester.tap(find.byTooltip('Fit view'));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(900, 600);
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.tap(find.text('Fit width'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+
+      // Tear the viewer down while page and zoom actions are mid-flight.
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.tap(find.byTooltip('Zoom in'));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
       await tester.runAsync(() => directory.delete(recursive: true));
     },
   );
