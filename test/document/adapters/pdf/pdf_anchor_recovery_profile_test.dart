@@ -172,6 +172,88 @@ void main() {
       );
     },
   );
+
+  test(
+    'batch warm-up resolves 50 unique stale quotes with one page pass',
+    () async {
+      const int pageCount = 200;
+      const int annotationCount = 50;
+      const int firstTargetPage = 101;
+      final PdfPageTextCache cache = PdfPageTextCache((int page) async {
+        final int quoteNumber = page - firstTargetPage;
+        final String text =
+            quoteNumber >= 0 && quoteNumber < annotationCount
+            ? 'prefix ${_uniqueQuote(quoteNumber)} suffix'
+            : 'page $page filler';
+        return _chunk(page, text);
+      });
+      final PdfExactQuoteIndex quoteIndex = PdfExactQuoteIndex(
+        pageCount: pageCount,
+        loadPageText: (int page) async => (await cache.get(page))!.text,
+      );
+      final PdfQuoteWarmUpResult warmUp = await quoteIndex.warmUp(<String>[
+        for (int i = 0; i < annotationCount; i += 1) _uniqueQuote(i),
+      ]);
+      final List<PdfAnchorRecoveryProfile> profiles =
+          <PdfAnchorRecoveryProfile>[];
+
+      for (int i = 0; i < annotationCount; i += 1) {
+        final String quote = _uniqueQuote(i);
+        final PdfAnchorResolver resolver = PdfAnchorResolver(
+          pageCount: pageCount,
+          loadPageText: (int page) async => (await cache.get(page))!.text,
+          lookupQuoteCandidates: quoteIndex.lookup,
+          onProfile: profiles.add,
+        );
+        final AnchorResolution resolution = await resolver.resolve(
+          _anchor(page: 1, start: 0, end: quote.length, quote: quote),
+        );
+
+        expect(resolution.resolved, isTrue);
+        expect(resolution.strategy, AnchorResolutionStrategy.quoteContext);
+      }
+
+      final PdfPageTextCacheSnapshot cacheStats = cache.snapshot;
+      final PdfExactQuoteIndexSnapshot quoteStats = quoteIndex.snapshot;
+      final int scannedPages = profiles.fold<int>(
+        0,
+        (int total, PdfAnchorRecoveryProfile profile) =>
+            total + profile.quoteSearchPagesScanned,
+      );
+
+      // The per-anchor baseline above records 10,000 quote-scan page visits
+      // (pageCount x annotationCount). One batch warm-up pass plus cached
+      // per-anchor lookups records only the warm-up's pageCount page visits.
+      expect(warmUp.warmedQuotes, annotationCount);
+      expect(warmUp.skippedQuotes, 0);
+      expect(warmUp.pagesScanned, pageCount);
+
+      expect(profiles, hasLength(annotationCount));
+      expect(scannedPages, 0);
+      expect(
+        profiles.every(
+          (PdfAnchorRecoveryProfile profile) =>
+              profile.pageLoadRequests == 2 &&
+              profile.uniquePagesRequested == 2 &&
+              profile.quoteSearchPagesScanned == 0 &&
+              profile.quoteCandidatesFound == 1,
+        ),
+        isTrue,
+      );
+
+      expect(quoteStats.misses, 0);
+      expect(quoteStats.hits, annotationCount);
+      expect(quoteStats.cachedQuotes, annotationCount);
+      expect(quoteStats.batchPagesScanned, pageCount);
+
+      expect(cacheStats.misses, pageCount);
+      expect(cacheStats.cachedPages, pageCount);
+      expect(cacheStats.loadFailures, 0);
+      // The warm-up loads every page once; each anchor resolution then reads
+      // only its locator page and its candidate page, all cache hits.
+      expect(cacheStats.hits, annotationCount * 2);
+    },
+  );
 }
 
 AnnotationAnchor _anchor({

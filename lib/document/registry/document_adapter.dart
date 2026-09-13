@@ -140,3 +140,18 @@ abstract interface class DocumentAdapter {
 
   Future<ExportResult> export(ExportRequest request);
 }
+
+/// Optional adapter capability for resolving many anchors in one pass.
+///
+/// Adapters that keep handle-scoped caches can share scanning work across a
+/// batch of anchors instead of repeating it per anchor. Implementations return
+/// resolutions in the same order as [anchors], and each resolution must match
+/// what a single [DocumentAdapter.resolveAnchor] call would produce, except
+/// that an anchor whose resolution fails must be returned as unresolved so it
+/// alone is skipped instead of suppressing the whole batch.
+abstract interface class BatchAnchorResolver {
+  Future<List<AnchorResolution>> resolveAnchors(
+    DocumentHandle handle,
+    List<AnnotationAnchor> anchors,
+  );
+}

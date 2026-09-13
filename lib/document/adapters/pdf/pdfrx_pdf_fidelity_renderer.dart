@@ -361,6 +361,12 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   Future<void> _fitWidth() async {
     if (!_controller.isReady) return;
     final int page = _currentPageNumber(_controller.pageCount);
+    // The page-layout list is transient: it can be shorter than the page
+    // count while pages load progressively or a single/spread relayout is
+    // still in flight, and pdfrx's fit-matrix helpers index it without
+    // bounds checks.
+    final List<Rect> pageLayouts = _controller.layout.pageLayouts;
+    if (page < 1 || page > pageLayouts.length) return;
     final matrix = _controller.calcMatrixFitWidthForPage(pageNumber: page);
     if (matrix == null) return;
 
@@ -372,6 +378,10 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
   Future<void> _fitPage() async {
     if (!_controller.isReady) return;
     final int page = _currentPageNumber(_controller.pageCount);
+    // See _fitWidth: the transient layout list can be shorter than the page
+    // count during progressive loading or an in-flight relayout.
+    final List<Rect> pageLayouts = _controller.layout.pageLayouts;
+    if (page < 1 || page > pageLayouts.length) return;
     final widthMatrix = _controller.calcMatrixFitWidthForPage(
       pageNumber: page,
     );
@@ -383,8 +393,10 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final double widthZoom = widthMatrix.getMaxScaleOnAxis();
     final double heightZoom = heightMatrix.getMaxScaleOnAxis();
     final double fitZoom = widthZoom <= heightZoom ? widthZoom : heightZoom;
-    final pageLayout = _controller.layout.pageLayouts[page - 1];
-    final matrix = _controller.calcMatrixFor(pageLayout.center, zoom: fitZoom);
+    final matrix = _controller.calcMatrixFor(
+      pageLayouts[page - 1].center,
+      zoom: fitZoom,
+    );
 
     await _controller.goTo(matrix, duration: KolaMotion.standard);
     if (!mounted) return;
@@ -458,32 +470,44 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
       return;
     }
 
-    final List<PdfPageTextRange> rawRanges = await delegate.getSelectedTextRanges();
-    if (rawRanges.isEmpty) return;
+    try {
+      final List<PdfPageTextRange> rawRanges = await delegate
+          .getSelectedTextRanges();
+      if (rawRanges.isEmpty || !mounted) return;
 
-    final List<PdfPageTextRange> ranges = List<PdfPageTextRange>.of(rawRanges)
-      ..sort((PdfPageTextRange a, PdfPageTextRange b) {
-        final int pageComparison = a.pageNumber.compareTo(b.pageNumber);
-        return pageComparison == 0 ? a.start.compareTo(b.start) : pageComparison;
-      });
+      final List<PdfPageTextRange> ranges = List<PdfPageTextRange>.of(rawRanges)
+        ..sort((PdfPageTextRange a, PdfPageTextRange b) {
+          final int pageComparison = a.pageNumber.compareTo(b.pageNumber);
+          return pageComparison == 0
+              ? a.start.compareTo(b.start)
+              : pageComparison;
+        });
 
-    String selectedText = await delegate.getSelectedText();
-    if (selectedText.trim().isEmpty) {
-      selectedText = ranges.map((PdfPageTextRange range) => range.text).join('\n');
+      String selectedText = await delegate.getSelectedText();
+      if (!mounted) return;
+      if (selectedText.trim().isEmpty) {
+        selectedText = ranges
+            .map((PdfPageTextRange range) => range.text)
+            .join('\n');
+      }
+      if (selectedText.trim().isEmpty) return;
+
+      final List<DocumentTextSelectionRange> mapped = ranges
+          .map(_mapSelectionRange)
+          .toList(growable: false);
+      callback(
+        DocumentTextSelection(
+          documentId: widget.document.id,
+          text: selectedText,
+          ranges: mapped,
+        ),
+      );
+      await delegate.clearTextSelection();
+    } catch (_) {
+      // The viewer can be torn down while the context-menu action is still
+      // resolving; a failed selection emission must not escape as an
+      // unhandled async error from the reader.
     }
-    if (selectedText.trim().isEmpty) return;
-
-    final List<DocumentTextSelectionRange> mapped = ranges
-        .map(_mapSelectionRange)
-        .toList(growable: false);
-    callback(
-      DocumentTextSelection(
-        documentId: widget.document.id,
-        text: selectedText,
-        ranges: mapped,
-      ),
-    );
-    await delegate.clearTextSelection();
   }
 
   DocumentTextSelectionRange _mapSelectionRange(PdfPageTextRange range) {
@@ -602,6 +626,7 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final int current = _controller.pageNumber ?? 1;
     if (current <= 1) return;
     await _controller.goToPage(pageNumber: current - 1, anchor: PdfPageAnchor.top);
+    if (!mounted) return;
     _emitPosition();
   }
 
@@ -610,18 +635,21 @@ class _PdfrxPdfFidelityViewState extends State<_PdfrxPdfFidelityView> {
     final int current = _controller.pageNumber ?? 1;
     if (current >= _controller.pageCount) return;
     await _controller.goToPage(pageNumber: current + 1, anchor: PdfPageAnchor.top);
+    if (!mounted) return;
     _emitPosition();
   }
 
   Future<void> _zoomOut() async {
     if (!_controller.isReady) return;
     await _controller.zoomDown();
+    if (!mounted) return;
     _emitPosition();
   }
 
   Future<void> _zoomIn() async {
     if (!_controller.isReady) return;
     await _controller.zoomUp();
+    if (!mounted) return;
     _emitPosition();
   }
 }

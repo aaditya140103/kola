@@ -59,6 +59,16 @@ After that:
 flutter run
 ```
 
+### Web preview harness (optional, dev-only)
+
+`tool/web_preview/` serves a static web mirror of the current Flutter UI for quick browser review in environments where a Flutter SDK is unavailable. It is not the Kola application and never replaces platform verification:
+
+```bash
+python3 tool/web_preview/fetch_vendor.py   # pdf.js + fonts from npm
+python3 tool/web_preview/build_preview.py  # sample books
+python3 tool/web_preview/serve.py          # http://0.0.0.0:8080
+```
+
 For ordinary development checks:
 
 ```bash

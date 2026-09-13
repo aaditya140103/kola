@@ -12,7 +12,7 @@ import 'package:kola/document/text/document_text_geometry.dart';
 import 'package:kola/document/text/document_text_range_geometry.dart';
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 
-final class PdfrxPdfAdapter implements DocumentAdapter {
+final class PdfrxPdfAdapter implements DocumentAdapter, BatchAnchorResolver {
   const PdfrxPdfAdapter(
     this._sourceResolver, {
     this.onAnchorRecoveryProfile,
@@ -162,6 +162,49 @@ final class PdfrxPdfAdapter implements DocumentAdapter {
       onProfile: onAnchorRecoveryProfile,
     );
     return resolver.resolve(anchor);
+  }
+
+  @override
+  Future<List<AnchorResolution>> resolveAnchors(
+    DocumentHandle handle,
+    List<AnnotationAnchor> anchors,
+  ) async {
+    final PdfrxPdfHandle pdfHandle = _requireHandle(handle);
+    final Set<String> quotes = <String>{};
+    for (final AnnotationAnchor anchor in anchors) {
+      final String? quote = anchor.exactQuote;
+      if (anchor.documentId == pdfHandle.documentId &&
+          quote != null &&
+          quote.isNotEmpty) {
+        quotes.add(quote);
+      }
+    }
+    if (quotes.isNotEmpty) {
+      try {
+        // One handle-scoped multi-quote pass replaces one full-document scan
+        // per distinct stale quote; per-anchor lookups below reuse the cache.
+        await pdfHandle.quoteIndex.warmUp(quotes);
+      } catch (_) {
+        // A failed warm-up changes nothing: each resolution below performs
+        // (or fails from) its own scan exactly like the single-anchor path.
+      }
+    }
+
+    final List<AnchorResolution> resolutions = <AnchorResolution>[];
+    for (final AnnotationAnchor anchor in anchors) {
+      try {
+        resolutions.add(await resolveAnchor(handle, anchor));
+      } catch (_) {
+        // One malformed/stale anchor must not suppress the rest of the
+        // batch; it resolves as unresolved and the caller skips it.
+        resolutions.add(
+          const AnchorResolution.unresolved(
+            reason: 'Annotation anchor recovery failed.',
+          ),
+        );
+      }
+    }
+    return resolutions;
   }
 
   Future<DocumentTextChunk> _loadPageChunk(
